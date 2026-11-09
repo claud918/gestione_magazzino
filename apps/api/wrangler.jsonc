@@ -1,0 +1,35 @@
+{
+  // Un unico Worker: serve i file statici di Angular e l'API sotto /api.
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "magazzino",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    // Output della build Angular (npm run build:web)
+    "directory": "../web/dist/web/browser",
+    "binding": "ASSETS",
+    // Le rotte non trovate tornano a index.html (routing lato client)
+    "not_found_handling": "single-page-application",
+    // Solo /api/* passa dal codice del Worker; il resto è servito come asset
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "magazzino",
+      "database_id": "31a8ed24-50ef-4b49-9876-486708582427",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Cron Trigger notturno (02:00 UTC) per backup automatico su R2 (quando BACKUP_BUCKET è attivo)
+  "triggers": {
+    "crons": [
+      "0 2 * * *"
+    ]
+  }
+}

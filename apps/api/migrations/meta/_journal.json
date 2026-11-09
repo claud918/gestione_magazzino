@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1793189566748,
+      "tag": "0000_silent_wolverine",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793201630608,
+      "tag": "0001_simple_war_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794248299964,
+      "tag": "0002_rimozione_modello_soci",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794248420423,
+      "tag": "0003_nuovo_modello_costi_magazzino",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794248431184,
+      "tag": "0004_trigger_e_vista_disponibilita",
+      "breakpoints": true
+    }
+  ]
+}

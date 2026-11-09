@@ -1,0 +1,28 @@
+{
+  "name": "@magazzino/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --ip 0.0.0.0 --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply magazzino --local",
+    "db:migrate:remote": "wrangler d1 migrations apply magazzino --remote",
+    "db:seed:local": "node scripts/seed-and-users.mjs seed",
+    "user:manage": "node scripts/seed-and-users.mjs user"
+  },
+  "dependencies": {
+    "@magazzino/shared": "*",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.14"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261028.1",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "~6.0.2",
+    "wrangler": "^4.154.0"
+  }
+}
+

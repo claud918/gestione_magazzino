@@ -1,0 +1,79 @@
+/**
+ * Schemi Zod e tipi condivisi tra frontend (apps/web) e API (apps/api)
+ * per la Cooperativa Barbatelle (REQUISITI.md e GLOSSARY.md).
+ */
+import { z } from 'zod';
+
+export * from './tabelle.js';
+
+// --- Healthcheck ---
+
+export const HealthResponse = z.object({
+  status: z.literal('ok'),
+  db: z.boolean(),
+});
+export type HealthResponse = z.infer<typeof HealthResponse>;
+
+// --- Ruoli e Autenticazione (Account nominativi) ---
+
+export const RuoloUtente = z.enum(['admin', 'commerciale', 'produttore']);
+export type RuoloUtente = z.infer<typeof RuoloUtente>;
+
+export const UtenteProfilo = z.object({
+  id: z.number().int().positive(),
+  email: z.string().email(),
+  nome: z.string().min(1),
+  ruolo: RuoloUtente,
+  attivo: z.boolean(),
+});
+export type UtenteProfilo = z.infer<typeof UtenteProfilo>;
+
+export const LoginInput = z.object({
+  email: z.string().trim().toLowerCase().email('Email non valida'),
+  password: z.string().min(1, 'Password obbligatoria'),
+});
+export type LoginInput = z.infer<typeof LoginInput>;
+
+export const CambioPasswordInput = z.object({
+  passwordAttuale: z.string().min(1),
+  nuovaPassword: z.string().min(8, 'La nuova password deve avere almeno 8 caratteri'),
+});
+export type CambioPasswordInput = z.infer<typeof CambioPasswordInput>;
+
+export const CreaUtenteInput = z.object({
+  email: z.string().trim().toLowerCase().email('Email non valida'),
+  nome: z.string().trim().min(1, 'Nome obbligatorio'),
+  password: z.string().min(8, 'La password deve avere almeno 8 caratteri'),
+  ruolo: RuoloUtente,
+});
+export type CreaUtenteInput = z.infer<typeof CreaUtenteInput>;
+
+// --- Vista disponibilità (raggruppata per prodotto + varietà + clone + portainnesto + campagna + tipologia) ---
+
+export interface RigaDisponibilita {
+  campagna: string;
+  prodotto: string;
+  codice_varieta: string;
+  codice_clone: string;
+  codice_portainnesto: string;
+  tipologia: string;
+  /** Σ quantità dei lotti */
+  prodotto_qta: number;
+  /** Σ quantità degli ordini */
+  ordinato: number;
+  /** Σ quantità degli ordini consegnati */
+  consegnato: number;
+  /** Prodotto − Ordinato (negativo = scoperto) */
+  disponibile: number;
+  /** Prodotto − Consegnato */
+  giacenza_fisica: number;
+  /** max(0, Ordinato − Prodotto) */
+  scoperto: number;
+}
+
+// --- Risposte API CRUD ---
+
+export interface ErroreApi {
+  error: string;
+  errori?: { campo: string; messaggio: string }[];
+}

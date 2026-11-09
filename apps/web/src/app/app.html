@@ -1,0 +1,715 @@
+<div class="app-layout">
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-brand">
+      <button class="mobile-menu-btn" (click)="menuMobileAperto.set(!menuMobileAperto())" aria-label="Menu">
+        <span>☰</span>
+      </button>
+      <div class="brand-title">
+        <h1>Gestione Vivaio</h1>
+        <span class="badge-sub">Magazzino, Ordini & Costi</span>
+      </div>
+    </div>
+
+    @if (utente()) {
+      <div class="header-user">
+        <span class="user-info">
+          <strong>{{ utente()!.nome }}</strong>
+          <small>({{ utente()!.ruolo }})</small>
+        </span>
+        <button class="btn btn-sm btn-outline-light" (click)="eseguiLogout()">Esci</button>
+      </div>
+    }
+  </header>
+
+  <!-- Login Form se non autenticato -->
+  @if (!utente() && !caricamentoIniziale()) {
+    <div class="login-wrapper">
+      <div class="login-card">
+        <h2>Accedi al Sistema</h2>
+        <p class="login-sub">Gestione costi, ordini e disponibilità magazzino</p>
+
+        @if (loginErrore()) {
+          <div class="alert alert-danger">{{ loginErrore() }}</div>
+        }
+
+        <form (ngSubmit)="eseguiLogin()">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              class="form-control"
+              [(ngModel)]="loginEmail"
+              name="email"
+              required
+              autocomplete="username"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              class="form-control"
+              [(ngModel)]="loginPassword"
+              name="password"
+              required
+              autocomplete="current-password"
+            />
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="inInvio()">
+            {{ inInvio() ? 'Accesso in corso...' : 'Accedi' }}
+          </button>
+        </form>
+
+        <div class="login-quick">
+          <small>Accesso rapido demo:</small>
+          <div class="quick-buttons">
+            <button class="btn btn-xs" (click)="impostaAccessoRapido('admin@cooperativa.it', 'AdminBarbatelle2026!')">
+              Admin
+            </button>
+            <button class="btn btn-xs" (click)="impostaAccessoRapido('commerciale@cooperativa.it', 'CommBarbatelle2026!')">
+              Commerciale
+            </button>
+            <button class="btn btn-xs" (click)="impostaAccessoRapido('rossi@cooperativa.it', 'SocioBarbatelle2026!')">
+              Produttore
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Layout Applicazione Autenticata -->
+  @if (utente()) {
+    <div class="main-container">
+      <!-- Sidebar / Menu Mobile -->
+      <aside class="app-sidebar" [class.mobile-open]="menuMobileAperto()">
+        <div class="sidebar-section">
+          <div class="sidebar-title">Report & Disponibilità</div>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'disponibilita'"
+            (click)="selezionaSezione('disponibilita')"
+          >
+            <span class="icon">📊</span>
+            <span>Report Disponibilità</span>
+          </button>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">Magazzino & Ordini</div>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'lotti_magazzino'"
+            (click)="selezionaTabella('lotti_magazzino')"
+          >
+            <span class="icon">▦</span>
+            <span>Lotti magazzino</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'ordine_impieghi'"
+            (click)="selezionaTabella('ordine_impieghi')"
+          >
+            <span class="icon">⇄</span>
+            <span>Ordini / Impieghi</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'clienti'"
+            (click)="selezionaTabella('clienti')"
+          >
+            <span class="icon">🏢</span>
+            <span>Clienti</span>
+          </button>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">Costi & Manodopera</div>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'inserimento_costi'"
+            (click)="selezionaTabella('inserimento_costi')"
+          >
+            <span class="icon">€</span>
+            <span>Inserimento costi</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'inserimento_ore'"
+            (click)="selezionaTabella('inserimento_ore')"
+          >
+            <span class="icon">⏱</span>
+            <span>Inserimento ore</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'anagrafica_personale'"
+            (click)="selezionaTabella('anagrafica_personale')"
+          >
+            <span class="icon">👤</span>
+            <span>Personale</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'centri_di_costo'"
+            (click)="selezionaTabella('centri_di_costo')"
+          >
+            <span class="icon">◎</span>
+            <span>Centri di costo</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'attivita_cdc'"
+            (click)="selezionaTabella('attivita_cdc')"
+          >
+            <span class="icon">☰</span>
+            <span>Attività per CdC</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'dettaglio_cdc'"
+            (click)="selezionaTabella('dettaglio_cdc')"
+          >
+            <span class="icon">⌖</span>
+            <span>Dettaglio CdC</span>
+          </button>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">Anagrafiche Vivaistiche</div>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'anagrafica_vite'"
+            (click)="selezionaTabella('anagrafica_vite')"
+          >
+            <span class="icon">🍇</span>
+            <span>Varietà / Cloni</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'anagrafica_portainnesto'"
+            (click)="selezionaTabella('anagrafica_portainnesto')"
+          >
+            <span class="icon">⟟</span>
+            <span>Portainnesti</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'tipi_prodotto'"
+            (click)="selezionaTabella('tipi_prodotto')"
+          >
+            <span class="icon">◇</span>
+            <span>Tipi prodotto</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Contenuto Principale -->
+      <main class="app-content">
+        <!-- Toast / Feedback messaggi -->
+        @if (messaggioOk()) {
+          <div class="toast toast-success">{{ messaggioOk() }}</div>
+        }
+        @if (messaggioErrore()) {
+          <div class="toast toast-danger">{{ messaggioErrore() }}</div>
+        }
+
+        <!-- ============================================================== -->
+        <!-- SEZIONE 1: REPORT DISPONIBILITA (Mobile Schede + Desktop Tabellare) -->
+        <!-- ============================================================== -->
+        @if (sezioneAttiva() === 'disponibilita') {
+          <div class="content-header">
+            <div>
+              <h2>Vista Disponibilità</h2>
+              <p class="subtitle">Saldi calcolati da lotti e impegni ordini</p>
+            </div>
+            <div class="header-actions">
+              <!-- Switch vista per smartphone / desktop -->
+              <div class="view-toggle">
+                <button
+                  class="btn-toggle"
+                  [class.active]="vistaDisponibilitaModalita() === 'schede'"
+                  (click)="vistaDisponibilitaModalita.set('schede')"
+                  title="Vista Schede (Ideale smartphone)"
+                >
+                  📱 Schede
+                </button>
+                <button
+                  class="btn-toggle"
+                  [class.active]="vistaDisponibilitaModalita() === 'tabellare'"
+                  (click)="vistaDisponibilitaModalita.set('tabellare')"
+                  title="Vista Tabellare (Desktop)"
+                >
+                  💻 Tabella
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards riassuntive -->
+          <div class="kpi-grid">
+            <div class="kpi-card card-prodotto">
+              <span class="kpi-label">Totale Prodotto (Lotti)</span>
+              <span class="kpi-value">{{ kpiDisponibilita().totProdotto | number }}</span>
+            </div>
+            <div class="kpi-card card-ordinato">
+              <span class="kpi-label">Impegnato / Ordinato</span>
+              <span class="kpi-value">{{ kpiDisponibilita().totOrdinato | number }}</span>
+              <small class="kpi-sub">Spedito: {{ kpiDisponibilita().totConsegnato | number }}</small>
+            </div>
+            <div class="kpi-card card-disponibile">
+              <span class="kpi-label">Disponibile Virtuale</span>
+              <span class="kpi-value">{{ kpiDisponibilita().totDisponibile | number }}</span>
+            </div>
+            <div class="kpi-card card-scoperto" [class.has-scoperto]="kpiDisponibilita().totScoperto > 0">
+              <span class="kpi-label">Fabbisogno Scoperto</span>
+              <span class="kpi-value">{{ kpiDisponibilita().totScoperto | number }}</span>
+              <small class="kpi-sub">{{ kpiDisponibilita().combinazioniScoperte }} combinazioni</small>
+            </div>
+          </div>
+
+          <!-- Filtri disponibilità -->
+          <div class="filter-bar">
+            <div class="filter-input-wrap">
+              <input
+                type="text"
+                class="form-control"
+                placeholder="Cerca varietà, clone, portainnesto..."
+                [(ngModel)]="filtroDispRicerca"
+              />
+            </div>
+            <div class="filter-toggles">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="filtroDispSoloDisponibili" />
+                <span>Solo disponibili (&gt;0)</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="filtroDispSoloScoperti" />
+                <span class="badge-danger-text">Solo scoperti (&gt;0)</span>
+              </label>
+              <button class="btn btn-sm btn-secondary" (click)="caricaDisponibilita()">Aggiorna</button>
+            </div>
+          </div>
+
+          @if (caricamentoDisponibilita()) {
+            <div class="loading-box">Calcolo disponibilità in corso...</div>
+          } @else if (disponibilitaFiltrata().length === 0) {
+            <div class="empty-state">Nessuna disponibilità corrispondente ai filtri</div>
+          } @else {
+            <!-- MODALITA SCHEDE (OTTIMIZZATA SMARTPHONE) -->
+            @if (vistaDisponibilitaModalita() === 'schede') {
+              <div class="cards-grid">
+                @for (item of disponibilitaFiltrata(); track $index) {
+                  <div class="disp-card" [class.card-alert]="item.scoperto > 0">
+                    <div class="disp-card-header">
+                      <div>
+                        <h3 class="disp-title">{{ item.codice_varieta }} (Cl. {{ item.codice_clone }})</h3>
+                        <span class="disp-sub">P.I. {{ item.codice_portainnesto }} &bull; {{ item.prodotto }}</span>
+                      </div>
+                      <span class="badge-campagna">{{ item.campagna }}</span>
+                    </div>
+
+                    <div class="disp-tipologia">Tipologia: <strong>{{ item.tipologia }}</strong></div>
+
+                    <div class="disp-metrics-grid">
+                      <div class="metric-box">
+                        <span class="metric-label">Lotti</span>
+                        <span class="metric-val">{{ item.prodotto_qta | number }}</span>
+                      </div>
+                      <div class="metric-box">
+                        <span class="metric-label">Ordinato</span>
+                        <span class="metric-val">{{ item.ordinato | number }}</span>
+                      </div>
+                      <div class="metric-box">
+                        <span class="metric-label">Consegnato</span>
+                        <span class="metric-val">{{ item.consegnato | number }}</span>
+                      </div>
+                    </div>
+
+                    <div class="disp-footer-indicators">
+                      <div class="indicator" [class.ind-pos]="item.disponibile >= 0" [class.ind-neg]="item.disponibile < 0">
+                        <small>Disponibile</small>
+                        <strong>{{ item.disponibile | number }}</strong>
+                      </div>
+                      <div class="indicator ind-neutral">
+                        <small>Giacenza fisica</small>
+                        <strong>{{ item.giacenza_fisica | number }}</strong>
+                      </div>
+                      @if (item.scoperto > 0) {
+                        <div class="indicator ind-alert">
+                          <small>Scoperto</small>
+                          <strong>{{ item.scoperto | number }}</strong>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- MODALITA TABELLARE (DESKTOP) -->
+            @if (vistaDisponibilitaModalita() === 'tabellare') {
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Campagna</th>
+                      <th>Prodotto</th>
+                      <th>Varietà</th>
+                      <th>Clone</th>
+                      <th>Portainnesto</th>
+                      <th>Tipologia</th>
+                      <th class="num">Prodotto (Q.tà)</th>
+                      <th class="num">Ordinato</th>
+                      <th class="num">Consegnato</th>
+                      <th class="num">Disponibile</th>
+                      <th class="num">Giacenza fisica</th>
+                      <th class="num">Scoperto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of disponibilitaFiltrata(); track $index) {
+                      <tr [class.row-alert]="item.scoperto > 0">
+                        <td><span class="badge-tag">{{ item.campagna }}</span></td>
+                        <td>{{ item.prodotto }}</td>
+                        <td><strong>{{ item.codice_varieta }}</strong></td>
+                        <td>{{ item.codice_clone }}</td>
+                        <td>{{ item.codice_portainnesto }}</td>
+                        <td><small>{{ item.tipologia }}</small></td>
+                        <td class="num font-mono">{{ item.prodotto_qta | number }}</td>
+                        <td class="num font-mono">{{ item.ordinato | number }}</td>
+                        <td class="num font-mono">{{ item.consegnato | number }}</td>
+                        <td class="num font-mono font-bold" [class.text-success]="item.disponibile >= 0" [class.text-danger]="item.disponibile < 0">
+                          {{ item.disponibile | number }}
+                        </td>
+                        <td class="num font-mono">{{ item.giacenza_fisica | number }}</td>
+                        <td class="num font-mono font-bold" [class.text-danger]="item.scoperto > 0">
+                          {{ item.scoperto > 0 ? (item.scoperto | number) : '—' }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        }
+
+        <!-- ============================================================== -->
+        <!-- SEZIONE 2: GESTIONE CRUD DELLE 12 TABELLE -->
+        <!-- ============================================================== -->
+        @if (sezioneAttiva() === 'tabella') {
+          <div class="content-header">
+            <div>
+              <div class="header-breadcrumb">{{ defTabella().gruppo }}</div>
+              <h2>{{ defTabella().etichetta }}</h2>
+            </div>
+            <div class="header-actions">
+              <!-- Switch Tabella / Schede per Smartphone -->
+              <div class="view-toggle mobile-only">
+                <button
+                  class="btn-toggle"
+                  [class.active]="modalitaVista() === 'schede'"
+                  (click)="modalitaVista.set('schede')"
+                >
+                  📱 Schede
+                </button>
+                <button
+                  class="btn-toggle"
+                  [class.active]="modalitaVista() === 'tabella'"
+                  (click)="modalitaVista.set('tabella')"
+                >
+                  💻 Tabella
+                </button>
+              </div>
+
+              @if (utente()?.ruolo === 'admin') {
+                <button class="btn btn-primary" (click)="apriModalNuovo()">
+                  + Nuovo {{ defTabella().etichettaSingolare }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Barra di ricerca rapida -->
+          <div class="filter-bar">
+            <div class="filter-input-wrap">
+              <input
+                type="text"
+                class="form-control"
+                placeholder="Filtra righe..."
+                [(ngModel)]="ricercaTesto"
+              />
+            </div>
+            <span class="count-badge">{{ righeFiltrate().length }} elementi</span>
+          </div>
+
+          @if (caricamentoDati()) {
+            <div class="loading-box">Caricamento in corso...</div>
+          } @else if (righeFiltrate().length === 0) {
+            <div class="empty-state">
+              <p>Nessun record presente in questa tabella.</p>
+              @if (utente()?.ruolo === 'admin') {
+                <button class="btn btn-sm btn-outline-primary" (click)="apriModalNuovo()">
+                  Inserisci il primo elemento
+                </button>
+              }
+            </div>
+          } @else {
+            <!-- 1. VISTA TABELLARE DESKTOP -->
+            <div class="table-responsive" [class.desktop-table-view]="modalitaVista() === 'schede'">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    @for (campo of defTabella().campi; track campo.nome) {
+                      @if (!campo.automatico && !campo.nascostoInTabella) {
+                        <th>{{ campo.etichetta }}</th>
+                      }
+                    }
+                    @if (utente()?.ruolo === 'admin') {
+                      <th class="actions-col">Azioni</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (riga of righeFiltrate(); track $index) {
+                    <tr>
+                      @for (campo of defTabella().campi; track campo.nome) {
+                        @if (!campo.automatico && !campo.nascostoInTabella) {
+                          <td [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'">
+                            {{ formattaValoreTabella(campo, riga[campo.nome]) }}
+                          </td>
+                        }
+                      }
+                      @if (utente()?.ruolo === 'admin') {
+                        <td class="actions-col">
+                          <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
+                          <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
+                        </td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 2. VISTA SCHEDE SMARTPHONE -->
+            <div class="mobile-cards-container" [class.mobile-cards-view]="modalitaVista() === 'tabella'">
+              @for (riga of righeFiltrate(); track $index) {
+                <div class="mobile-card">
+                  <div class="mobile-card-header">
+                    <span class="mobile-card-title">
+                      {{ riga[defTabella().titoloScheda] || 'Elemento' }}
+                    </span>
+                    @if (utente()?.ruolo === 'admin') {
+                      <div class="mobile-card-actions">
+                        <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
+                        <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
+                      </div>
+                    }
+                  </div>
+                  <div class="mobile-card-body">
+                    @for (campo of defTabella().campi; track campo.nome) {
+                      @if (!campo.automatico && campo.nome !== defTabella().titoloScheda && (campo.inScheda || riga[campo.nome])) {
+                        <div class="mobile-field-row">
+                          <span class="field-label">{{ campo.etichetta }}:</span>
+                          <span class="field-val">{{ formattaValoreTabella(campo, riga[campo.nome]) }}</span>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
+      </main>
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- MODALE FORM DI INSERIMENTO / MODIFICA (senza ID visibile) -->
+  <!-- ============================================================== -->
+  @if (modalAperto()) {
+    <div class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>
+            {{ modalModo() === 'nuovo' ? 'Nuovo ' : 'Modifica ' }} {{ defTabella().etichettaSingolare }}
+          </h3>
+          <button class="btn-close" (click)="chiudiModal()">✕</button>
+        </div>
+
+        <form (ngSubmit)="salvaRiga()">
+          <div class="modal-body">
+            @for (campo of campiForm(); track campo.nome) {
+              <div class="form-group" [class.has-error]="modalErrori()[campo.nome]">
+                <label [for]="'form_' + campo.nome">
+                  {{ campo.etichetta }}
+                  @if (campo.obbligatorio) {
+                    <span class="req">*</span>
+                  }
+                </label>
+
+                <!-- SCELTA MENU TENDINA (ENUM/CHECK) -->
+                @if (campo.tipo === 'scelta') {
+                  <select
+                    [id]="'form_' + campo.nome"
+                    class="form-control"
+                    [(ngModel)]="modalValori()[campo.nome]"
+                    [name]="campo.nome"
+                    [disabled]="isCampoDisabilitato(campo)"
+                    (ngModelChange)="onCampoChange(campo)"
+                  >
+                    <option value="">-- Seleziona --</option>
+                    @for (opz of campo.opzioni; track opz) {
+                      <option [value]="opz">{{ opz }}</option>
+                    }
+                  </select>
+                }
+
+                <!-- RIFERIMENTO FK / MENU A CASCATA -->
+                @else if (campo.tipo === 'riferimento') {
+                  <select
+                    [id]="'form_' + campo.nome"
+                    class="form-control"
+                    [(ngModel)]="modalValori()[campo.nome]"
+                    [name]="campo.nome"
+                    [disabled]="isCampoDisabilitato(campo)"
+                    (ngModelChange)="onCampoChange(campo)"
+                  >
+                    <option value="">-- Seleziona {{ campo.etichetta }} --</option>
+                    @for (item of getOpzioniPerCampo(campo); track $index) {
+                      <option [value]="item[campo.riferimento!.colonna]">
+                        {{ item[campo.riferimento!.colonna] }}
+                      </option>
+                    }
+                  </select>
+                }
+
+                <!-- BOOLEANO -->
+                @else if (campo.tipo === 'booleano') {
+                  <div class="checkbox-control">
+                    <input
+                      type="checkbox"
+                      [id]="'form_' + campo.nome"
+                      [(ngModel)]="modalValori()[campo.nome]"
+                      [name]="campo.nome"
+                      [disabled]="isCampoDisabilitato(campo)"
+                    />
+                    <label [for]="'form_' + campo.nome">Sì, attivo/consegnato</label>
+                  </div>
+                }
+
+                <!-- DATA -->
+                @else if (campo.tipo === 'data') {
+                  <input
+                    type="date"
+                    [id]="'form_' + campo.nome"
+                    class="form-control"
+                    [(ngModel)]="modalValori()[campo.nome]"
+                    [name]="campo.nome"
+                    [disabled]="isCampoDisabilitato(campo)"
+                  />
+                }
+
+                <!-- CAMPAGNA (es. 2026/27) -->
+                @else if (campo.tipo === 'campagna') {
+                  <input
+                    type="text"
+                    [id]="'form_' + campo.nome"
+                    class="form-control"
+                    placeholder="AAAA/AA (es. 2026/27)"
+                    [(ngModel)]="modalValori()[campo.nome]"
+                    [name]="campo.nome"
+                    [disabled]="isCampoDisabilitato(campo)"
+                  />
+                }
+
+                <!-- NUMERO / INTERO / VALUTA -->
+                @else if (campo.tipo === 'numero' || campo.tipo === 'intero' || campo.tipo === 'valuta') {
+                  <input
+                    type="number"
+                    [step]="campo.tipo === 'intero' ? '1' : '0.01'"
+                    [id]="'form_' + campo.nome"
+                    class="form-control"
+                    [(ngModel)]="modalValori()[campo.nome]"
+                    [name]="campo.nome"
+                    [disabled]="isCampoDisabilitato(campo)"
+                  />
+                }
+
+                <!-- TESTO LUNGO -->
+                @else if (campo.tipo === 'testo_lungo') {
+                  <textarea
+                    [id]="'form_' + campo.nome"
+                    class="form-control"
+                    rows="3"
+                    [(ngModel)]="modalValori()[campo.nome]"
+                    [name]="campo.nome"
+                    [disabled]="isCampoDisabilitato(campo)"
+                  ></textarea>
+                }
+
+                <!-- TESTO NORMALE -->
+                @else {
+                  <input
+                    type="text"
+                    [id]="'form_' + campo.nome"
+                    class="form-control"
+                    [(ngModel)]="modalValori()[campo.nome]"
+                    [name]="campo.nome"
+                    [disabled]="isCampoDisabilitato(campo)"
+                  />
+                }
+
+                @if (campo.aiuto) {
+                  <small class="form-help">{{ campo.aiuto }}</small>
+                }
+                @if (modalErrori()[campo.nome]) {
+                  <span class="field-error">{{ modalErrori()[campo.nome] }}</span>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="chiudiModal()">Annulla</button>
+            <button type="submit" class="btn btn-primary" [disabled]="inInvio()">
+              {{ inInvio() ? 'Salvataggio...' : 'Salva' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- MODALE CONFERMA ELIMINAZIONE -->
+  <!-- ============================================================== -->
+  @if (deleteConfirmAperto()) {
+    <div class="modal-backdrop">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <h3>Conferma eliminazione</h3>
+          <button class="btn-close" (click)="annullaElimina()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>Sei sicuro di voler eliminare questo record?</p>
+          <p class="delete-warning">
+            <strong>Attenzione:</strong> Se il record è referenziato da altre tabelle, l'eliminazione verrà bloccata.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="annullaElimina()">Annulla</button>
+          <button type="button" class="btn btn-danger" (click)="eseguiElimina()">Elimina definitivamente</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,1138 @@
+{
+  "id": "55b24845-557a-4eda-92db-076ea45523fd",
+  "prevId": "a681f9d9-8a73-4528-afd9-298540516973",
+  "version": "6",
+  "dialect": "sqlite",
+  "tables": {
+    "anagrafica_personale": {
+      "name": "anagrafica_personale",
+      "columns": {
+        "nome_cognome": {
+          "name": "nome_cognome",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cognome": {
+          "name": "cognome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_di_nascita": {
+          "name": "data_di_nascita",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_visita_medica": {
+          "name": "data_visita_medica",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_formazione_sicurezza": {
+          "name": "data_formazione_sicurezza",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_patentino_muletto": {
+          "name": "data_patentino_muletto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_patentino_trattore": {
+          "name": "data_patentino_trattore",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_rspp": {
+          "name": "data_rspp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_antincendio": {
+          "name": "data_antincendio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "anagrafica_portainnesto": {
+      "name": "anagrafica_portainnesto",
+      "columns": {
+        "codice_portainnesto": {
+          "name": "codice_portainnesto",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "anagrafica_vite": {
+      "name": "anagrafica_vite",
+      "columns": {
+        "codice_varieta": {
+          "name": "codice_varieta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "codice_clone": {
+          "name": "codice_clone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "anagrafica_vite_codice_varieta_codice_clone_pk": {
+          "columns": [
+            "codice_varieta",
+            "codice_clone"
+          ],
+          "name": "anagrafica_vite_codice_varieta_codice_clone_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "attivita_cdc": {
+      "name": "attivita_cdc",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "centro_di_costo": {
+          "name": "centro_di_costo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attivita": {
+          "name": "attivita",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "attivita_cdc_cdc_attivita_uq": {
+          "name": "attivita_cdc_cdc_attivita_uq",
+          "columns": [
+            "centro_di_costo",
+            "attivita"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "attivita_cdc_centro_di_costo_centri_di_costo_centro_di_costo_fk": {
+          "name": "attivita_cdc_centro_di_costo_centri_di_costo_centro_di_costo_fk",
+          "tableFrom": "attivita_cdc",
+          "columnsFrom": [
+            "centro_di_costo"
+          ],
+          "tableTo": "centri_di_costo",
+          "columnsTo": [
+            "centro_di_costo"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "centri_di_costo": {
+      "name": "centri_di_costo",
+      "columns": {
+        "centro_di_costo": {
+          "name": "centro_di_costo",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "clienti": {
+      "name": "clienti",
+      "columns": {
+        "ragione_sociale": {
+          "name": "ragione_sociale",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "partita_iva": {
+          "name": "partita_iva",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "codice_fiscale": {
+          "name": "codice_fiscale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "citta": {
+          "name": "citta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "indirizzo": {
+          "name": "indirizzo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "numero_telefono": {
+          "name": "numero_telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "dettaglio_cdc": {
+      "name": "dettaglio_cdc",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "centro_di_costo": {
+          "name": "centro_di_costo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "campo": {
+          "name": "campo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "varieta": {
+          "name": "varieta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "campo_varieta": {
+          "name": "campo_varieta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        }
+      },
+      "indexes": {
+        "dettaglio_cdc_campo_varieta_uq": {
+          "name": "dettaglio_cdc_campo_varieta_uq",
+          "columns": [
+            "campo_varieta"
+          ],
+          "isUnique": true
+        },
+        "dettaglio_cdc_cdc_campo_varieta_uq": {
+          "name": "dettaglio_cdc_cdc_campo_varieta_uq",
+          "columns": [
+            "centro_di_costo",
+            "campo_varieta"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "dettaglio_cdc_centro_di_costo_centri_di_costo_centro_di_costo_fk": {
+          "name": "dettaglio_cdc_centro_di_costo_centri_di_costo_centro_di_costo_fk",
+          "tableFrom": "dettaglio_cdc",
+          "columnsFrom": [
+            "centro_di_costo"
+          ],
+          "tableTo": "centri_di_costo",
+          "columnsTo": [
+            "centro_di_costo"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "inserimento_costi": {
+      "name": "inserimento_costi",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "centro_di_costo": {
+          "name": "centro_di_costo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dettaglio_cdc": {
+          "name": "dettaglio_cdc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "causale": {
+          "name": "causale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "campagna": {
+          "name": "campagna",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "importo": {
+          "name": "importo",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "inserimento_costi_data_idx": {
+          "name": "inserimento_costi_data_idx",
+          "columns": [
+            "data"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "inserimento_costi_centro_di_costo_centri_di_costo_centro_di_costo_fk": {
+          "name": "inserimento_costi_centro_di_costo_centri_di_costo_centro_di_costo_fk",
+          "tableFrom": "inserimento_costi",
+          "columnsFrom": [
+            "centro_di_costo"
+          ],
+          "tableTo": "centri_di_costo",
+          "columnsTo": [
+            "centro_di_costo"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "inserimento_costi_dettaglio_fk": {
+          "name": "inserimento_costi_dettaglio_fk",
+          "tableFrom": "inserimento_costi",
+          "columnsFrom": [
+            "centro_di_costo",
+            "dettaglio_cdc"
+          ],
+          "tableTo": "dettaglio_cdc",
+          "columnsTo": [
+            "centro_di_costo",
+            "campo_varieta"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "inserimento_costi_causale_check": {
+          "name": "inserimento_costi_causale_check",
+          "value": "\"inserimento_costi\".\"causale\" IN ('Acquisto', 'Concimazione', 'Trattamento', 'Manodopera')"
+        }
+      }
+    },
+    "inserimento_ore": {
+      "name": "inserimento_ore",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dipendente": {
+          "name": "dipendente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "centro_di_costo": {
+          "name": "centro_di_costo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attivita": {
+          "name": "attivita",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dettaglio_cdc": {
+          "name": "dettaglio_cdc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "numero_ore": {
+          "name": "numero_ore",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_inserimento": {
+          "name": "data_inserimento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(CURRENT_DATE)"
+        }
+      },
+      "indexes": {
+        "inserimento_ore_data_idx": {
+          "name": "inserimento_ore_data_idx",
+          "columns": [
+            "data_inserimento"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "inserimento_ore_dipendente_anagrafica_personale_nome_cognome_fk": {
+          "name": "inserimento_ore_dipendente_anagrafica_personale_nome_cognome_fk",
+          "tableFrom": "inserimento_ore",
+          "columnsFrom": [
+            "dipendente"
+          ],
+          "tableTo": "anagrafica_personale",
+          "columnsTo": [
+            "nome_cognome"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "inserimento_ore_centro_di_costo_centri_di_costo_centro_di_costo_fk": {
+          "name": "inserimento_ore_centro_di_costo_centri_di_costo_centro_di_costo_fk",
+          "tableFrom": "inserimento_ore",
+          "columnsFrom": [
+            "centro_di_costo"
+          ],
+          "tableTo": "centri_di_costo",
+          "columnsTo": [
+            "centro_di_costo"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "inserimento_ore_attivita_fk": {
+          "name": "inserimento_ore_attivita_fk",
+          "tableFrom": "inserimento_ore",
+          "columnsFrom": [
+            "centro_di_costo",
+            "attivita"
+          ],
+          "tableTo": "attivita_cdc",
+          "columnsTo": [
+            "centro_di_costo",
+            "attivita"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "inserimento_ore_dettaglio_fk": {
+          "name": "inserimento_ore_dettaglio_fk",
+          "tableFrom": "inserimento_ore",
+          "columnsFrom": [
+            "centro_di_costo",
+            "dettaglio_cdc"
+          ],
+          "tableTo": "dettaglio_cdc",
+          "columnsTo": [
+            "centro_di_costo",
+            "campo_varieta"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "inserimento_ore_numero_ore_check": {
+          "name": "inserimento_ore_numero_ore_check",
+          "value": "\"inserimento_ore\".\"numero_ore\" > 0"
+        }
+      }
+    },
+    "login_tentativi": {
+      "name": "login_tentativi",
+      "columns": {
+        "ip": {
+          "name": "ip",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tentativi": {
+          "name": "tentativi",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "finestra_start": {
+          "name": "finestra_start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "lotti_magazzino": {
+      "name": "lotti_magazzino",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_inserimento": {
+          "name": "data_inserimento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(CURRENT_DATE)"
+        },
+        "prodotto": {
+          "name": "prodotto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "codice_varieta": {
+          "name": "codice_varieta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "codice_clone": {
+          "name": "codice_clone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "codice_portainnesto": {
+          "name": "codice_portainnesto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "campagna": {
+          "name": "campagna",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantita": {
+          "name": "quantita",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "provenienza": {
+          "name": "provenienza",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "riferimento_lotto_parlante": {
+          "name": "riferimento_lotto_parlante",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "tipologia": {
+          "name": "tipologia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'Nuova produzione'"
+        }
+      },
+      "indexes": {
+        "lotti_magazzino_riferimento_uq": {
+          "name": "lotti_magazzino_riferimento_uq",
+          "columns": [
+            "riferimento_lotto_parlante"
+          ],
+          "isUnique": true
+        },
+        "lotti_magazzino_combinazione_uq": {
+          "name": "lotti_magazzino_combinazione_uq",
+          "columns": [
+            "riferimento_lotto_parlante",
+            "campagna",
+            "prodotto",
+            "codice_varieta",
+            "codice_clone",
+            "codice_portainnesto",
+            "tipologia"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "lotti_magazzino_prodotto_tipi_prodotto_prodotto_fk": {
+          "name": "lotti_magazzino_prodotto_tipi_prodotto_prodotto_fk",
+          "tableFrom": "lotti_magazzino",
+          "columnsFrom": [
+            "prodotto"
+          ],
+          "tableTo": "tipi_prodotto",
+          "columnsTo": [
+            "prodotto"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "lotti_magazzino_codice_portainnesto_anagrafica_portainnesto_codice_portainnesto_fk": {
+          "name": "lotti_magazzino_codice_portainnesto_anagrafica_portainnesto_codice_portainnesto_fk",
+          "tableFrom": "lotti_magazzino",
+          "columnsFrom": [
+            "codice_portainnesto"
+          ],
+          "tableTo": "anagrafica_portainnesto",
+          "columnsTo": [
+            "codice_portainnesto"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "lotti_magazzino_vite_fk": {
+          "name": "lotti_magazzino_vite_fk",
+          "tableFrom": "lotti_magazzino",
+          "columnsFrom": [
+            "codice_varieta",
+            "codice_clone"
+          ],
+          "tableTo": "anagrafica_vite",
+          "columnsTo": [
+            "codice_varieta",
+            "codice_clone"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "lotti_magazzino_quantita_check": {
+          "name": "lotti_magazzino_quantita_check",
+          "value": "\"lotti_magazzino\".\"quantita\" >= 0"
+        },
+        "lotti_magazzino_provenienza_check": {
+          "name": "lotti_magazzino_provenienza_check",
+          "value": "\"lotti_magazzino\".\"provenienza\" IN ('Prodotto', 'Acquistato')"
+        },
+        "lotti_magazzino_tipologia_check": {
+          "name": "lotti_magazzino_tipologia_check",
+          "value": "\"tipologia\" IN ('Nuova produzione', 'Seconde', 'Frigoconservate', 'Ripiantate')"
+        }
+      }
+    },
+    "ordine_impieghi": {
+      "name": "ordine_impieghi",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "riferimento_lotto": {
+          "name": "riferimento_lotto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_inserimento": {
+          "name": "data_inserimento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(CURRENT_DATE)"
+        },
+        "prodotto": {
+          "name": "prodotto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "codice_varieta": {
+          "name": "codice_varieta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "codice_clone": {
+          "name": "codice_clone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "codice_portainnesto": {
+          "name": "codice_portainnesto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "campagna": {
+          "name": "campagna",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantita": {
+          "name": "quantita",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "consegnato": {
+          "name": "consegnato",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "cliente": {
+          "name": "cliente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipologia": {
+          "name": "tipologia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'Nuova produzione'"
+        }
+      },
+      "indexes": {
+        "ordine_impieghi_cliente_idx": {
+          "name": "ordine_impieghi_cliente_idx",
+          "columns": [
+            "cliente"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "ordine_impieghi_prodotto_tipi_prodotto_prodotto_fk": {
+          "name": "ordine_impieghi_prodotto_tipi_prodotto_prodotto_fk",
+          "tableFrom": "ordine_impieghi",
+          "columnsFrom": [
+            "prodotto"
+          ],
+          "tableTo": "tipi_prodotto",
+          "columnsTo": [
+            "prodotto"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "ordine_impieghi_codice_portainnesto_anagrafica_portainnesto_codice_portainnesto_fk": {
+          "name": "ordine_impieghi_codice_portainnesto_anagrafica_portainnesto_codice_portainnesto_fk",
+          "tableFrom": "ordine_impieghi",
+          "columnsFrom": [
+            "codice_portainnesto"
+          ],
+          "tableTo": "anagrafica_portainnesto",
+          "columnsTo": [
+            "codice_portainnesto"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "ordine_impieghi_cliente_clienti_ragione_sociale_fk": {
+          "name": "ordine_impieghi_cliente_clienti_ragione_sociale_fk",
+          "tableFrom": "ordine_impieghi",
+          "columnsFrom": [
+            "cliente"
+          ],
+          "tableTo": "clienti",
+          "columnsTo": [
+            "ragione_sociale"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "ordine_impieghi_vite_fk": {
+          "name": "ordine_impieghi_vite_fk",
+          "tableFrom": "ordine_impieghi",
+          "columnsFrom": [
+            "codice_varieta",
+            "codice_clone"
+          ],
+          "tableTo": "anagrafica_vite",
+          "columnsTo": [
+            "codice_varieta",
+            "codice_clone"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        },
+        "ordine_impieghi_lotto_fk": {
+          "name": "ordine_impieghi_lotto_fk",
+          "tableFrom": "ordine_impieghi",
+          "columnsFrom": [
+            "riferimento_lotto",
+            "campagna",
+            "prodotto",
+            "codice_varieta",
+            "codice_clone",
+            "codice_portainnesto",
+            "tipologia"
+          ],
+          "tableTo": "lotti_magazzino",
+          "columnsTo": [
+            "riferimento_lotto_parlante",
+            "campagna",
+            "prodotto",
+            "codice_varieta",
+            "codice_clone",
+            "codice_portainnesto",
+            "tipologia"
+          ],
+          "onUpdate": "cascade",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ordine_impieghi_quantita_check": {
+          "name": "ordine_impieghi_quantita_check",
+          "value": "\"ordine_impieghi\".\"quantita\" > 0"
+        },
+        "ordine_impieghi_tipologia_check": {
+          "name": "ordine_impieghi_tipologia_check",
+          "value": "\"tipologia\" IN ('Nuova produzione', 'Seconde', 'Frigoconservate', 'Ripiantate')"
+        }
+      }
+    },
+    "sessioni": {
+      "name": "sessioni",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "utente_id": {
+          "name": "utente_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(CURRENT_TIMESTAMP)"
+        }
+      },
+      "indexes": {
+        "sessioni_utente_idx": {
+          "name": "sessioni_utente_idx",
+          "columns": [
+            "utente_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "sessioni_utente_id_utenti_id_fk": {
+          "name": "sessioni_utente_id_utenti_id_fk",
+          "tableFrom": "sessioni",
+          "columnsFrom": [
+            "utente_id"
+          ],
+          "tableTo": "utenti",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "tipi_prodotto": {
+      "name": "tipi_prodotto",
+      "columns": {
+        "prodotto": {
+          "name": "prodotto",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "utenti": {
+      "name": "utenti",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ruolo": {
+          "name": "ruolo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attivo": {
+          "name": "attivo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(CURRENT_TIMESTAMP)"
+        }
+      },
+      "indexes": {
+        "utenti_email_uq": {
+          "name": "utenti_email_uq",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
