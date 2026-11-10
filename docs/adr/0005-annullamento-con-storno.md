@@ -1,6 +1,6 @@
 # ADR-0005 — Annullamento di ordini clienti e ripristino immediato del Magazzino Virtuale
 
-- **Stato:** Accettato (aggiornato per Cooperativa Barbatelle)
+- **Stato:** Accettato (aggiornato per Gestionale Mori)
 - **Data:** 2026-10-28
 
 ## Contesto

@@ -1,4 +1,4 @@
-# Gestione magazzino conferimenti e ordini (Cooperativa Barbatelle) — Stack tecnologico
+# Gestione magazzino conferimenti e ordini (Gestionale Mori) — Stack tecnologico
 
 Decisioni concordate e aggiornate il 2026-10-28 (vedi anche [`REQUISITI.md`](./REQUISITI.md)).
 

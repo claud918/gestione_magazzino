@@ -1,10 +1,11 @@
 /**
  * Schemi Zod e tipi condivisi tra frontend (apps/web) e API (apps/api)
- * per la Cooperativa Barbatelle (REQUISITI.md e GLOSSARY.md).
+ * per la Gestionale Mori (REQUISITI.md e GLOSSARY.md).
  */
 import { z } from 'zod';
 
 export * from './tabelle.js';
+export * from './csv.js';
 
 // --- Healthcheck ---
 

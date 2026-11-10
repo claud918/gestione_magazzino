@@ -9,12 +9,15 @@ import {
   validaRiga,
   dataOggi,
   campagnaCorrente,
+  processaCsvPerTabella,
+  generaTemplateCsv,
   type NomeTabella,
   type DefinizioneTabella,
   type CampoTabella,
   type RigaTabella,
   type RigaDisponibilita,
   type UtenteProfilo,
+  type RisultatoParsingCsv,
 } from '@magazzino/shared';
 
 type SezioneAttiva = 'disponibilita' | 'tabella';
@@ -67,6 +70,15 @@ export class App implements OnInit {
   // Conferma Eliminazione
   protected readonly deleteConfirmAperto = signal(false);
   protected readonly rigaDaEliminare = signal<RigaTabella | null>(null);
+
+  // Modale Import CSV
+  protected readonly importModalAperto = signal(false);
+  protected readonly importInCorso = signal(false);
+  protected readonly importModalita = signal<'upsert' | 'ignora' | 'errore'>('upsert');
+  protected readonly importNomeFile = signal('');
+  protected readonly importRisultato = signal<RisultatoParsingCsv | null>(null);
+  protected readonly importErrore = signal<string | null>(null);
+  protected readonly importDettaglioErroriAperto = signal(false);
 
   // Dati Report Disponibilità
   protected readonly caricamentoDisponibilita = signal(false);
@@ -199,12 +211,6 @@ export class App implements OnInit {
     this.http.post('/api/auth/logout', {}).subscribe(() => {
       this.utente.set(null);
     });
-  }
-
-  protected impostaAccessoRapido(email: string, pass: string): void {
-    this.loginEmail.set(email);
-    this.loginPassword.set(pass);
-    this.eseguiLogin();
   }
 
   // --- Inizializzazione ---
@@ -569,5 +575,121 @@ export class App implements OnInit {
     const dataStr = new Date().toISOString().slice(0, 10);
     this.scaricaCsv(`export_${def.nome}_${dataStr}.csv`, [intestazioni, ...dati]);
     this.mostraOk(`Tabella "${def.etichetta}" scaricata in formato CSV`);
+  }
+
+  // --- Importazione CSV per Anagrafiche, Magazzino e Ordini ---
+  protected apriModalImport(): void {
+    this.importModalAperto.set(true);
+    this.importInCorso.set(false);
+    this.importModalita.set('upsert');
+    this.importNomeFile.set('');
+    this.importRisultato.set(null);
+    this.importErrore.set(null);
+    this.importDettaglioErroriAperto.set(false);
+  }
+
+  protected chiudiModalImport(): void {
+    this.importModalAperto.set(false);
+    this.importRisultato.set(null);
+    this.importErrore.set(null);
+  }
+
+  protected scaricaTemplateCsv(): void {
+    const def = this.defTabella();
+    const csvContent = generaTemplateCsv(def);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `modello_import_${def.nome}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.mostraOk(`Modello CSV per "${def.etichetta}" scaricato`);
+  }
+
+  protected onCsvFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    this.importNomeFile.set(file.name);
+    this.importErrore.set(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text) {
+        this.importErrore.set('Il file selezionato è vuoto.');
+        this.importRisultato.set(null);
+        return;
+      }
+
+      try {
+        const res = processaCsvPerTabella(text, this.defTabella());
+        this.importRisultato.set(res);
+        if (res.erroriRighe.length > 0 && res.righeValide.length === 0) {
+          this.importErrore.set(
+            res.erroriRighe[0]?.messaggio || 'Nessuna riga valida trovata nel file CSV.',
+          );
+        }
+      } catch (err: any) {
+        this.importErrore.set(`Errore durante la lettura del file: ${err.message}`);
+        this.importRisultato.set(null);
+      }
+    };
+    reader.onerror = () => {
+      this.importErrore.set('Impossibile leggere il file selezionato.');
+      this.importRisultato.set(null);
+    };
+
+    reader.readAsText(file, 'UTF-8');
+    input.value = '';
+  }
+
+  protected eseguiImportCsv(): void {
+    const res = this.importRisultato();
+    if (!res || res.righeValide.length === 0) {
+      this.importErrore.set('Nessuna riga valida da importare.');
+      return;
+    }
+
+    this.importInCorso.set(true);
+    this.importErrore.set(null);
+
+    const payload = {
+      righe: res.righeValide,
+      modalita: this.importModalita(),
+    };
+
+    this.http
+      .post<{ successo: boolean; totale: number; modifiche: number; messaggio: string }>(
+        `/api/crud/${this.tabellaSelezionata()}/import`,
+        payload,
+      )
+      .subscribe({
+        next: (resp) => {
+          this.importInCorso.set(false);
+          this.chiudiModalImport();
+          this.mostraOk(
+            resp.messaggio ||
+              `Importati ${res.righeValide.length} record in "${this.defTabella().etichetta}"!`,
+          );
+          this.caricaDatiTabella(this.tabellaSelezionata());
+          if (
+            this.tabellaSelezionata() === 'lotti_magazzino' ||
+            this.tabellaSelezionata() === 'ordine_impieghi'
+          ) {
+            this.caricaDisponibilita();
+          }
+        },
+        error: (err) => {
+          this.importInCorso.set(false);
+          const msg =
+            err.error?.error ||
+            err.error?.message ||
+            'Errore durante il salvataggio dei dati sul server.';
+          this.importErrore.set(msg);
+        },
+      });
   }
 }

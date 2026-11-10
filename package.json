@@ -18,6 +18,8 @@
     "db:migrate:local": "npm run db:migrate:local -w @magazzino/api",
     "db:migrate:remote": "npm run db:migrate:remote -w @magazzino/api",
     "db:seed:local": "npm run db:seed:local -w @magazzino/api",
+    "db:clean:local": "npm run db:clean:local -w @magazzino/api",
+    "db:clean:remote": "npm run db:clean:remote -w @magazzino/api",
     "db:import:supabase": "npm run db:import:supabase -w @magazzino/api --",
     "user:manage": "npm run user:manage -w @magazzino/api --",
     "tunnel": "ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:8787 nokey@localhost.run",

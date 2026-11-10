@@ -1,6 +1,6 @@
 # ADR-0002 — Indicatori di disponibilità calcolati da conferimenti e ordini
 
-- **Stato:** Accettato (aggiornato per Cooperativa Barbatelle)
+- **Stato:** Accettato (aggiornato per Gestionale Mori)
 - **Data:** 2026-10-28
 
 ## Contesto

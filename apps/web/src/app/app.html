@@ -63,15 +63,6 @@
             {{ inInvio() ? 'Accesso in corso...' : 'Accedi' }}
           </button>
         </form>
-
-        <div class="login-quick">
-          <small>Accesso rapido demo:</small>
-          <div class="quick-buttons">
-            <button class="btn btn-xs" (click)="impostaAccessoRapido('admin@cooperativa.it', 'AdminBarbatelle2026!')">
-              Admin (Uso interno)
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   }
@@ -433,6 +424,16 @@
               >
                 📥 Esporta CSV
               </button>
+              @if (utente()?.ruolo === 'admin') {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary"
+                  (click)="apriModalImport()"
+                  title="Importa dati da file CSV"
+                >
+                  📤 Importa CSV
+                </button>
+              }
               <!-- Switch Tabella / Schede -->
               <div class="view-toggle">
                 <button
@@ -735,6 +736,173 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="annullaElimina()">Annulla</button>
           <button type="button" class="btn btn-danger" (click)="eseguiElimina()">Elimina definitivamente</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- MODALE IMPORTAZIONE CSV -->
+  <!-- ============================================================== -->
+  @if (importModalAperto()) {
+    <div class="modal-backdrop">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-header">
+          <div>
+            <h3>Importa {{ defTabella().etichetta }} da CSV</h3>
+            <small class="text-muted">Carica dati massivi da Excel o foglio di calcolo (.csv)</small>
+          </div>
+          <button class="btn-close" (click)="chiudiModalImport()" aria-label="Chiudi">✕</button>
+        </div>
+
+        <div class="modal-body">
+          @if (importErrore()) {
+            <div class="alert alert-danger">
+              <strong>Errore:</strong> {{ importErrore() }}
+            </div>
+          }
+
+          <!-- Box guida e modello -->
+          <div class="csv-help-card">
+            <div class="csv-help-content">
+              <div class="csv-help-icon">📄</div>
+              <div class="csv-help-text">
+                <strong>Scarica il modello preformattato</strong>
+                <p>
+                  Il file contiene le intestazioni corrette per <em>{{ defTabella().etichetta }}</em> e una riga di esempio compilata. Puoi modificarlo con Microsoft Excel, LibreOffice o Google Fogli.
+                </p>
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="scaricaTemplateCsv()">
+                  📥 Scarica modello CSV (.csv)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selezione file e opzione duplicati -->
+          <div class="csv-upload-grid">
+            <div class="form-group">
+              <label>Seleziona file CSV</label>
+              <input
+                type="file"
+                accept=".csv,text/csv,text/plain"
+                class="form-control"
+                (change)="onCsvFileSelected($event)"
+              />
+              <small class="text-muted">
+                Supporta separatore virgola (,) o punto e virgola (;). Date GG/MM/AAAA o AAAA-MM-GG.
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label>Gestione duplicati</label>
+              <select class="form-control" [ngModel]="importModalita()" (ngModelChange)="importModalita.set($event)">
+                <option value="upsert">Aggiorna se già presente (Upsert) - Consigliato</option>
+                <option value="ignora">Ignora duplicati (salta record già presenti)</option>
+                <option value="errore">Blocca se trova duplicati (segnala errore)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Risultato anteprima parsing -->
+          @if (importRisultato(); as res) {
+            <div class="csv-preview-summary">
+              <div class="summary-pill pill-total">
+                File: <strong>{{ importNomeFile() }}</strong> ({{ res.totaleLette }} righe)
+              </div>
+              <div class="summary-pill pill-valid">
+                Righe valide: <strong>{{ res.righeValide.length }}</strong>
+              </div>
+              @if (res.erroriRighe.length > 0) {
+                <div class="summary-pill pill-error">
+                  Righe scartate con errori: <strong>{{ res.erroriRighe.length }}</strong>
+                </div>
+              }
+            </div>
+
+            <!-- Avviso colonne non riconosciute -->
+            @if (res.colonneNonRiconosciute.length > 0) {
+              <div class="alert alert-warning py-1 small">
+                Colonne non mappate nel CSV: <em>{{ res.colonneNonRiconosciute.join(', ') }}</em>
+              </div>
+            }
+
+            <!-- Anteprima prime righe valide -->
+            @if (res.righeValide.length > 0) {
+              <div class="preview-table-container">
+                <div class="preview-table-header">
+                  <span>Anteprima dati da importare (prime {{ res.righeValide.length > 5 ? 5 : res.righeValide.length }} righe di {{ res.righeValide.length }})</span>
+                </div>
+                <div class="table-responsive">
+                  <table class="data-table small">
+                    <thead>
+                      <tr>
+                        @for (campo of campiForm(); track campo.nome) {
+                          @if (!campo.automatico) {
+                            <th>{{ campo.etichetta }}</th>
+                          }
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (r of res.righeValide.slice(0, 5); track $index) {
+                        <tr>
+                          @for (campo of campiForm(); track campo.nome) {
+                            @if (!campo.automatico) {
+                              <td>
+                                @if (campo.tipo === 'booleano') {
+                                  <span class="badge-tag">{{ r[campo.nome] ? 'Sì' : 'No' }}</span>
+                                } @else {
+                                  {{ r[campo.nome] ?? '—' }}
+                                }
+                              </td>
+                            }
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            }
+
+            <!-- Sezione errori per riga -->
+            @if (res.erroriRighe.length > 0) {
+              <div class="csv-errors-box">
+                <div class="csv-errors-header" (click)="importDettaglioErroriAperto.set(!importDettaglioErroriAperto())">
+                  <span>⚠️ {{ res.erroriRighe.length }} righe contengono errori e non saranno importate</span>
+                  <button type="button" class="btn btn-xs btn-link">
+                    {{ importDettaglioErroriAperto() ? 'Nascondi errori ▲' : 'Vedi errori ▼' }}
+                  </button>
+                </div>
+                @if (importDettaglioErroriAperto()) {
+                  <ul class="csv-errors-list">
+                    @for (err of res.erroriRighe.slice(0, 15); track err.riga) {
+                      <li>
+                        <strong>Riga {{ err.riga }}:</strong> {{ err.messaggio }}
+                      </li>
+                    }
+                    @if (res.erroriRighe.length > 15) {
+                      <li><em>...altri {{ res.erroriRighe.length - 15 }} errori non mostrati</em></li>
+                    }
+                  </ul>
+                }
+              </div>
+            }
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="chiudiModalImport()" [disabled]="importInCorso()">
+            Annulla
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="eseguiImportCsv()"
+            [disabled]="!importRisultato() || importRisultato()!.righeValide.length === 0 || importInCorso()"
+          >
+            {{ importInCorso() ? 'Importazione in corso...' : 'Conferma Importazione (' + (importRisultato()?.righeValide?.length ?? 0) + ' record)' }}
+          </button>
         </div>
       </div>
     </div>

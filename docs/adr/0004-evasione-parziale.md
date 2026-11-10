@@ -1,6 +1,6 @@
 # ADR-0004 — Spedizione parziale degli ordini clienti ("Ordinato" vs "Di cui Spedito")
 
-- **Stato:** Accettato (aggiornato per Cooperativa Barbatelle)
+- **Stato:** Accettato (aggiornato per Gestionale Mori)
 - **Data:** 2026-10-28
 
 ## Contesto

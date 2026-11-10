@@ -100,12 +100,12 @@ if (command === 'user') {
   runD1Sql(sql, isRemote);
   console.log(`Utente '${email}' (admin) creato o aggiornato con successo.`);
 } else if (command === 'seed') {
-  const adminHash = await hashPassword('AdminBarbatelle2026!');
+  const adminHash = await hashPassword('magazzino');
 
   const sql = `
     -- Utente amministratore ad uso interno
     INSERT INTO utenti (id, email, nome, password_hash, ruolo, attivo) VALUES
-      (1, 'admin@cooperativa.it', 'Federico Mori (Amministrazione)', ${sqlString(adminHash)}, 'admin', 1)
+      (1, 'fedemori.fm@gmail.com', 'Federico Mori', ${sqlString(adminHash)}, 'admin', 1)
     ON CONFLICT(email) DO UPDATE SET
       password_hash = excluded.password_hash,
       ruolo = 'admin',
@@ -202,7 +202,24 @@ if (command === 'user') {
 
   runD1Sql(sql, isRemote);
   console.log('Seed delle 12 tabelle completato con successo!');
+} else if (command === 'clean' || command === 'svuota') {
+  const sql = `
+    DELETE FROM ordine_impieghi;
+    DELETE FROM lotti_magazzino;
+    DELETE FROM inserimento_ore;
+    DELETE FROM inserimento_costi;
+    DELETE FROM dettaglio_cdc;
+    DELETE FROM attivita_cdc;
+    DELETE FROM centri_di_costo;
+    DELETE FROM clienti;
+    DELETE FROM anagrafica_personale;
+    DELETE FROM anagrafica_vite;
+    DELETE FROM anagrafica_portainnesto;
+    DELETE FROM tipi_prodotto;
+  `;
+  runD1Sql(sql, isRemote);
+  console.log('Dati mockati eliminati con successo (utente amministratore preservato)!');
 } else {
-  console.error('Comando non riconosciuto. Usa "seed" oppure "user".');
+  console.error('Comando non riconosciuto. Usa "seed", "clean" oppure "user".');
   process.exit(1);
 }

@@ -1,4 +1,4 @@
-# Glossario del dominio — Cooperativa Barbatelle
+# Glossario del dominio — Gestionale Mori
 
 Linguaggio comune del progetto: gli stessi termini si usano nei documenti (`REQUISITI.md`, `docs/adr/*`), nel database (`apps/api/src/db/schema.ts`) e negli schemi condivisi (`packages/shared`).
 

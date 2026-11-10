@@ -1,4 +1,4 @@
-# Cooperativa Barbatelle — Gestione Magazzino Conferimenti e Ordini
+# Gestionale Mori — Gestione Magazzino Conferimenti e Ordini
 
 Applicazione web mobile-first (**Angular 22 PWA + Hono + Cloudflare Workers & D1 + Drizzle ORM + Zod**) per la gestione dei conferimenti dei soci, della disponibilità commerciale (*Magazzino Virtuale*) e degli ordini clienti di una cooperativa di produttori di barbatelle.
 
@@ -30,10 +30,10 @@ npm run dev:api
 ```
 Apri **http://127.0.0.1:8787** (su smartphone o desktop).
 
-### Credenziali di prova precaricate dal seed (Uso interno)
+### Credenziali di Accesso (Uso interno)
 | Ruolo | Email | Password | Accesso |
 |---|---|---|---|
-| **Amministrazione** (`admin`) | `admin@cooperativa.it` | `AdminBarbatelle2026!` | Accesso completo a tutte le sezioni, report e tabelle (lettura e scrittura) |
+| **Amministrazione** (`admin`) | `fedemori.fm@gmail.com` | `magazzino` | Accesso completo a tutte le sezioni, report e tabelle (lettura e scrittura) |
 
 ---
 

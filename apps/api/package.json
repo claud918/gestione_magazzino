@@ -11,6 +11,8 @@
     "db:migrate:local": "wrangler d1 migrations apply gestione_magazzino --local",
     "db:migrate:remote": "wrangler d1 migrations apply gestione_magazzino --remote",
     "db:seed:local": "node scripts/seed-and-users.mjs seed",
+    "db:clean:local": "node scripts/seed-and-users.mjs clean",
+    "db:clean:remote": "node scripts/seed-and-users.mjs clean --remote",
     "db:import:supabase": "node scripts/import-from-supabase.mjs",
     "user:manage": "node scripts/seed-and-users.mjs user"
   },

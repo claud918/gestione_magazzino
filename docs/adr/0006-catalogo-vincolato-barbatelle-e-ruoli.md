@@ -5,7 +5,7 @@
 
 ## Contesto
 
-Dall'analisi del dominio della Cooperativa Barbatelle (`REQUISITI.md`) emergono tre vincoli fondamentali:
+Dall'analisi del dominio della Gestionale Mori (`REQUISITI.md`) emergono tre vincoli fondamentali:
 1. I nomi delle varietà, dei cloni e dei portainnesti sono regolamentati da registri ufficiali e non devono mai essere digitati a mano nei conferimenti o negli ordini (per evitare refusi che spezzerebbero i conteggi). Inoltre ogni Clone appartiene a una specifica Varietà.
 2. I soci conferiscono per **lotti**, ma gli **ordini clienti** vengono presi sulla combinazione agronomica (`Varietà + Clone + Portainnesto`) senza legame 1:1 a priori con un singolo lotto fisico.
 3. L'app è usata da 3 categorie di utenti nominativi con esigenze opposte: **Amministrazione** (operatività completa), **Commerciali** (sola lettura disponibilità da smartphone) e **Soci Produttori** (sola lettura fabbisogni scoperti da smartphone).

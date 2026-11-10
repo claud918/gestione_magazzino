@@ -1,6 +1,6 @@
 # ADR-0003 — Disponibilità virtuale negativa ammessa (Fabbisogno Scoperto per i Soci)
 
-- **Stato:** Accettato (aggiornato per Cooperativa Barbatelle)
+- **Stato:** Accettato (aggiornato per Gestionale Mori)
 - **Data:** 2026-10-28
 
 ## Contesto

@@ -1,4 +1,4 @@
-# Requisiti di Dominio e Allineamento Architetturale — Cooperativa Barbatelle
+# Requisiti di Dominio e Allineamento Architetturale — Gestionale Mori
 
 Documento di sintesi creato il 2026-10-28 per integrare lo stato attuale del progetto (`stack.md`, `GLOSSARY.md`, `docs/adr/*`) con i requisiti reali emersi dall'analisi del dominio (gestione magazzino conferimenti e ordini per una **cooperativa di produttori di barbatelle**).
 
@@ -31,7 +31,7 @@ Lo stack scelto in [`stack.md`](./stack.md) e le decisioni in [`docs/adr/`](./do
 
 ---
 
-## 3. Modello Dati del Dominio (Revisione per Cooperativa Barbatelle)
+## 3. Modello Dati del Dominio (Revisione per Gestionale Mori)
 
 ```mermaid
 erDiagram

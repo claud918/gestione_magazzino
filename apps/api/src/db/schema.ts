@@ -1,5 +1,5 @@
 /**
- * Schema Drizzle del database D1 (SQLite) per la Cooperativa Barbatelle.
+ * Schema Drizzle del database D1 (SQLite) per la Gestionale Mori.
  * Vedi REQUISITI.md, GLOSSARY.md e docs/adr/0007-nuovo-modello-costi-magazzino.md.
  */
 import {

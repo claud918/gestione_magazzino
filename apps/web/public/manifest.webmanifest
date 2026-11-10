@@ -1,6 +1,6 @@
 {
-  "name": "Cooperativa Barbatelle — Magazzino e Ordini",
-  "short_name": "Barbatelle",
+  "name": "Gestionale Mori — Magazzino e Ordini",
+  "short_name": "Gestionale Mori",
   "description": "Consultazione disponibilità commerciali, scoperti soci e gestione conferimenti e ordini",
   "start_url": "/",
   "scope": "/",
@@ -18,4 +18,3 @@
     }
   ]
 }
-

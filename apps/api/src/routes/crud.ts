@@ -4,6 +4,7 @@ import {
   isNomeTabella,
   calcolaCampiDerivati,
   validaRiga,
+  CONFLITTO_TABELLA,
   type NomeTabella,
   type RigaTabella,
 } from '@magazzino/shared';
@@ -200,6 +201,123 @@ crudRoutes.delete('/:tabella', requireAdmin, async (c) => {
       },
       400,
     );
+  }
+});
+
+/**
+ * POST /api/crud/:tabella/import
+ * Importazione massiva da CSV (solo admin).
+ */
+crudRoutes.post('/:tabella/import', requireAdmin, async (c) => {
+  const tabellaParam = c.req.param('tabella');
+  if (!isNomeTabella(tabellaParam)) {
+    return c.json({ error: 'Tabella non trovata' }, 404);
+  }
+
+  const def = TABELLE[tabellaParam];
+  const body = await c.req.json().catch(() => ({}));
+  const rawRighe = Array.isArray(body.righe) ? body.righe : [];
+  const modalita: 'upsert' | 'ignora' | 'errore' =
+    body.modalita === 'ignora' || body.modalita === 'errore' ? body.modalita : 'upsert';
+
+  if (rawRighe.length === 0) {
+    return c.json({ error: "Nessuna riga fornita per l'importazione" }, 400);
+  }
+
+  // Validazione di tutte le righe prima dell'inserimento
+  const righeValide: RigaTabella[] = [];
+  const erroriValidazione: { riga: number; messaggio: string }[] = [];
+
+  for (let i = 0; i < rawRighe.length; i++) {
+    const raw = rawRighe[i];
+    const { valori, errori } = validaRiga(def, raw);
+    if (errori.length > 0) {
+      erroriValidazione.push({
+        riga: i + 1,
+        messaggio: errori.map((e) => e.messaggio).join('; '),
+      });
+      continue;
+    }
+
+    if (def.chiave.length === 1 && def.chiave[0] === 'id' && !valori['id']) {
+      valori['id'] = crypto.randomUUID();
+    }
+
+    const rigaCompleta = calcolaCampiDerivati(def.nome, valori);
+    righeValide.push(rigaCompleta);
+  }
+
+  if (erroriValidazione.length > 0) {
+    return c.json(
+      {
+        error: `Rilevati errori in ${erroriValidazione.length} righe su ${rawRighe.length}`,
+        dettagli: erroriValidazione.slice(0, 20),
+      },
+      400,
+    );
+  }
+
+  // Individua il bersaglio di conflitto per ON CONFLICT
+  const conflictCols = CONFLITTO_TABELLA[def.nome] ?? (def.chiave[0] !== 'id' ? def.chiave : null);
+
+  const statements: ReturnType<typeof c.env.DB.prepare>[] = [];
+
+  for (const riga of righeValide) {
+    const colonne = Object.keys(riga);
+    const placeholders = colonne.map(() => '?').join(', ');
+    const params = colonne.map((k) => riga[k]);
+
+    let sql = `INSERT INTO "${def.nome}" (${colonne.map((col) => `"${col}"`).join(', ')}) VALUES (${placeholders})`;
+
+    if (conflictCols && conflictCols.length > 0) {
+      const conflictSql = conflictCols.map((col) => `"${col}"`).join(', ');
+
+      if (modalita === 'ignora') {
+        sql += ` ON CONFLICT (${conflictSql}) DO NOTHING`;
+      } else if (modalita === 'upsert') {
+        const updateCols = colonne.filter((col) => !conflictCols.includes(col) && col !== 'id');
+        if (updateCols.length > 0) {
+          const updateClauses = updateCols.map((col) => `"${col}" = excluded."${col}"`).join(', ');
+          sql += ` ON CONFLICT (${conflictSql}) DO UPDATE SET ${updateClauses}`;
+        } else {
+          sql += ` ON CONFLICT (${conflictSql}) DO NOTHING`;
+        }
+      }
+    }
+
+    statements.push(c.env.DB.prepare(sql).bind(...params));
+  }
+
+  // Esecuzione a blocchi (max 100 query per batch in Cloudflare D1)
+  const CHUNK_SIZE = 100;
+  let totaleModifiche = 0;
+
+  try {
+    for (let i = 0; i < statements.length; i += CHUNK_SIZE) {
+      const chunk = statements.slice(i, i + CHUNK_SIZE);
+      const results = await c.env.DB.batch(chunk);
+      for (const res of results) {
+        totaleModifiche += res.meta?.changes ?? 0;
+      }
+    }
+
+    return c.json({
+      successo: true,
+      totale: righeValide.length,
+      modifiche: totaleModifiche,
+      messaggio: `Importazione completata con successo: ${righeValide.length} record elaborati.`,
+    });
+  } catch (err: any) {
+    console.error('Errore batch import:', err);
+    let msg = err.message || "Errore durante l'importazione";
+    if (msg.includes('FOREIGN KEY constraint failed')) {
+      msg =
+        'Errore di integrità: uno o più valori referenziati (es. Varietà, Clone, Portainnesto, Prodotto, Cliente) non esistono nel database. Popola prima le rispettive anagrafiche.';
+    } else if (msg.includes('UNIQUE constraint failed')) {
+      msg =
+        'Errore di duplicato: uno o più record sono già presenti nel database. Seleziona la modalità "Aggiorna se già presente (Upsert)" o "Ignora duplicati".';
+    }
+    return c.json({ error: msg }, 400);
   }
 });
 

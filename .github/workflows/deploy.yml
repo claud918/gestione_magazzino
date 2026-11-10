@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Build & Deploy Cooperativa Barbatelle
+    name: Build & Deploy Gestionale Mori
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

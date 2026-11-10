@@ -36,6 +36,13 @@
       "when": 1794248431184,
       "tag": "0004_trigger_e_vista_disponibilita",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794250000000,
+      "tag": "0005_svuota_dati_mock",
+      "breakpoints": true
     }
   ]
 }
