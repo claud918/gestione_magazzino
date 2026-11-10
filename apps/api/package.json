@@ -8,9 +8,10 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply magazzino --local",
-    "db:migrate:remote": "wrangler d1 migrations apply magazzino --remote",
+    "db:migrate:local": "wrangler d1 migrations apply gestione_magazzino --local",
+    "db:migrate:remote": "wrangler d1 migrations apply gestione_magazzino --remote",
     "db:seed:local": "node scripts/seed-and-users.mjs seed",
+    "db:import:supabase": "node scripts/import-from-supabase.mjs",
     "user:manage": "node scripts/seed-and-users.mjs user"
   },
   "dependencies": {

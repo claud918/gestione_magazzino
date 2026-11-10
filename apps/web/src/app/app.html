@@ -15,7 +15,6 @@
       <div class="header-user">
         <span class="user-info">
           <strong>{{ utente()!.nome }}</strong>
-          <small>({{ utente()!.ruolo }})</small>
         </span>
         <button class="btn btn-sm btn-outline-light" (click)="eseguiLogout()">Esci</button>
       </div>
@@ -69,13 +68,7 @@
           <small>Accesso rapido demo:</small>
           <div class="quick-buttons">
             <button class="btn btn-xs" (click)="impostaAccessoRapido('admin@cooperativa.it', 'AdminBarbatelle2026!')">
-              Admin
-            </button>
-            <button class="btn btn-xs" (click)="impostaAccessoRapido('commerciale@cooperativa.it', 'CommBarbatelle2026!')">
-              Commerciale
-            </button>
-            <button class="btn btn-xs" (click)="impostaAccessoRapido('rossi@cooperativa.it', 'SocioBarbatelle2026!')">
-              Produttore
+              Admin (Uso interno)
             </button>
           </div>
         </div>

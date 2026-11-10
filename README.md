@@ -30,25 +30,23 @@ npm run dev:api
 ```
 Apri **http://127.0.0.1:8787** (su smartphone o desktop).
 
-### Credenziali di prova precaricate dal seed
-| Ruolo | Email | Password | Viste abilitate |
+### Credenziali di prova precaricate dal seed (Uso interno)
+| Ruolo | Email | Password | Accesso |
 |---|---|---|---|
-| **Amministrazione** (`admin`) | `admin@cooperativa.it` | `AdminBarbatelle2026!` | Tutte le 5 viste (lettura e scrittura) |
-| **Commerciale** (`commerciale`) | `commerciale@cooperativa.it` | `CommBarbatelle2026!` | Vista 1 — Disponibilità alla vendita (sola lettura) |
-| **Socio Produttore** (`produttore`) | `rossi@cooperativa.it` | `SocioBarbatelle2026!` | Vista 2 — Fabbisogno scoperto (sola lettura) |
+| **Amministrazione** (`admin`) | `admin@cooperativa.it` | `AdminBarbatelle2026!` | Accesso completo a tutte le sezioni, report e tabelle (lettura e scrittura) |
 
 ---
 
 ## Creazione o Reset Password Utenti da Terminale
 
-Puoi creare un nuovo account nominativo o reimpostare la password di un account esistente in qualsiasi momento (sia in locale sia su Cloudflare remoto aggiungendo `--remote`):
+Puoi creare un nuovo account o reimpostare la password in qualsiasi momento (sia in locale sia su Cloudflare remoto aggiungendo `--remote`):
 
 ```powershell
 # Locale
-npm run user:manage -- mario.bianchi@cooperativa.it "NuovaPasswordSicura2026!" commerciale "Mario Bianchi"
+npm run user:manage -- admin@cooperativa.it "NuovaPasswordSicura2026!" "Amministratore"
 
 # Remoto (Cloudflare D1 in produzione)
-npm run user:manage -- admin@cooperativa.it "PasswordProduzione2026!" admin "Amministrazione" --remote
+npm run user:manage -- admin@cooperativa.it "PasswordProduzione2026!" "Amministratore" --remote
 ```
 
 ---

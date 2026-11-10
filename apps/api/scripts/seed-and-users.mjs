@@ -58,7 +58,7 @@ function runD1Sql(sqlText, isRemote) {
       'wrangler',
       'd1',
       'execute',
-      'magazzino',
+      'gestione_magazzino',
       isRemote ? '--remote' : '--local',
       `--file=${tmpFile}`,
     ];
@@ -78,40 +78,41 @@ const command = args[0];
 const isRemote = args.includes('--remote');
 
 if (command === 'user') {
-  const [email, password, ruolo, nome] = args.slice(1).filter((a) => a !== '--remote');
-  if (!email || !password || !['admin', 'commerciale', 'produttore'].includes(ruolo) || !nome) {
-    console.error(
-      'Uso: node scripts/seed-and-users.mjs user <email> <password> <admin|commerciale|produttore> "<nome>" [--remote]',
-    );
+  const [email, password, rawRuolo, rawNome] = args.slice(1).filter((a) => a !== '--remote');
+  // Se il ruolo non è passato esplicitamente o è diverso da admin, usiamo admin
+  const ruolo = rawRuolo === 'admin' ? 'admin' : (rawNome ? rawRuolo : 'admin');
+  const nome = rawNome ?? (rawRuolo && rawRuolo !== 'admin' ? rawRuolo : 'Amministratore');
+
+  if (!email || !password) {
+    console.error('Uso: node scripts/seed-and-users.mjs user <email> <password> ["<nome>"] [--remote]');
     process.exit(1);
   }
   const hash = await hashPassword(password);
   const sql = `
     INSERT INTO utenti (email, nome, password_hash, ruolo, attivo)
-    VALUES (${sqlString(email.toLowerCase())}, ${sqlString(nome)}, ${sqlString(hash)}, ${sqlString(ruolo)}, 1)
+    VALUES (${sqlString(email.toLowerCase())}, ${sqlString(nome)}, ${sqlString(hash)}, 'admin', 1)
     ON CONFLICT(email) DO UPDATE SET
       nome = excluded.nome,
       password_hash = excluded.password_hash,
-      ruolo = excluded.ruolo,
+      ruolo = 'admin',
       attivo = 1;
   `;
   runD1Sql(sql, isRemote);
-  console.log(`Utente '${email}' (${ruolo}) creato o aggiornato con successo.`);
+  console.log(`Utente '${email}' (admin) creato o aggiornato con successo.`);
 } else if (command === 'seed') {
   const adminHash = await hashPassword('AdminBarbatelle2026!');
-  const commHash = await hashPassword('CommBarbatelle2026!');
-  const socioHash = await hashPassword('SocioBarbatelle2026!');
 
   const sql = `
-    -- Utenti di default
+    -- Utente amministratore ad uso interno
     INSERT INTO utenti (id, email, nome, password_hash, ruolo, attivo) VALUES
-      (1, 'admin@cooperativa.it', 'Federico Mori (Amministrazione)', ${sqlString(adminHash)}, 'admin', 1),
-      (2, 'commerciale@cooperativa.it', 'Marco (Commerciale)', ${sqlString(commHash)}, 'commerciale', 1),
-      (3, 'rossi@cooperativa.it', 'Giuseppe Rossi (Produttore)', ${sqlString(socioHash)}, 'produttore', 1)
+      (1, 'admin@cooperativa.it', 'Federico Mori (Amministrazione)', ${sqlString(adminHash)}, 'admin', 1)
     ON CONFLICT(email) DO UPDATE SET
       password_hash = excluded.password_hash,
-      ruolo = excluded.ruolo,
+      ruolo = 'admin',
       nome = excluded.nome;
+
+    -- Rimuovi eventuali utenti di altri ruoli se presenti
+    DELETE FROM utenti WHERE email IN ('commerciale@cooperativa.it', 'rossi@cooperativa.it');
 
     -- Tipi prodotto
     INSERT OR IGNORE INTO tipi_prodotto (prodotto) VALUES

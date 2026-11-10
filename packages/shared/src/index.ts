@@ -14,9 +14,9 @@ export const HealthResponse = z.object({
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
 
-// --- Ruoli e Autenticazione (Account nominativi) ---
+// --- Ruoli e Autenticazione (Uso interno: solo admin) ---
 
-export const RuoloUtente = z.enum(['admin', 'commerciale', 'produttore']);
+export const RuoloUtente = z.enum(['admin']);
 export type RuoloUtente = z.infer<typeof RuoloUtente>;
 
 export const UtenteProfilo = z.object({

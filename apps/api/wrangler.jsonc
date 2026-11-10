@@ -21,8 +21,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "magazzino",
-      "database_id": "31a8ed24-50ef-4b49-9876-486708582427",
+      "database_name": "gestione_magazzino",
+      "database_id": "d0e348dc-75ed-47dc-be02-4a7a9df1cd1d",
       "migrations_dir": "migrations"
     }
   ],

@@ -16,7 +16,7 @@ import {
 import { sql } from 'drizzle-orm';
 
 // ============================================================================
-// AUTENTICAZIONE E RUOLI NOMINATIVI (admin | commerciale | produttore)
+// AUTENTICAZIONE AD USO INTERNO (solo admin)
 // ============================================================================
 
 export const utenti = sqliteTable(
@@ -26,7 +26,7 @@ export const utenti = sqliteTable(
     email: text('email').notNull(),
     nome: text('nome').notNull(),
     passwordHash: text('password_hash').notNull(),
-    ruolo: text('ruolo', { enum: ['admin', 'commerciale', 'produttore'] }).notNull(),
+    ruolo: text('ruolo', { enum: ['admin'] }).notNull().default('admin'),
     attivo: integer('attivo', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at')
       .notNull()
