@@ -216,6 +216,9 @@ export class App implements OnInit {
   protected selezionaSezione(sez: SezioneAttiva): void {
     this.sezioneAttiva.set(sez);
     this.menuMobileAperto.set(false);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
     if (sez === 'disponibilita') {
       this.caricaDisponibilita();
     } else {
@@ -228,6 +231,9 @@ export class App implements OnInit {
     this.sezioneAttiva.set('tabella');
     this.menuMobileAperto.set(false);
     this.ricercaTesto.set('');
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
     this.caricaDatiTabella(tab);
   }
 

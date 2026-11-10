@@ -417,9 +417,10 @@
               <h2>{{ defTabella().etichetta }}</h2>
             </div>
             <div class="header-actions">
-              <!-- Switch Tabella / Schede per Smartphone -->
-              <div class="view-toggle mobile-only">
+              <!-- Switch Tabella / Schede -->
+              <div class="view-toggle">
                 <button
+                  type="button"
                   class="btn-toggle"
                   [class.active]="modalitaVista() === 'schede'"
                   (click)="modalitaVista.set('schede')"
@@ -427,6 +428,7 @@
                   📱 Schede
                 </button>
                 <button
+                  type="button"
                   class="btn-toggle"
                   [class.active]="modalitaVista() === 'tabella'"
                   (click)="modalitaVista.set('tabella')"
@@ -468,71 +470,73 @@
               }
             </div>
           } @else {
-            <!-- 1. VISTA TABELLARE DESKTOP -->
-            <div class="table-responsive" [class.desktop-table-view]="modalitaVista() === 'schede'">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    @for (campo of defTabella().campi; track campo.nome) {
-                      @if (!campo.automatico && !campo.nascostoInTabella) {
-                        <th>{{ campo.etichetta }}</th>
-                      }
-                    }
-                    @if (utente()?.ruolo === 'admin') {
-                      <th class="actions-col">Azioni</th>
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (riga of righeFiltrate(); track $index) {
+            @if (modalitaVista() === 'tabella') {
+              <!-- 1. VISTA TABELLARE -->
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
                     <tr>
                       @for (campo of defTabella().campi; track campo.nome) {
                         @if (!campo.automatico && !campo.nascostoInTabella) {
-                          <td [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'">
-                            {{ formattaValoreTabella(campo, riga[campo.nome]) }}
-                          </td>
+                          <th>{{ campo.etichetta }}</th>
                         }
                       }
                       @if (utente()?.ruolo === 'admin') {
-                        <td class="actions-col">
-                          <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
-                          <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
-                        </td>
+                        <th class="actions-col">Azioni</th>
                       }
                     </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-
-            <!-- 2. VISTA SCHEDE SMARTPHONE -->
-            <div class="mobile-cards-container" [class.mobile-cards-view]="modalitaVista() === 'tabella'">
-              @for (riga of righeFiltrate(); track $index) {
-                <div class="mobile-card">
-                  <div class="mobile-card-header">
-                    <span class="mobile-card-title">
-                      {{ riga[defTabella().titoloScheda] || 'Elemento' }}
-                    </span>
-                    @if (utente()?.ruolo === 'admin') {
-                      <div class="mobile-card-actions">
-                        <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
-                        <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
-                      </div>
+                  </thead>
+                  <tbody>
+                    @for (riga of righeFiltrate(); track $index) {
+                      <tr>
+                        @for (campo of defTabella().campi; track campo.nome) {
+                          @if (!campo.automatico && !campo.nascostoInTabella) {
+                            <td [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'">
+                              {{ formattaValoreTabella(campo, riga[campo.nome]) }}
+                            </td>
+                          }
+                        }
+                        @if (utente()?.ruolo === 'admin') {
+                          <td class="actions-col">
+                            <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
+                            <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
+                          </td>
+                        }
+                      </tr>
                     }
-                  </div>
-                  <div class="mobile-card-body">
-                    @for (campo of defTabella().campi; track campo.nome) {
-                      @if (!campo.automatico && campo.nome !== defTabella().titoloScheda && (campo.inScheda || riga[campo.nome])) {
-                        <div class="mobile-field-row">
-                          <span class="field-label">{{ campo.etichetta }}:</span>
-                          <span class="field-val">{{ formattaValoreTabella(campo, riga[campo.nome]) }}</span>
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <!-- 2. VISTA SCHEDE -->
+              <div class="mobile-cards-container">
+                @for (riga of righeFiltrate(); track $index) {
+                  <div class="mobile-card">
+                    <div class="mobile-card-header">
+                      <span class="mobile-card-title">
+                        {{ riga[defTabella().titoloScheda] || 'Elemento' }}
+                      </span>
+                      @if (utente()?.ruolo === 'admin') {
+                        <div class="mobile-card-actions">
+                          <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
+                          <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
                         </div>
                       }
-                    }
+                    </div>
+                    <div class="mobile-card-body">
+                      @for (campo of defTabella().campi; track campo.nome) {
+                        @if (!campo.automatico && campo.nome !== defTabella().titoloScheda && (campo.inScheda || riga[campo.nome])) {
+                          <div class="mobile-field-row">
+                            <span class="field-label">{{ campo.etichetta }}:</span>
+                            <span class="field-val">{{ formattaValoreTabella(campo, riga[campo.nome]) }}</span>
+                          </div>
+                        }
+                      }
+                    </div>
                   </div>
-                </div>
-              }
-            </div>
+                }
+              </div>
+            }
           }
         }
       </main>
