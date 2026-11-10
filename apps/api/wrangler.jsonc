@@ -1,7 +1,7 @@
 {
   // Un unico Worker: serve i file statici di Angular e l'API sotto /api.
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "magazzino",
+  "name": "gestionale",
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": [
