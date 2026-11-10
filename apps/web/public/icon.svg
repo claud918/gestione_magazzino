@@ -1,11 +1,110 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#1b4332"/>
-  <circle cx="200" cy="210" r="38" fill="#d8f3dc"/>
-  <circle cx="312" cy="210" r="38" fill="#d8f3dc"/>
-  <circle cx="256" cy="285" r="38" fill="#95d5b2"/>
-  <circle cx="195" cy="345" r="34" fill="#74c69d"/>
-  <circle cx="317" cy="345" r="34" fill="#74c69d"/>
-  <circle cx="256" cy="405" r="32" fill="#52b788"/>
-  <path d="M256 96v78M212 128c24-22 64-22 88 0" stroke="#d8f3dc" stroke-width="22" stroke-linecap="round" fill="none"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Sfondo gradiente botanico profondo -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#082215"/>
+      <stop offset="50%" stop-color="#123d28"/>
+      <stop offset="100%" stop-color="#1b5638"/>
+    </linearGradient>
 
+    <!-- Luce radiale centrale soffusa -->
+    <radialGradient id="glowGrad" cx="50%" cy="45%" r="45%">
+      <stop offset="0%" stop-color="#4ade80" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#22c55e" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#123d28" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Gradiente foglie di vite smeraldo -->
+    <linearGradient id="leafGradLeft" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#15803d"/>
+      <stop offset="50%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#86efac"/>
+    </linearGradient>
+
+    <linearGradient id="leafGradRight" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#166534"/>
+      <stop offset="50%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#4ade80"/>
+    </linearGradient>
+
+    <!-- Gradiente tralcio / legno nobile oro caldo -->
+    <linearGradient id="stemGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fde68a"/>
+    </linearGradient>
+
+    <!-- Gradiente acini d'uva / perle di vivaio -->
+    <radialGradient id="grapeGrad1" cx="35%" cy="32%" r="65%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#a7f3d0"/>
+      <stop offset="80%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </radialGradient>
+
+    <radialGradient id="grapeGrad2" cx="35%" cy="32%" r="65%">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="40%" stop-color="#fcd34d"/>
+      <stop offset="85%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </radialGradient>
+
+    <!-- Ombra morbida per profondità -->
+    <filter id="shadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+
+  <!-- Base Icona Rettangolo Smussato con bordo elegante -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <rect x="10" y="10" width="492" height="492" rx="104" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <circle cx="256" cy="245" r="190" fill="url(#glowGrad)"/>
+
+  <!-- Gruppo Emblema Centrale con ombra -->
+  <g filter="url(#shadow)">
+    <!-- Tralcio di vite centrale sagomato (forma barbatella & iniziale vivaio) -->
+    <path d="M256 122 c-4 0 -12 16 -10 32 c4 28 22 46 22 74 c0 20 -10 34 -20 46"
+          fill="none" stroke="url(#stemGrad)" stroke-width="12" stroke-linecap="round"/>
+    
+    <!-- Viticcio a spirale superiore (ricciolo di vite) -->
+    <path d="M268 154 c18 -18 36 -12 38 6 c2 16 -12 24 -24 20"
+          fill="none" stroke="url(#stemGrad)" stroke-width="6" stroke-linecap="round"/>
+
+    <!-- Foglia di Vite Sinistra (labbro trilobato stilizzato) -->
+    <path d="M246 226 C220 206 170 190 148 214 C132 232 144 266 168 274 C152 284 150 306 166 318 C182 330 208 322 222 306 C232 294 242 266 248 244 Z"
+          fill="url(#leafGradLeft)" opacity="0.95"/>
+    <path d="M242 234 C210 248 180 262 160 274 M216 256 C200 278 186 296 174 308 M228 246 C206 230 184 220 162 218"
+          fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Foglia di Vite Destra (prospettiva ascendente) -->
+    <path d="M268 216 C296 196 344 186 364 210 C378 228 368 260 344 270 C360 278 364 300 348 314 C332 328 304 322 290 304 C280 292 272 260 266 236 Z"
+          fill="url(#leafGradRight)" opacity="0.95"/>
+    <path d="M272 226 C304 240 332 254 352 266 M298 248 C314 270 328 288 338 300 M286 236 C308 222 330 214 350 212"
+          fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Grappolo d'uva centrale: disposizione piramidale bilanciata a 9 acini -->
+    <!-- Fila 1 (4 acini superiori) -->
+    <circle cx="212" cy="304" r="26" fill="url(#grapeGrad1)"/>
+    <circle cx="256" cy="296" r="27" fill="url(#grapeGrad2)"/>
+    <circle cx="300" cy="304" r="26" fill="url(#grapeGrad1)"/>
+
+    <!-- Fila 2 (3 acini intermedi) -->
+    <circle cx="234" cy="346" r="25" fill="url(#grapeGrad1)"/>
+    <circle cx="278" cy="346" r="25" fill="url(#grapeGrad2)"/>
+
+    <!-- Fila 3 (2 acini bassi) -->
+    <circle cx="244" cy="386" r="23" fill="url(#grapeGrad2)"/>
+    <circle cx="268" cy="386" r="23" fill="url(#grapeGrad1)"/>
+
+    <!-- Fila 4 (punta del grappolo) -->
+    <circle cx="256" cy="422" r="20" fill="url(#grapeGrad1)"/>
+
+    <!-- Punti luce delicati sugli acini per effetto tridimensionale -->
+    <circle cx="204" cy="296" r="6" fill="#ffffff" opacity="0.6"/>
+    <circle cx="248" cy="288" r="6.5" fill="#ffffff" opacity="0.7"/>
+    <circle cx="292" cy="296" r="6" fill="#ffffff" opacity="0.6"/>
+    <circle cx="226" cy="338" r="5.5" fill="#ffffff" opacity="0.6"/>
+    <circle cx="270" cy="338" r="5.5" fill="#ffffff" opacity="0.65"/>
+    <circle cx="248" cy="414" r="4.5" fill="#ffffff" opacity="0.7"/>
+  </g>
+</svg>
