@@ -236,6 +236,14 @@
               <p class="subtitle">Saldi calcolati da lotti e impegni ordini</p>
             </div>
             <div class="header-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="esportaDisponibilitaCsv()"
+                title="Scarica i dati in formato CSV per Excel"
+              >
+                📥 Esporta CSV
+              </button>
               <!-- Switch vista per smartphone / desktop -->
               <div class="view-toggle">
                 <button
@@ -417,6 +425,14 @@
               <h2>{{ defTabella().etichetta }}</h2>
             </div>
             <div class="header-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="esportaTabellaCsv()"
+                title="Scarica la tabella in formato CSV per Excel"
+              >
+                📥 Esporta CSV
+              </button>
               <!-- Switch Tabella / Schede -->
               <div class="view-toggle">
                 <button

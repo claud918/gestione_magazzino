@@ -493,4 +493,81 @@ export class App implements OnInit {
     }
     return String(val);
   }
+
+  // --- Esportazione CSV per Excel ---
+  private scaricaCsv(nomeFile: string, righe: string[][]): void {
+    const csvContent =
+      '\uFEFF' +
+      righe
+        .map((r) =>
+          r
+            .map((val) => {
+              const str = val === null || val === undefined ? '' : String(val);
+              return `"${str.replace(/"/g, '""')}"`;
+            })
+            .join(';'),
+        )
+        .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeFile;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  protected esportaDisponibilitaCsv(): void {
+    const items = this.disponibilitaFiltrata();
+    const intestazioni = [
+      'Campagna',
+      'Prodotto',
+      'Varietà',
+      'Clone',
+      'Portainnesto',
+      'Tipologia',
+      'Prodotto (Q.tà)',
+      'Ordinato',
+      'Consegnato',
+      'Disponibile',
+      'Giacenza fisica',
+      'Scoperto',
+    ];
+    const righe = items.map((it) => [
+      it.campagna,
+      it.prodotto,
+      it.codice_varieta,
+      it.codice_clone,
+      it.codice_portainnesto,
+      it.tipologia,
+      String(it.prodotto_qta),
+      String(it.ordinato),
+      String(it.consegnato),
+      String(it.disponibile),
+      String(it.giacenza_fisica),
+      String(it.scoperto),
+    ]);
+    const dataStr = new Date().toISOString().slice(0, 10);
+    this.scaricaCsv(`disponibilita_magazzino_${dataStr}.csv`, [intestazioni, ...righe]);
+    this.mostraOk('Report disponibilità scaricato in formato CSV');
+  }
+
+  protected esportaTabellaCsv(): void {
+    const def = this.defTabella();
+    const righe = this.righeFiltrate();
+    const campiVisibili = def.campi.filter((c) => !c.automatico);
+    const intestazioni = campiVisibili.map((c) => c.etichetta);
+    const dati = righe.map((r) =>
+      campiVisibili.map((c) => {
+        const val = r[c.nome];
+        if (val === null || val === undefined) return '';
+        if (c.tipo === 'booleano') return val ? 'Sì' : 'No';
+        return String(val);
+      }),
+    );
+    const dataStr = new Date().toISOString().slice(0, 10);
+    this.scaricaCsv(`export_${def.nome}_${dataStr}.csv`, [intestazioni, ...dati]);
+    this.mostraOk(`Tabella "${def.etichetta}" scaricata in formato CSV`);
+  }
 }
