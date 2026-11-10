@@ -163,6 +163,10 @@ export class App implements OnInit {
   });
 
   ngOnInit(): void {
+    if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+      window.scrollTo({ top: 0, left: 0 });
+    }
     this.verificaSessione();
   }
 
