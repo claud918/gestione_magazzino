@@ -358,16 +358,30 @@ export class App implements OnInit {
     this.modalValori.set({ ...val });
   }
 
-  /** Ottiene le opzioni filtrate per un campo con riferimento FK */
+  /** Ottiene le opzioni filtrate e distinte (SELECT DISTINCT) per un campo con riferimento FK */
   protected getOpzioniPerCampo(campo: CampoTabella): any[] {
     const tutte = this.opzioniRiferimento()[campo.nome] || [];
-    if (!campo.riferimento?.filtro) return tutte;
+    let filtrate = tutte;
 
-    const { campo: campoGenitore, colonnaRif } = campo.riferimento.filtro;
-    const valoreGenitore = this.modalValori()[campoGenitore];
-    if (!valoreGenitore) return [];
+    if (campo.riferimento?.filtro) {
+      const { campo: campoGenitore, colonnaRif } = campo.riferimento.filtro;
+      const valoreGenitore = this.modalValori()[campoGenitore];
+      if (!valoreGenitore) return [];
+      filtrate = tutte.filter((item: any) => item[colonnaRif] === valoreGenitore);
+    }
 
-    return tutte.filter((item: any) => item[colonnaRif] === valoreGenitore);
+    if (!campo.riferimento?.colonna) return filtrate;
+
+    // Deduplica le opzioni in base al valore della colonna di riferimento (SELECT DISTINCT)
+    const visti = new Set<string>();
+    return filtrate.filter((item: any) => {
+      const val = item[campo.riferimento!.colonna];
+      if (val === null || val === undefined || val === '') return false;
+      const chiave = String(val).trim();
+      if (visti.has(chiave)) return false;
+      visti.add(chiave);
+      return true;
+    });
   }
 
   protected isCampoDisabilitato(campo: CampoTabella): boolean {
