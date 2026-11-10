@@ -32,7 +32,7 @@
           <div class="alert alert-danger">{{ loginErrore() }}</div>
         }
 
-        <form (ngSubmit)="eseguiLogin()">
+        <form (ngSubmit)="eseguiLogin($event)">
           <div class="form-group">
             <label for="email">Email</label>
             <input
@@ -40,6 +40,8 @@
               type="email"
               class="form-control"
               [(ngModel)]="loginEmail"
+              (input)="loginEmail.set($any($event.target).value)"
+              (change)="loginEmail.set($any($event.target).value)"
               name="email"
               required
               autocomplete="username"
@@ -53,6 +55,8 @@
               type="password"
               class="form-control"
               [(ngModel)]="loginPassword"
+              (input)="loginPassword.set($any($event.target).value)"
+              (change)="loginPassword.set($any($event.target).value)"
               name="password"
               required
               autocomplete="current-password"

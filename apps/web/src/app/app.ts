@@ -165,7 +165,6 @@ export class App implements OnInit {
   ngOnInit(): void {
     if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
-      window.scrollTo({ top: 0, left: 0 });
     }
     this.verificaSessione();
   }
@@ -178,6 +177,11 @@ export class App implements OnInit {
         this.utente.set(res.utente);
         this.caricamentoIniziale.set(false);
         this.inizializzaDati();
+        if (typeof window !== 'undefined') {
+          setTimeout(() => {
+            window.scrollTo(0, 0);
+          }, 0);
+        }
       },
       error: () => {
         this.utente.set(null);
@@ -186,23 +190,43 @@ export class App implements OnInit {
     });
   }
 
-  protected eseguiLogin(): void {
-    if (!this.loginEmail() || !this.loginPassword()) {
+  protected eseguiLogin(event?: Event): void {
+    if (event) {
+      event.preventDefault();
+    }
+    // Recupera i valori direttamente dal DOM per supportare browser autofill / password manager
+    const emailElem = document.getElementById('email') as HTMLInputElement | null;
+    const passElem = document.getElementById('password') as HTMLInputElement | null;
+
+    const email = (emailElem?.value || this.loginEmail()).trim();
+    const password = passElem?.value || this.loginPassword();
+
+    // Sincronizza i signal Angular se l'autofill è avvenuto senza emettere eventi DOM
+    if (email) this.loginEmail.set(email);
+    if (password) this.loginPassword.set(password);
+
+    if (!email || !password) {
       this.loginErrore.set('Inserisci email e password');
       return;
     }
+
     this.inInvio.set(true);
     this.loginErrore.set(null);
     this.http
       .post<{ utente: UtenteProfilo }>('/api/auth/login', {
-        email: this.loginEmail(),
-        password: this.loginPassword(),
+        email,
+        password,
       })
       .subscribe({
         next: (res) => {
           this.utente.set(res.utente);
           this.inInvio.set(false);
           this.inizializzaDati();
+          if (typeof window !== 'undefined') {
+            setTimeout(() => {
+              window.scrollTo(0, 0);
+            }, 0);
+          }
         },
         error: (err) => {
           this.inInvio.set(false);
@@ -214,6 +238,8 @@ export class App implements OnInit {
   protected eseguiLogout(): void {
     this.http.post('/api/auth/logout', {}).subscribe(() => {
       this.utente.set(null);
+      this.loginErrore.set(null);
+      this.loginPassword.set('');
     });
   }
 

@@ -30,7 +30,6 @@
   background: #1b4332;
   color: #fff;
   padding: 0.65rem 1.25rem;
-  padding-top: max(0.65rem, env(safe-area-inset-top));
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: -webkit-sticky;
   position: sticky;
@@ -42,17 +41,10 @@
   min-height: 56px;
   box-sizing: border-box;
 
-  // GPU compositing layer: evita che WebKit sganci/nasconda la barra verde durante e dopo pull-to-refresh
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  will-change: transform;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-
   @media (max-width: 600px) {
     padding: 0.5rem 0.85rem;
     padding-top: max(0.5rem, env(safe-area-inset-top));
-    min-height: calc(52px + env(safe-area-inset-top, 0px));
+    min-height: 52px;
 
     .header-brand {
       gap: 0.5rem;
