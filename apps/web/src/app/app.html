@@ -79,8 +79,22 @@
   <!-- Layout Applicazione Autenticata -->
   @if (utente()) {
     <div class="main-container">
+      <!-- Backdrop per chiudere il menu mobile cliccando fuori -->
+      @if (menuMobileAperto()) {
+        <div
+          class="sidebar-backdrop"
+          (click)="menuMobileAperto.set(false)"
+          aria-hidden="true"
+        ></div>
+      }
+
       <!-- Sidebar / Menu Mobile -->
       <aside class="app-sidebar" [class.mobile-open]="menuMobileAperto()">
+        <div class="sidebar-mobile-header">
+          <span>Navigazione</span>
+          <button class="btn-close-sidebar" (click)="menuMobileAperto.set(false)" aria-label="Chiudi menu">✕</button>
+        </div>
+
         <div class="sidebar-section">
           <div class="sidebar-title">Report & Disponibilità</div>
           <button
