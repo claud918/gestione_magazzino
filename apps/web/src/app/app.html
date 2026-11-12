@@ -106,6 +106,14 @@
           <div class="sidebar-title">Magazzino & Ordini</div>
           <button
             class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'innesti'"
+            (click)="selezionaTabella('innesti')"
+          >
+            <span class="icon">🌱</span>
+            <span>Innesti</span>
+          </button>
+          <button
+            class="sidebar-item"
             [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'lotti_magazzino'"
             (click)="selezionaTabella('lotti_magazzino')"
           >
@@ -459,6 +467,16 @@
               </div>
 
               @if (utente()?.ruolo === 'admin') {
+                @if (rigaSelezionata()) {
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    (click)="duplicaRigaSelezionata()"
+                    title="Duplica la riga attualmente selezionata"
+                  >
+                    📋 Duplica riga
+                  </button>
+                }
                 <button class="btn btn-primary" (click)="apriModalNuovo()">
                   + Nuovo {{ defTabella().etichettaSingolare }}
                 </button>
@@ -476,6 +494,9 @@
                 [(ngModel)]="ricercaTesto"
               />
             </div>
+            @if (rigaSelezionata()) {
+              <span class="badge-tag">1 riga selezionata (clicca per deselezionare)</span>
+            }
             <span class="count-badge">{{ righeFiltrate().length }} elementi</span>
           </div>
 
@@ -509,7 +530,7 @@
                   </thead>
                   <tbody>
                     @for (riga of righeFiltrate(); track $index) {
-                      <tr>
+                      <tr [class.row-selected]="rigaSelezionata() === riga" (click)="selezionaRiga(riga)" style="cursor: pointer;">
                         @for (campo of defTabella().campi; track campo.nome) {
                           @if (!campo.automatico && !campo.nascostoInTabella) {
                             <td [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'">
@@ -518,7 +539,8 @@
                           }
                         }
                         @if (utente()?.ruolo === 'admin') {
-                          <td class="actions-col">
+                          <td class="actions-col" (click)="$event.stopPropagation()">
+                            <button class="btn-icon" (click)="duplicaRiga(riga)" title="Duplica riga">📋</button>
                             <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
                             <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
                           </td>
@@ -532,13 +554,14 @@
               <!-- 2. VISTA SCHEDE -->
               <div class="mobile-cards-container">
                 @for (riga of righeFiltrate(); track $index) {
-                  <div class="mobile-card">
+                  <div class="mobile-card" [class.row-selected]="rigaSelezionata() === riga" (click)="selezionaRiga(riga)">
                     <div class="mobile-card-header">
                       <span class="mobile-card-title">
                         {{ riga[defTabella().titoloScheda] || 'Elemento' }}
                       </span>
                       @if (utente()?.ruolo === 'admin') {
-                        <div class="mobile-card-actions">
+                        <div class="mobile-card-actions" (click)="$event.stopPropagation()">
+                          <button class="btn-icon" (click)="duplicaRiga(riga)" title="Duplica riga">📋</button>
                           <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
                           <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
                         </div>
@@ -706,6 +729,59 @@
                 @if (modalErrori()[campo.nome]) {
                   <span class="field-error">{{ modalErrori()[campo.nome] }}</span>
                 }
+              </div>
+            }
+
+            <!-- Promemoria disponibilità residua in inserimento/modifica ordini -->
+            @if (tabellaSelezionata() === 'ordine_impieghi' && disponibilitaPromemoria(); as info) {
+              <div
+                class="promemoria-disponibilita"
+                [class.promemoria-warning]="info.residuo < 0"
+                [class.promemoria-success]="info.residuo >= 0 && info.disponibile > 0"
+                [class.promemoria-neutral]="info.residuo >= 0 && info.disponibile === 0"
+              >
+                <div class="promemoria-header">
+                  <span class="promemoria-icon">{{ info.residuo < 0 ? '⚠️' : '📦' }}</span>
+                  <div>
+                    <strong>Promemoria Disponibilità Magazzino</strong>
+                    <div class="promemoria-sub">
+                      {{ info.varieta }} (Cl. {{ info.clone }}) P.I. {{ info.pi }} &bull; {{ info.prodotto }} ({{ info.campagna }}) - {{ info.tipologia }}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="promemoria-body">
+                  <div class="promemoria-stat-grid">
+                    <div class="promemoria-stat">
+                      <span class="lbl">Totale a magazzino</span>
+                      <span class="val font-mono">{{ info.prodotto_qta | number }}</span>
+                    </div>
+                    <div class="promemoria-stat">
+                      <span class="lbl">Già impegnati</span>
+                      <span class="val font-mono">{{ info.ordinato | number }}</span>
+                    </div>
+                    <div class="promemoria-stat highlight">
+                      <span class="lbl">Disponibili prima di questo ordine</span>
+                      <span class="val font-mono font-bold" [class.text-danger]="info.disponibile <= 0" [class.text-success]="info.disponibile > 0">
+                        {{ info.disponibile | number }}
+                      </span>
+                    </div>
+                  </div>
+
+                  @if (info.quantitaRichiesta > 0) {
+                    <div class="promemoria-alert-box">
+                      @if (info.residuo >= 0) {
+                        <div class="alert-text text-success">
+                          ✅ Disponibilità sufficiente: con questo ordine di <strong>{{ info.quantitaRichiesta | number }}</strong> pz, resteranno <strong>{{ info.residuo | number }}</strong> pz disponibili a magazzino.
+                        </div>
+                      } @else {
+                        <div class="alert-text text-danger font-bold">
+                          ⚠️ Attenzione: la quantità richiesta ({{ info.quantitaRichiesta | number }} pz) supera la disponibilità attuale! Verrà generato uno scoperto di <strong>{{ -info.residuo | number }}</strong> pz.
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
               </div>
             }
           </div>

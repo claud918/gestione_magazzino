@@ -17,6 +17,7 @@ export const NOMI_TABELLE = [
   'attivita_cdc',
   'dettaglio_cdc',
   'anagrafica_personale',
+  'innesti',
   'lotti_magazzino',
   'ordine_impieghi',
   'clienti',
@@ -205,10 +206,10 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
       },
       {
         nome: 'dipendente',
-        etichetta: 'Dipendente',
+        etichetta: 'Dipendente (soprannome)',
         tipo: 'riferimento',
         obbligatorio: true,
-        riferimento: { tabella: 'anagrafica_personale', colonna: 'nome_cognome' },
+        riferimento: { tabella: 'anagrafica_personale', colonna: 'soprannome' },
       },
       {
         nome: 'centro_di_costo',
@@ -321,14 +322,17 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
     etichettaSingolare: 'Dipendente',
     gruppo: 'Costi e ore',
     icona: '👤',
-    chiave: ['nome_cognome'],
-    ordinamento: [{ campo: 'cognome' }, { campo: 'nome' }],
-    titoloScheda: 'nome_cognome',
+    chiave: ['soprannome'],
+    ordinamento: [{ campo: 'soprannome' }],
+    titoloScheda: 'soprannome',
     campi: [
+      { nome: 'soprannome', etichetta: 'Soprannome (ID)', tipo: 'testo', obbligatorio: true, inScheda: true },
+      { nome: 'nome', etichetta: 'Nome', tipo: 'testo', obbligatorio: true, inScheda: true },
+      { nome: 'cognome', etichetta: 'Cognome', tipo: 'testo', obbligatorio: true, inScheda: true },
       { nome: 'nome_cognome', etichetta: 'Nome e cognome', tipo: 'testo', calcolato: true },
-      { nome: 'nome', etichetta: 'Nome', tipo: 'testo', obbligatorio: true, nascostoInTabella: true },
-      { nome: 'cognome', etichetta: 'Cognome', tipo: 'testo', obbligatorio: true, nascostoInTabella: true },
-      { nome: 'data_di_nascita', etichetta: 'Data di nascita', tipo: 'data', obbligatorio: true },
+      { nome: 'data_assunzione', etichetta: 'Data assunzione', tipo: 'data', inScheda: true },
+      { nome: 'fine_assunzione', etichetta: 'Fine assunzione', tipo: 'data', inScheda: true },
+      { nome: 'data_di_nascita', etichetta: 'Data di nascita', tipo: 'data' },
       { nome: 'data_visita_medica', etichetta: 'Visita medica', tipo: 'data', inScheda: true },
       { nome: 'data_formazione_sicurezza', etichetta: 'Formazione sicurezza', tipo: 'data', inScheda: true },
       { nome: 'data_patentino_muletto', etichetta: 'Patentino muletto', tipo: 'data' },
@@ -339,6 +343,98 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
   },
 
   // ---------------------------------------------------------- Magazzino e ordini
+  innesti: {
+    nome: 'innesti',
+    etichetta: 'Innesti',
+    etichettaSingolare: 'Innesto',
+    gruppo: 'Magazzino e ordini',
+    icona: '🌱',
+    chiave: ['id'],
+    ordinamento: [{ campo: 'data_inserimento', discendente: true }],
+    titoloScheda: 'riferimento_lotto_parlante',
+    campi: [
+      ID,
+      {
+        nome: 'riferimento_lotto_parlante',
+        etichetta: 'Riferimento innesto',
+        tipo: 'testo',
+        calcolato: true,
+      },
+      {
+        nome: 'data_inserimento',
+        etichetta: 'Data inserimento',
+        tipo: 'data',
+        obbligatorio: true,
+        predefinito: 'oggi',
+      },
+      {
+        nome: 'campagna',
+        etichetta: 'Campagna',
+        tipo: 'campagna',
+        obbligatorio: true,
+        predefinito: 'campagna_corrente',
+      },
+      {
+        nome: 'cliente',
+        etichetta: 'Cliente',
+        tipo: 'riferimento',
+        obbligatorio: true,
+        riferimento: { tabella: 'clienti', colonna: 'ragione_sociale' },
+        inScheda: true,
+      },
+      {
+        nome: 'prodotto',
+        etichetta: 'Prodotto',
+        tipo: 'riferimento',
+        obbligatorio: true,
+        predefinito: 'Barbatelle innestate',
+        riferimento: { tabella: 'tipi_prodotto', colonna: 'prodotto' },
+      },
+      {
+        nome: 'codice_varieta',
+        etichetta: 'Varietà',
+        tipo: 'riferimento',
+        obbligatorio: true,
+        riferimento: { tabella: 'anagrafica_vite', colonna: 'codice_varieta' },
+      },
+      {
+        nome: 'codice_clone',
+        etichetta: 'Clone',
+        tipo: 'riferimento',
+        obbligatorio: true,
+        riferimento: {
+          tabella: 'anagrafica_vite',
+          colonna: 'codice_clone',
+          filtro: { campo: 'codice_varieta', colonnaRif: 'codice_varieta' },
+        },
+      },
+      {
+        nome: 'codice_portainnesto',
+        etichetta: 'Portainnesto',
+        tipo: 'riferimento',
+        obbligatorio: true,
+        riferimento: { tabella: 'anagrafica_portainnesto', colonna: 'codice_portainnesto' },
+      },
+      {
+        nome: 'tipologia',
+        etichetta: 'Tipologia',
+        tipo: 'scelta',
+        obbligatorio: true,
+        opzioni: TIPOLOGIE_PRODOTTO,
+        predefinito: 'Nuova produzione',
+        inScheda: true,
+      },
+      {
+        nome: 'quantita',
+        etichetta: 'Quantità',
+        tipo: 'intero',
+        obbligatorio: true,
+        min: 0,
+        inScheda: true,
+      },
+      { nome: 'note', etichetta: 'Note', tipo: 'testo_lungo' },
+    ],
+  },
   lotti_magazzino: {
     nome: 'lotti_magazzino',
     etichetta: 'Lotti magazzino',
@@ -355,6 +451,25 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         etichetta: 'Riferimento lotto',
         tipo: 'testo',
         calcolato: true,
+      },
+      {
+        nome: 'riferimento_innesto',
+        etichetta: 'Innesto (facoltativo)',
+        tipo: 'riferimento',
+        riferimento: {
+          tabella: 'innesti',
+          colonna: 'riferimento_lotto_parlante',
+          compila: [
+            'campagna',
+            'prodotto',
+            'codice_varieta',
+            'codice_clone',
+            'codice_portainnesto',
+            'tipologia',
+          ],
+        },
+        aiuto: 'Se scegli un innesto, campagna, prodotto, varietà, clone, portainnesto e tipologia vengono presi dall\'innesto.',
+        nascostoInTabella: true,
       },
       {
         nome: 'data_inserimento',
@@ -375,6 +490,7 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         etichetta: 'Prodotto',
         tipo: 'riferimento',
         obbligatorio: true,
+        predefinito: 'Barbatelle innestate',
         riferimento: { tabella: 'tipi_prodotto', colonna: 'prodotto' },
       },
       {
@@ -418,6 +534,20 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         obbligatorio: true,
         opzioni: PROVENIENZE_LOTTO,
         predefinito: 'Prodotto',
+        inScheda: true,
+      },
+      {
+        nome: 'confezionamento',
+        etichetta: 'Confezionamento',
+        tipo: 'testo',
+        aiuto: 'Facoltativo. Se specificato, concorre all\'univocità del riferimento lotto.',
+        inScheda: true,
+      },
+      {
+        nome: 'collocazione',
+        etichetta: 'Collocazione',
+        tipo: 'testo',
+        aiuto: 'Posizione in magazzino o cella frigo',
         inScheda: true,
       },
       {
@@ -622,9 +752,16 @@ export function campiModificabili(def: DefinizioneTabella): CampoTabella[] {
 
 export type RigaTabella = Record<string, string | number | boolean | null>;
 
-/** Riferimento parlante del lotto (include la tipologia per distinguere es. Nuova produzione / Seconde) */
+/** Riferimento parlante del lotto (include la tipologia ed eventuale confezionamento per garantire univocità) */
 export function riferimentoLottoParlante(r: RigaTabella): string {
-  return `${r['campagna']} - ${r['prodotto']} - ${r['codice_varieta']} (Cl. ${r['codice_clone']}) - P.I. ${r['codice_portainnesto']} - ${r['tipologia']}`;
+  const base = `${r['campagna']} - ${r['prodotto']} - ${r['codice_varieta']} (Cl. ${r['codice_clone']}) - P.I. ${r['codice_portainnesto']} - ${r['tipologia']}`;
+  return r['confezionamento'] ? `${base} - ${r['confezionamento']}` : base;
+}
+
+/** Riferimento parlante per l'innesto (include il cliente) */
+export function riferimentoInnestoParlante(r: RigaTabella): string {
+  const base = `${r['campagna']} - ${r['prodotto']} - ${r['codice_varieta']} (Cl. ${r['codice_clone']}) - P.I. ${r['codice_portainnesto']} - ${r['tipologia']}`;
+  return r['cliente'] ? `${base} - ${r['cliente']}` : base;
 }
 
 /**
@@ -642,6 +779,9 @@ export function calcolaCampiDerivati(tabella: NomeTabella, valori: RigaTabella):
       break;
     case 'lotti_magazzino':
       r['riferimento_lotto_parlante'] = riferimentoLottoParlante(r);
+      break;
+    case 'innesti':
+      r['riferimento_lotto_parlante'] = riferimentoInnestoParlante(r);
       break;
   }
   return r;

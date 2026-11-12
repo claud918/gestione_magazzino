@@ -116,6 +116,7 @@ if (command === 'user') {
 
     -- Tipi prodotto
     INSERT OR IGNORE INTO tipi_prodotto (prodotto) VALUES
+      ('Barbatelle innestate'),
       ('Barbatella'),
       ('Portainnesto'),
       ('Gemma');
@@ -168,24 +169,29 @@ if (command === 'user') {
       ('Podere San Martino', '03456789012', '03456789012', 'Lugo', 'Via Emilia 88', '0545 443322');
 
     -- Anagrafica Personale
-    INSERT OR IGNORE INTO anagrafica_personale (nome_cognome, nome, cognome, data_di_nascita, data_visita_medica, data_formazione_sicurezza, data_patentino_muletto, data_patentino_trattore, data_rspp, data_antincendio) VALUES
-      ('Mario Rossi', 'Mario', 'Rossi', '1980-05-12', '2026-03-10', '2025-11-20', '2024-05-15', '2023-04-10', NULL, '2025-06-12'),
-      ('Luigi Bianchi', 'Luigi', 'Bianchi', '1985-08-22', '2026-04-15', '2025-11-20', NULL, '2023-04-10', NULL, NULL),
-      ('Anna Verdi', 'Anna', 'Verdi', '1992-11-03', '2026-02-18', '2025-11-20', '2025-01-15', NULL, NULL, NULL);
+    INSERT OR IGNORE INTO anagrafica_personale (soprannome, nome, cognome, nome_cognome, data_assunzione, fine_assunzione, data_di_nascita, data_visita_medica, data_formazione_sicurezza, data_patentino_muletto, data_patentino_trattore, data_rspp, data_antincendio) VALUES
+      ('Mario', 'Mario', 'Rossi', 'Mario Rossi', '2020-03-01', NULL, '1980-05-12', '2026-03-10', '2025-11-20', '2024-05-15', '2023-04-10', NULL, '2025-06-12'),
+      ('Luigi', 'Luigi', 'Bianchi', 'Luigi Bianchi', '2022-04-15', NULL, '1985-08-22', '2026-04-15', '2025-11-20', NULL, '2023-04-10', NULL, NULL),
+      ('Anna', 'Anna', 'Verdi', 'Anna Verdi', '2024-01-10', NULL, '1992-11-03', '2026-02-18', '2025-11-20', '2025-01-15', NULL, NULL, NULL);
+
+    -- Innesti
+    INSERT OR REPLACE INTO innesti (id, data_inserimento, prodotto, codice_varieta, codice_clone, codice_portainnesto, campagna, quantita, note, cliente, tipologia, riferimento_lotto_parlante) VALUES
+      ('inn-1', '2026-10-10', 'Barbatelle innestate', 'Sangiovese', 'F9', '1103P', '2026/27', 10000, 'Innesto su ordinazione Tenuta Colli', 'Tenuta Colli Romagnoli', 'Nuova produzione', '2026/27 - Barbatelle innestate - Sangiovese (Cl. F9) - P.I. 1103P - Nuova produzione - Tenuta Colli Romagnoli'),
+      ('inn-2', '2026-10-12', 'Barbatelle innestate', 'Vermentino', 'VCR 1', '1103P', '2026/27', 6000, 'Innesto Cantina Val di Lamone', 'Cantina Sociale Val di Lamone', 'Nuova produzione', '2026/27 - Barbatelle innestate - Vermentino (Cl. VCR 1) - P.I. 1103P - Nuova produzione - Cantina Sociale Val di Lamone');
 
     -- Lotti Magazzino
-    INSERT OR REPLACE INTO lotti_magazzino (id, data_inserimento, prodotto, codice_varieta, codice_clone, codice_portainnesto, campagna, quantita, note, provenienza, tipologia, riferimento_lotto_parlante) VALUES
-      ('lot-1', '2026-10-15', 'Barbatella', 'Sangiovese', 'F9', '1103P', '2026/27', 8000, 'Primo innesto autunno', 'Prodotto', 'Nuova produzione', '2026/27 - Barbatella - Sangiovese (Cl. F9) - P.I. 1103P - Nuova produzione'),
-      ('lot-2', '2026-10-20', 'Barbatella', 'Vermentino', 'VCR 1', '1103P', '2026/27', 5000, 'Lotto da selezione vivaio', 'Prodotto', 'Nuova produzione', '2026/27 - Barbatella - Vermentino (Cl. VCR 1) - P.I. 1103P - Nuova produzione'),
-      ('lot-3', '2026-10-22', 'Barbatella', 'Trebbiano', 'TR 3T', 'K5BB', '2026/27', 3000, 'Innesto Kober', 'Prodotto', 'Nuova produzione', '2026/27 - Barbatella - Trebbiano (Cl. TR 3T) - P.I. K5BB - Nuova produzione'),
-      ('lot-4', '2026-10-25', 'Barbatella', 'Chardonnay', 'R8', 'SO4', '2026/27', 1500, 'Lotto parziale', 'Prodotto', 'Nuova produzione', '2026/27 - Barbatella - Chardonnay (Cl. R8) - P.I. SO4 - Nuova produzione');
+    INSERT OR REPLACE INTO lotti_magazzino (id, riferimento_innesto, data_inserimento, prodotto, codice_varieta, codice_clone, codice_portainnesto, campagna, quantita, confezionamento, collocazione, note, provenienza, tipologia, riferimento_lotto_parlante) VALUES
+      ('lot-1', '2026/27 - Barbatelle innestate - Sangiovese (Cl. F9) - P.I. 1103P - Nuova produzione - Tenuta Colli Romagnoli', '2026-10-15', 'Barbatelle innestate', 'Sangiovese', 'F9', '1103P', '2026/27', 8000, 'Cassa 500', 'Cella A-1', 'Primo innesto autunno', 'Prodotto', 'Nuova produzione', '2026/27 - Barbatelle innestate - Sangiovese (Cl. F9) - P.I. 1103P - Nuova produzione - Cassa 500'),
+      ('lot-2', '2026/27 - Barbatelle innestate - Vermentino (Cl. VCR 1) - P.I. 1103P - Nuova produzione - Cantina Sociale Val di Lamone', '2026-10-20', 'Barbatelle innestate', 'Vermentino', 'VCR 1', '1103P', '2026/27', 5000, 'Cassa 250', 'Cella A-2', 'Lotto da selezione vivaio', 'Prodotto', 'Nuova produzione', '2026/27 - Barbatelle innestate - Vermentino (Cl. VCR 1) - P.I. 1103P - Nuova produzione - Cassa 250'),
+      ('lot-3', NULL, '2026-10-22', 'Barbatelle innestate', 'Trebbiano', 'TR 3T', 'K5BB', '2026/27', 3000, 'Mazzi da 25', 'Cella B-1', 'Innesto Kober', 'Prodotto', 'Nuova produzione', '2026/27 - Barbatelle innestate - Trebbiano (Cl. TR 3T) - P.I. K5BB - Nuova produzione - Mazzi da 25'),
+      ('lot-4', NULL, '2026-10-25', 'Barbatelle innestate', 'Chardonnay', 'R8', 'SO4', '2026/27', 1500, 'Sfuso', 'Cella B-3', 'Lotto parziale', 'Prodotto', 'Nuova produzione', '2026/27 - Barbatelle innestate - Chardonnay (Cl. R8) - P.I. SO4 - Nuova produzione - Sfuso');
 
     -- Ordine Impieghi
     INSERT OR REPLACE INTO ordine_impieghi (id, riferimento_lotto, data_inserimento, prodotto, codice_varieta, codice_clone, codice_portainnesto, campagna, quantita, note, consegnato, cliente, tipologia) VALUES
-      ('ord-1', '2026/27 - Barbatella - Sangiovese (Cl. F9) - P.I. 1103P - Nuova produzione', '2026-10-26', 'Barbatella', 'Sangiovese', 'F9', '1103P', '2026/27', 3500, 'Consegna prima tranche', 1, 'Tenuta Colli Romagnoli', 'Nuova produzione'),
-      ('ord-2', '2026/27 - Barbatella - Sangiovese (Cl. F9) - P.I. 1103P - Nuova produzione', '2026-10-28', 'Barbatella', 'Sangiovese', 'F9', '1103P', '2026/27', 2000, 'Da consegnare entro dicembre', 0, 'Cantina Sociale Val di Lamone', 'Nuova produzione'),
-      ('ord-3', '2026/27 - Barbatella - Chardonnay (Cl. R8) - P.I. SO4 - Nuova produzione', '2026-10-29', 'Barbatella', 'Chardonnay', 'R8', 'SO4', '2026/27', 4000, 'Richiesta urgente con scoperto', 0, 'Podere San Martino', 'Nuova produzione'),
-      ('ord-4', NULL, '2026-10-30', 'Barbatella', 'Merlot', 'R3', '1103P', '2026/27', 1800, 'Ordine senza lotto coperto', 0, 'Podere San Martino', 'Nuova produzione');
+      ('ord-1', '2026/27 - Barbatelle innestate - Sangiovese (Cl. F9) - P.I. 1103P - Nuova produzione - Cassa 500', '2026-10-26', 'Barbatelle innestate', 'Sangiovese', 'F9', '1103P', '2026/27', 3500, 'Consegna prima tranche', 1, 'Tenuta Colli Romagnoli', 'Nuova produzione'),
+      ('ord-2', '2026/27 - Barbatelle innestate - Sangiovese (Cl. F9) - P.I. 1103P - Nuova produzione - Cassa 500', '2026-10-28', 'Barbatelle innestate', 'Sangiovese', 'F9', '1103P', '2026/27', 2000, 'Da consegnare entro dicembre', 0, 'Cantina Sociale Val di Lamone', 'Nuova produzione'),
+      ('ord-3', '2026/27 - Barbatelle innestate - Chardonnay (Cl. R8) - P.I. SO4 - Nuova produzione - Sfuso', '2026-10-29', 'Barbatelle innestate', 'Chardonnay', 'R8', 'SO4', '2026/27', 4000, 'Richiesta urgente con scoperto', 0, 'Podere San Martino', 'Nuova produzione'),
+      ('ord-4', NULL, '2026-10-30', 'Barbatelle innestate', 'Merlot', 'R3', '1103P', '2026/27', 1800, 'Ordine senza lotto coperto', 0, 'Podere San Martino', 'Nuova produzione');
 
     -- Inserimento Costi
     INSERT OR REPLACE INTO inserimento_costi (id, data, centro_di_costo, dettaglio_cdc, causale, note, campagna, importo) VALUES
@@ -195,9 +201,9 @@ if (command === 'user') {
 
     -- Inserimento Ore
     INSERT OR REPLACE INTO inserimento_ore (id, dipendente, centro_di_costo, attivita, dettaglio_cdc, numero_ore, data_inserimento) VALUES
-      ('ore-1', 'Mario Rossi', 'Vivaio Campo 1', 'Lavorazione terreno', 'Settore A - Sangiovese', 8, '2026-10-10'),
-      ('ore-2', 'Luigi Bianchi', 'Vivaio Campo 1', 'Trattamento antiparassitario', 'Settore A - Sangiovese', 6.5, '2026-10-18'),
-      ('ore-3', 'Anna Verdi', 'Serra Innesti', 'Innestatura a macchina', 'Bancale 1 - Chardonnay', 7.5, '2026-10-24');
+      ('ore-1', 'Mario', 'Vivaio Campo 1', 'Lavorazione terreno', 'Settore A - Sangiovese', 8, '2026-10-10'),
+      ('ore-2', 'Luigi', 'Vivaio Campo 1', 'Trattamento antiparassitario', 'Settore A - Sangiovese', 6.5, '2026-10-18'),
+      ('ore-3', 'Anna', 'Serra Innesti', 'Innestatura a macchina', 'Bancale 1 - Chardonnay', 7.5, '2026-10-24');
   `;
 
   runD1Sql(sql, isRemote);
@@ -206,6 +212,7 @@ if (command === 'user') {
   const sql = `
     DELETE FROM ordine_impieghi;
     DELETE FROM lotti_magazzino;
+    DELETE FROM innesti;
     DELETE FROM inserimento_ore;
     DELETE FROM inserimento_costi;
     DELETE FROM dettaglio_cdc;

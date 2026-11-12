@@ -1481,3 +1481,105 @@
     }
   }
 }
+
+/* Riga selezionata */
+tr.row-selected {
+  background-color: #ebf8ff !important;
+  border-left: 3px solid #3182ce;
+}
+
+.mobile-card.row-selected {
+  border-color: #3182ce !important;
+  box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.25) !important;
+  background-color: #f7fafc !important;
+}
+
+/* Promemoria disponibilità magazzino in modale ordine */
+.promemoria-disponibilita {
+  margin-top: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  &.promemoria-warning {
+    border-color: #fbd38d;
+    background-color: #fffaf0;
+  }
+
+  &.promemoria-success {
+    border-color: #9ae6b4;
+    background-color: #f0fff4;
+  }
+
+  &.promemoria-neutral {
+    border-color: #e2e8f0;
+    background-color: #f8fafc;
+  }
+
+  .promemoria-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+
+    .promemoria-icon {
+      font-size: 1.35rem;
+    }
+
+    strong {
+      color: #1e293b;
+      font-size: 0.92rem;
+    }
+
+    .promemoria-sub {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 0.15rem;
+    }
+  }
+
+  .promemoria-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+
+    .promemoria-stat {
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 6px;
+      padding: 0.4rem 0.6rem;
+      display: flex;
+      flex-direction: column;
+
+      .lbl {
+        font-size: 0.72rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+      }
+
+      .val {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+      }
+
+      &.highlight {
+        background: #ffffff;
+        border-color: #cbd5e1;
+      }
+    }
+  }
+
+  .promemoria-alert-box {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+}

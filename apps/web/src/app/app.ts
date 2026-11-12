@@ -66,6 +66,7 @@ export class App implements OnInit {
   protected readonly modalValori = signal<Record<string, any>>({});
   protected readonly modalErrori = signal<Record<string, string>>({});
   protected readonly rigaInModifica = signal<RigaTabella | null>(null);
+  protected readonly rigaSelezionata = signal<RigaTabella | null>(null);
 
   // Conferma Eliminazione
   protected readonly deleteConfirmAperto = signal(false);
@@ -98,6 +99,61 @@ export class App implements OnInit {
   // Computed: campi compilabili della tabella attiva
   protected readonly campiForm = computed<CampoTabella[]>(() => {
     return campiModificabili(this.defTabella());
+  });
+
+  // Computed: promemoria disponibilità residua per inserimento/modifica ordini
+  protected readonly disponibilitaPromemoria = computed(() => {
+    if (this.tabellaSelezionata() !== 'ordine_impieghi') return null;
+    const val = this.modalValori();
+    const { campagna, prodotto, codice_varieta, codice_clone, codice_portainnesto, tipologia } = val;
+    if (!codice_varieta || !codice_clone || !codice_portainnesto) return null;
+
+    const quantitaRichiesta = Number(val['quantita']) || 0;
+    const match = this.listaDisponibilita().find(
+      (d) =>
+        d.campagna === (campagna || campagnaCorrente()) &&
+        d.prodotto === (prodotto || 'Barbatelle innestate') &&
+        d.codice_varieta === codice_varieta &&
+        d.codice_clone === codice_clone &&
+        d.codice_portainnesto === codice_portainnesto &&
+        d.tipologia === (tipologia || 'Nuova produzione'),
+    );
+
+    if (match) {
+      const qtaEsistenteOrdine =
+        this.modalModo() === 'modifica' ? Number(this.rigaInModifica()?.['quantita']) || 0 : 0;
+      const disponibileEffettivo = match.disponibile + qtaEsistenteOrdine;
+      const residuo = disponibileEffettivo - quantitaRichiesta;
+      return {
+        trovato: true,
+        campagna: match.campagna,
+        prodotto: match.prodotto,
+        varieta: match.codice_varieta,
+        clone: match.codice_clone,
+        pi: match.codice_portainnesto,
+        tipologia: match.tipologia,
+        prodotto_qta: match.prodotto_qta,
+        ordinato: match.ordinato - qtaEsistenteOrdine,
+        disponibile: disponibileEffettivo,
+        quantitaRichiesta,
+        residuo,
+      };
+    }
+
+    return {
+      trovato: false,
+      campagna: campagna || campagnaCorrente(),
+      prodotto: prodotto || 'Barbatelle innestate',
+      varieta: codice_varieta,
+      clone: codice_clone,
+      pi: codice_portainnesto,
+      tipologia: tipologia || 'Nuova produzione',
+      prodotto_qta: 0,
+      ordinato: 0,
+      disponibile: 0,
+      quantitaRichiesta,
+      residuo: -quantitaRichiesta,
+    };
   });
 
   // Computed: righe filtrate della tabella corrente
@@ -267,6 +323,7 @@ export class App implements OnInit {
     this.sezioneAttiva.set('tabella');
     this.menuMobileAperto.set(false);
     this.ricercaTesto.set('');
+    this.rigaSelezionata.set(null);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
@@ -318,6 +375,9 @@ export class App implements OnInit {
 
   // --- Modale Form Inserimento / Modifica ---
   protected apriModalNuovo(): void {
+    if (this.tabellaSelezionata() === 'ordine_impieghi') {
+      this.caricaDisponibilita();
+    }
     const val: Record<string, any> = {};
     for (const c of this.campiForm()) {
       if (c.predefinito === 'oggi') {
@@ -340,12 +400,53 @@ export class App implements OnInit {
   }
 
   protected apriModalModifica(riga: RigaTabella): void {
+    if (this.tabellaSelezionata() === 'ordine_impieghi') {
+      this.caricaDisponibilita();
+    }
     const val: Record<string, any> = { ...riga };
     this.modalValori.set(val);
     this.modalErrori.set({});
     this.modalModo.set('modifica');
     this.rigaInModifica.set(riga);
     this.modalAperto.set(true);
+  }
+
+  protected selezionaRiga(riga: RigaTabella): void {
+    if (this.rigaSelezionata() === riga) {
+      this.rigaSelezionata.set(null);
+    } else {
+      this.rigaSelezionata.set(riga);
+    }
+  }
+
+  protected duplicaRiga(riga: RigaTabella): void {
+    if (this.tabellaSelezionata() === 'ordine_impieghi') {
+      this.caricaDisponibilita();
+    }
+    const val: Record<string, any> = { ...riga };
+    // Rimuovi identificativi automatici e campi derivati dal server
+    delete val['id'];
+    delete val['riferimento_lotto_parlante'];
+    delete val['campo_varieta'];
+    delete val['nome_cognome'];
+
+    // Se stiamo duplicando personale, proponi un soprannome univoco
+    if (this.tabellaSelezionata() === 'anagrafica_personale' && val['soprannome']) {
+      val['soprannome'] = `${val['soprannome']} (copia)`;
+    }
+
+    this.modalValori.set(val);
+    this.modalErrori.set({});
+    this.modalModo.set('nuovo');
+    this.rigaInModifica.set(null);
+    this.modalAperto.set(true);
+  }
+
+  protected duplicaRigaSelezionata(): void {
+    const riga = this.rigaSelezionata();
+    if (riga) {
+      this.duplicaRiga(riga);
+    }
   }
 
   protected chiudiModal(): void {
@@ -430,6 +531,21 @@ export class App implements OnInit {
         return true;
       }
     }
+    // Se siamo in lotti_magazzino e c'è un riferimento_innesto selezionato, i campi presi dall'innesto sono bloccati
+    if (this.tabellaSelezionata() === 'lotti_magazzino') {
+      const innesto = this.modalValori()['riferimento_innesto'];
+      const campiDerivatiDaInnesto = [
+        'campagna',
+        'prodotto',
+        'codice_varieta',
+        'codice_clone',
+        'codice_portainnesto',
+        'tipologia',
+      ];
+      if (innesto && campiDerivatiDaInnesto.includes(campo.nome)) {
+        return true;
+      }
+    }
     // In modifica, le chiavi primarie testuali (se non uuid) non si modificano
     if (this.modalModo() === 'modifica' && this.defTabella().chiave.includes(campo.nome)) {
       return true;
@@ -459,6 +575,13 @@ export class App implements OnInit {
           this.chiudiModal();
           this.mostraOk('Elemento inserito con successo');
           this.caricaDatiTabella(def.nome);
+          if (
+            def.nome === 'lotti_magazzino' ||
+            def.nome === 'innesti' ||
+            def.nome === 'ordine_impieghi'
+          ) {
+            this.caricaDisponibilita();
+          }
         },
         error: (err) => {
           this.inInvio.set(false);
@@ -479,6 +602,13 @@ export class App implements OnInit {
           this.chiudiModal();
           this.mostraOk('Elemento modificato con successo');
           this.caricaDatiTabella(def.nome);
+          if (
+            def.nome === 'lotti_magazzino' ||
+            def.nome === 'innesti' ||
+            def.nome === 'ordine_impieghi'
+          ) {
+            this.caricaDisponibilita();
+          }
         },
         error: (err) => {
           this.inInvio.set(false);
@@ -514,6 +644,13 @@ export class App implements OnInit {
         this.annullaElimina();
         this.mostraOk('Elemento eliminato con successo');
         this.caricaDatiTabella(def.nome);
+        if (
+          def.nome === 'lotti_magazzino' ||
+          def.nome === 'innesti' ||
+          def.nome === 'ordine_impieghi'
+        ) {
+          this.caricaDisponibilita();
+        }
       },
       error: (err) => {
         this.annullaElimina();

@@ -72,10 +72,13 @@ const oggi = sql`(CURRENT_DATE)`;
 const TIPOLOGIE = `('Nuova produzione', 'Seconde', 'Frigoconservate', 'Ripiantate')`;
 
 export const anagraficaPersonale = sqliteTable('anagrafica_personale', {
-  nomeCognome: text('nome_cognome').primaryKey(),
+  soprannome: text('soprannome').primaryKey(),
   nome: text('nome').notNull(),
   cognome: text('cognome').notNull(),
-  dataDiNascita: text('data_di_nascita').notNull(),
+  nomeCognome: text('nome_cognome').notNull().default(''),
+  dataDiNascita: text('data_di_nascita'),
+  dataAssunzione: text('data_assunzione'),
+  fineAssunzione: text('fine_assunzione'),
   dataVisitaMedica: text('data_visita_medica'),
   dataFormazioneSicurezza: text('data_formazione_sicurezza'),
   dataPatentinoMuletto: text('data_patentino_muletto'),
@@ -124,7 +127,7 @@ export const inserimentoOre = sqliteTable(
     id: uuid(),
     dipendente: text('dipendente')
       .notNull()
-      .references(() => anagraficaPersonale.nomeCognome, { onUpdate: 'cascade', onDelete: 'restrict' }),
+      .references(() => anagraficaPersonale.soprannome, { onUpdate: 'cascade', onDelete: 'restrict' }),
     centroDiCosto: text('centro_di_costo')
       .notNull()
       .references(() => centriDiCosto.centroDiCosto, { onUpdate: 'cascade', onDelete: 'restrict' }),
@@ -211,8 +214,8 @@ export const tipiProdotto = sqliteTable('tipi_prodotto', {
   prodotto: text('prodotto').primaryKey(),
 });
 
-export const lottiMagazzino = sqliteTable(
-  'lotti_magazzino',
+export const innesti = sqliteTable(
+  'innesti',
   {
     id: uuid(),
     dataInserimento: text('data_inserimento').notNull().default(oggi),
@@ -230,8 +233,50 @@ export const lottiMagazzino = sqliteTable(
     campagna: text('campagna').notNull(),
     quantita: integer('quantita').notNull(),
     note: text('note'),
+    cliente: text('cliente')
+      .notNull()
+      .references(() => clienti.ragioneSociale, { onUpdate: 'cascade', onDelete: 'restrict' }),
+    riferimentoLottoParlante: text('riferimento_lotto_parlante').notNull().default(''),
+    tipologia: text('tipologia').notNull().default('Nuova produzione'),
+  },
+  (t) => [
+    check('innesti_quantita_check', sql`${t.quantita} >= 0`),
+    check('innesti_tipologia_check', sql.raw(`"tipologia" IN ${TIPOLOGIE}`)),
+    foreignKey({
+      name: 'innesti_vite_fk',
+      columns: [t.codiceVarieta, t.codiceClone],
+      foreignColumns: [anagraficaVite.codiceVarieta, anagraficaVite.codiceClone],
+    })
+      .onUpdate('cascade')
+      .onDelete('restrict'),
+    uniqueIndex('innesti_riferimento_uq').on(t.riferimentoLottoParlante),
+  ],
+);
+
+export const lottiMagazzino = sqliteTable(
+  'lotti_magazzino',
+  {
+    id: uuid(),
+    riferimentoInnesto: text('riferimento_innesto'),
+    dataInserimento: text('data_inserimento').notNull().default(oggi),
+    prodotto: text('prodotto')
+      .notNull()
+      .references(() => tipiProdotto.prodotto, { onUpdate: 'cascade', onDelete: 'restrict' }),
+    codiceVarieta: text('codice_varieta').notNull(),
+    codiceClone: text('codice_clone').notNull(),
+    codicePortainnesto: text('codice_portainnesto')
+      .notNull()
+      .references(() => anagraficaPortainnesto.codicePortainnesto, {
+        onUpdate: 'cascade',
+        onDelete: 'restrict',
+      }),
+    campagna: text('campagna').notNull(),
+    quantita: integer('quantita').notNull(),
+    confezionamento: text('confezionamento'),
+    collocazione: text('collocazione'),
+    note: text('note'),
     provenienza: text('provenienza').notNull(),
-    /** campagna - prodotto - varietà (Cl. clone) - P.I. portainnesto - tipologia (mantenuto da trigger) */
+    /** campagna - prodotto - varietà (Cl. clone) - P.I. portainnesto - tipologia [- confezionamento] (mantenuto da trigger) */
     riferimentoLottoParlante: text('riferimento_lotto_parlante').notNull().default(''),
     tipologia: text('tipologia').notNull().default('Nuova produzione'),
   },
@@ -247,6 +292,13 @@ export const lottiMagazzino = sqliteTable(
     })
       .onUpdate('cascade')
       .onDelete('restrict'),
+    foreignKey({
+      name: 'lotti_magazzino_innesti_fk',
+      columns: [t.riferimentoInnesto],
+      foreignColumns: [innesti.riferimentoLottoParlante],
+    })
+      .onUpdate('cascade')
+      .onDelete('set null'),
     uniqueIndex('lotti_magazzino_riferimento_uq').on(t.riferimentoLottoParlante),
     // Chiave per la FK composita degli ordini (coerenza ordine ↔ lotto)
     uniqueIndex('lotti_magazzino_combinazione_uq').on(
