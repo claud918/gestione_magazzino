@@ -349,30 +349,13 @@ export const ordineImpieghi = sqliteTable(
     })
       .onUpdate('cascade')
       .onDelete('restrict'),
-    // Se è indicato un lotto, i dati dell'ordine devono coincidere con quelli del lotto
     foreignKey({
-      name: 'ordine_impieghi_lotto_fk',
-      columns: [
-        t.riferimentoLotto,
-        t.campagna,
-        t.prodotto,
-        t.codiceVarieta,
-        t.codiceClone,
-        t.codicePortainnesto,
-        t.tipologia,
-      ],
-      foreignColumns: [
-        lottiMagazzino.riferimentoLottoParlante,
-        lottiMagazzino.campagna,
-        lottiMagazzino.prodotto,
-        lottiMagazzino.codiceVarieta,
-        lottiMagazzino.codiceClone,
-        lottiMagazzino.codicePortainnesto,
-        lottiMagazzino.tipologia,
-      ],
+      name: 'ordine_impieghi_innesti_fk',
+      columns: [t.riferimentoLotto],
+      foreignColumns: [innesti.riferimentoLottoParlante],
     })
       .onUpdate('cascade')
-      .onDelete('restrict'),
+      .onDelete('set null'),
     index('ordine_impieghi_cliente_idx').on(t.cliente),
   ],
 );

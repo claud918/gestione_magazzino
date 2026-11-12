@@ -589,10 +589,10 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
       },
       {
         nome: 'riferimento_lotto',
-        etichetta: 'Lotto (facoltativo)',
+        etichetta: 'Riferimento innesto (facoltativo)',
         tipo: 'riferimento',
         riferimento: {
-          tabella: 'lotti_magazzino',
+          tabella: 'innesti',
           colonna: 'riferimento_lotto_parlante',
           compila: [
             'campagna',
@@ -601,9 +601,10 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
             'codice_clone',
             'codice_portainnesto',
             'tipologia',
+            'cliente',
           ],
         },
-        aiuto: 'Se scegli un lotto, prodotto, varietà, clone, portainnesto, campagna e tipologia vengono presi dal lotto.',
+        aiuto: 'Se scegli un innesto, campagna, prodotto, varietà, clone, portainnesto, tipologia e cliente vengono presi dall\'innesto.',
         nascostoInTabella: true,
       },
       {

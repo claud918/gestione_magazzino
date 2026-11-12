@@ -516,7 +516,7 @@ export class App implements OnInit {
   }
 
   protected isCampoDisabilitato(campo: CampoTabella): boolean {
-    // Se siamo in ordine_impieghi e c'è un riferimento_lotto selezionato, i campi presi dal lotto sono bloccati
+    // Se siamo in ordine_impieghi e c'è un riferimento_lotto selezionato, i campi presi dall'innesto sono bloccati
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
       const lotto = this.modalValori()['riferimento_lotto'];
       const campiDerivatiDaLotto = [
@@ -526,6 +526,7 @@ export class App implements OnInit {
         'codice_clone',
         'codice_portainnesto',
         'tipologia',
+        'cliente',
       ];
       if (lotto && campiDerivatiDaLotto.includes(campo.nome)) {
         return true;
