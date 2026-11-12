@@ -1,3 +1,7 @@
+PRAGMA foreign_keys=OFF;
+--> statement-breakpoint
+DROP VIEW IF EXISTS `disponibilita`;
+--> statement-breakpoint
 -- Aggiorna la foreign key di ordine_impieghi per fare riferimento a innesti(riferimento_lotto_parlante)
 CREATE TABLE `ordine_impieghi_new` (
 	`id` text PRIMARY KEY NOT NULL,
@@ -22,11 +26,21 @@ CREATE TABLE `ordine_impieghi_new` (
 	FOREIGN KEY (`riferimento_lotto`) REFERENCES `innesti`(`riferimento_lotto_parlante`) ON UPDATE cascade ON DELETE set null
 );
 --> statement-breakpoint
-INSERT INTO `ordine_impieghi_new` SELECT * FROM `ordine_impieghi`;
---> statement-breakpoint
-PRAGMA foreign_keys=OFF;
---> statement-breakpoint
-DROP VIEW IF EXISTS `disponibilita`;
+INSERT INTO `ordine_impieghi_new` (
+  `id`, `riferimento_lotto`, `data_inserimento`, `prodotto`,
+  `codice_varieta`, `codice_clone`, `codice_portainnesto`, `campagna`,
+  `quantita`, `note`, `consegnato`, `cliente`, `tipologia`
+)
+SELECT
+  `id`,
+  CASE
+    WHEN `riferimento_lotto` IN (SELECT `riferimento_lotto_parlante` FROM `innesti`) THEN `riferimento_lotto`
+    ELSE NULL
+  END,
+  `data_inserimento`, `prodotto`,
+  `codice_varieta`, `codice_clone`, `codice_portainnesto`, `campagna`,
+  `quantita`, `note`, `consegnato`, `cliente`, `tipologia`
+FROM `ordine_impieghi`;
 --> statement-breakpoint
 DROP TABLE `ordine_impieghi`;
 --> statement-breakpoint
