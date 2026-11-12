@@ -100,6 +100,14 @@
             <span class="icon">📊</span>
             <span>Report Disponibilità</span>
           </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'rese'"
+            (click)="selezionaSezione('rese')"
+          >
+            <span class="icon">📈</span>
+            <span>Report Rese</span>
+          </button>
         </div>
 
         <div class="sidebar-section">
@@ -408,6 +416,160 @@
                         <td class="num font-mono">{{ item.giacenza_fisica | number }}</td>
                         <td class="num font-mono font-bold" [class.text-danger]="item.scoperto > 0">
                           {{ item.scoperto > 0 ? (item.scoperto | number) : '—' }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        }
+
+        <!-- ============================================================== -->
+        <!-- SEZIONE: REPORT RESE (Mobile Schede + Desktop Tabellare) -->
+        <!-- ============================================================== -->
+        @if (sezioneAttiva() === 'rese') {
+          <div class="content-header">
+            <div>
+              <h2>Report Rese</h2>
+              <p class="subtitle">Raffronto quantità innestata vs lotti prodotti e calcolo resa percentuale</p>
+            </div>
+            <div class="header-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="esportaReseCsv()"
+                title="Scarica i dati in formato CSV per Excel"
+              >
+                📥 Esporta CSV
+              </button>
+              <!-- Switch vista per smartphone / desktop -->
+              <div class="view-toggle">
+                <button
+                  class="btn-toggle"
+                  [class.active]="vistaReseModalita() === 'schede'"
+                  (click)="vistaReseModalita.set('schede')"
+                  title="Vista Schede (Ideale smartphone)"
+                >
+                  📱 Schede
+                </button>
+                <button
+                  class="btn-toggle"
+                  [class.active]="vistaReseModalita() === 'tabellare'"
+                  (click)="vistaReseModalita.set('tabellare')"
+                  title="Vista Tabellare (Desktop)"
+                >
+                  💻 Tabella
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards riassuntive Rese -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <span class="kpi-label">Totale Innestato</span>
+              <span class="kpi-value">{{ kpiRese().totInnestato | number }}</span>
+            </div>
+            <div class="kpi-card card-prodotto">
+              <span class="kpi-label">Totale Prodotto (Lotti)</span>
+              <span class="kpi-value">{{ kpiRese().totProdotto | number }}</span>
+            </div>
+            <div class="kpi-card card-disponibile">
+              <span class="kpi-label">Resa Media Complessiva</span>
+              <span class="kpi-value">{{ kpiRese().resaMedia | number:'1.1-2' }}%</span>
+              <small class="kpi-sub">{{ kpiRese().totaleCombinazioni }} combinazioni</small>
+            </div>
+          </div>
+
+          <!-- Filtri Rese -->
+          <div class="filter-bar">
+            <div class="filter-input-wrap">
+              <input
+                type="text"
+                class="form-control"
+                placeholder="Cerca varietà, clone, portainnesto..."
+                [(ngModel)]="filtroReseRicerca"
+              />
+            </div>
+            <div class="filter-toggles">
+              <button class="btn btn-sm btn-secondary" (click)="caricaRese()">Aggiorna</button>
+            </div>
+          </div>
+
+          @if (caricamentoRese()) {
+            <div class="loading-box">Calcolo rese in corso...</div>
+          } @else if (reseFiltrate().length === 0) {
+            <div class="empty-state">Nessuna resa corrispondente ai filtri</div>
+          } @else {
+            <!-- MODALITA SCHEDE (OTTIMIZZATA SMARTPHONE) -->
+            @if (vistaReseModalita() === 'schede') {
+              <div class="cards-grid">
+                @for (item of reseFiltrate(); track $index) {
+                  <div class="disp-card">
+                    <div class="disp-card-header">
+                      <div>
+                        <h3 class="disp-title">{{ item.codice_varieta }} (Cl. {{ item.codice_clone }})</h3>
+                        <span class="disp-sub">P.I. {{ item.codice_portainnesto }} &bull; {{ item.prodotto }}</span>
+                      </div>
+                      <span class="badge-campagna">{{ item.campagna }}</span>
+                    </div>
+
+                    <div class="disp-tipologia">Tipologia: <strong>{{ item.tipologia }}</strong></div>
+
+                    <div class="disp-metrics-grid">
+                      <div class="metric-box">
+                        <span class="metric-label">Innestato</span>
+                        <span class="metric-val">{{ item.innestato | number }}</span>
+                      </div>
+                      <div class="metric-box">
+                        <span class="metric-label">Prodotto</span>
+                        <span class="metric-val">{{ item.prodotto_qta | number }}</span>
+                      </div>
+                    </div>
+
+                    <div class="disp-footer-indicators">
+                      <div class="indicator" [class.ind-pos]="item.resa >= 70" [class.ind-neg]="item.resa < 50" [class.ind-neutral]="item.resa >= 50 && item.resa < 70">
+                        <small>Resa</small>
+                        <strong>{{ item.resa | number:'1.1-2' }}%</strong>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- MODALITA TABELLARE (DESKTOP) -->
+            @if (vistaReseModalita() === 'tabellare') {
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Campagna</th>
+                      <th>Prodotto</th>
+                      <th>Varietà</th>
+                      <th>Clone</th>
+                      <th>Portainnesto</th>
+                      <th>Tipologia</th>
+                      <th class="num">Innestato</th>
+                      <th class="num">Prodotto</th>
+                      <th class="num">Resa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of reseFiltrate(); track $index) {
+                      <tr>
+                        <td><span class="badge-tag">{{ item.campagna }}</span></td>
+                        <td>{{ item.prodotto }}</td>
+                        <td><strong>{{ item.codice_varieta }}</strong></td>
+                        <td>{{ item.codice_clone }}</td>
+                        <td>{{ item.codice_portainnesto }}</td>
+                        <td><small>{{ item.tipologia }}</small></td>
+                        <td class="num font-mono">{{ item.innestato | number }}</td>
+                        <td class="num font-mono">{{ item.prodotto_qta | number }}</td>
+                        <td class="num font-mono font-bold" [class.text-success]="item.resa >= 70" [class.text-danger]="item.resa < 50">
+                          {{ item.resa | number:'1.1-2' }}%
                         </td>
                       </tr>
                     }

@@ -4,6 +4,7 @@ import type { AppVariables } from './auth/middleware';
 import { authRoutes } from './routes/auth';
 import { crudRoutes } from './routes/crud';
 import { disponibilitaRoutes } from './routes/disponibilita';
+import { reseRoutes } from './routes/rese';
 import { backupRoutes, esportaSnapshotDatabase } from './routes/backup';
 
 export interface Env {
@@ -24,6 +25,7 @@ app.get('/health', async (c) => {
 app.route('/auth', authRoutes);
 app.route('/crud', crudRoutes);
 app.route('/disponibilita', disponibilitaRoutes);
+app.route('/rese', reseRoutes);
 app.route('/backup', backupRoutes);
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404));

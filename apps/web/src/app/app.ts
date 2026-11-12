@@ -16,11 +16,12 @@ import {
   type CampoTabella,
   type RigaTabella,
   type RigaDisponibilita,
+  type RigaResa,
   type UtenteProfilo,
   type RisultatoParsingCsv,
 } from '@magazzino/shared';
 
-type SezioneAttiva = 'disponibilita' | 'tabella';
+type SezioneAttiva = 'disponibilita' | 'rese' | 'tabella';
 
 @Component({
   selector: 'app-root',
@@ -90,6 +91,14 @@ export class App implements OnInit {
   protected readonly filtroDispSoloDisponibili = signal(false);
   protected readonly filtroDispSoloScoperti = signal(false);
   protected readonly filtroDispRicerca = signal('');
+
+  // Dati Report Rese
+  protected readonly caricamentoRese = signal(false);
+  protected readonly listaRese = signal<RigaResa[]>([]);
+  protected readonly vistaReseModalita = signal<'schede' | 'tabellare'>('tabellare');
+  protected readonly filtroReseCampagna = signal<string>('');
+  protected readonly filtroReseProdotto = signal<string>('');
+  protected readonly filtroReseRicerca = signal('');
 
   // Computed: definizione della tabella attiva
   protected readonly defTabella = computed<DefinizioneTabella>(() => {
@@ -218,6 +227,43 @@ export class App implements OnInit {
     };
   });
 
+  // Computed: rese filtrate
+  protected readonly reseFiltrate = computed<RigaResa[]>(() => {
+    const righe = this.listaRese();
+    const q = this.filtroReseRicerca().trim().toLowerCase();
+    const fCampagna = this.filtroReseCampagna();
+    const fProdotto = this.filtroReseProdotto();
+
+    return righe.filter((r) => {
+      if (fCampagna && r.campagna !== fCampagna) return false;
+      if (fProdotto && r.prodotto !== fProdotto) return false;
+      if (q) {
+        const full = `${r.campagna} ${r.prodotto} ${r.codice_varieta} ${r.codice_clone} ${r.codice_portainnesto} ${r.tipologia}`.toLowerCase();
+        if (!full.includes(q)) return false;
+      }
+      return true;
+    });
+  });
+
+  // Computed: KPI Rese
+  protected readonly kpiRese = computed(() => {
+    const list = this.reseFiltrate();
+    let totInnestato = 0;
+    let totProdotto = 0;
+
+    for (const item of list) {
+      totInnestato += item.innestato;
+      totProdotto += item.prodotto_qta;
+    }
+    const resaMedia = totInnestato > 0 ? (totProdotto / totInnestato) * 100 : 0;
+    return {
+      totInnestato,
+      totProdotto,
+      resaMedia,
+      totaleCombinazioni: list.length,
+    };
+  });
+
   ngOnInit(): void {
     if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
@@ -302,6 +348,7 @@ export class App implements OnInit {
   // --- Inizializzazione ---
   private inizializzaDati(): void {
     this.caricaDisponibilita();
+    this.caricaRese();
     this.caricaDatiTabella(this.tabellaSelezionata());
   }
 
@@ -313,6 +360,8 @@ export class App implements OnInit {
     }
     if (sez === 'disponibilita') {
       this.caricaDisponibilita();
+    } else if (sez === 'rese') {
+      this.caricaRese();
     } else {
       this.caricaDatiTabella(this.tabellaSelezionata());
     }
@@ -369,6 +418,27 @@ export class App implements OnInit {
         error: (err) => {
           this.caricamentoDisponibilita.set(false);
           this.mostraErrore(err.error?.error || 'Errore nel calcolo disponibilità');
+        },
+      });
+  }
+
+  // --- Report Rese ---
+  protected caricaRese(): void {
+    this.caricamentoRese.set(true);
+    let params: any = {};
+    if (this.filtroReseCampagna()) params['campagna'] = this.filtroReseCampagna();
+    if (this.filtroReseProdotto()) params['prodotto'] = this.filtroReseProdotto();
+
+    this.http
+      .get<{ rese: RigaResa[] }>('/api/rese', { params })
+      .subscribe({
+        next: (res) => {
+          this.listaRese.set(res.rese);
+          this.caricamentoRese.set(false);
+        },
+        error: (err) => {
+          this.caricamentoRese.set(false);
+          this.mostraErrore(err.error?.error || 'Errore nel calcolo rese');
         },
       });
   }
@@ -582,6 +652,7 @@ export class App implements OnInit {
             def.nome === 'ordine_impieghi'
           ) {
             this.caricaDisponibilita();
+            this.caricaRese();
           }
         },
         error: (err) => {
@@ -609,6 +680,7 @@ export class App implements OnInit {
             def.nome === 'ordine_impieghi'
           ) {
             this.caricaDisponibilita();
+            this.caricaRese();
           }
         },
         error: (err) => {
@@ -651,6 +723,7 @@ export class App implements OnInit {
           def.nome === 'ordine_impieghi'
         ) {
           this.caricaDisponibilita();
+          this.caricaRese();
         }
       },
       error: (err) => {
@@ -739,6 +812,35 @@ export class App implements OnInit {
     const dataStr = new Date().toISOString().slice(0, 10);
     this.scaricaCsv(`disponibilita_magazzino_${dataStr}.csv`, [intestazioni, ...righe]);
     this.mostraOk('Report disponibilità scaricato in formato CSV');
+  }
+
+  protected esportaReseCsv(): void {
+    const items = this.reseFiltrate();
+    const intestazioni = [
+      'Campagna',
+      'Prodotto',
+      'Varietà',
+      'Clone',
+      'Portainnesto',
+      'Tipologia',
+      'Innestato',
+      'Prodotto',
+      'Resa (%)',
+    ];
+    const righe = items.map((it) => [
+      it.campagna,
+      it.prodotto,
+      it.codice_varieta,
+      it.codice_clone,
+      it.codice_portainnesto,
+      it.tipologia,
+      String(it.innestato),
+      String(it.prodotto_qta),
+      `${it.resa.toFixed(2)}%`,
+    ]);
+    const dataStr = new Date().toISOString().slice(0, 10);
+    this.scaricaCsv(`report_rese_${dataStr}.csv`, [intestazioni, ...righe]);
+    this.mostraOk('Report rese scaricato in formato CSV');
   }
 
   protected esportaTabellaCsv(): void {
@@ -859,9 +961,11 @@ export class App implements OnInit {
           this.caricaDatiTabella(this.tabellaSelezionata());
           if (
             this.tabellaSelezionata() === 'lotti_magazzino' ||
+            this.tabellaSelezionata() === 'innesti' ||
             this.tabellaSelezionata() === 'ordine_impieghi'
           ) {
             this.caricaDisponibilita();
+            this.caricaRese();
           }
         },
         error: (err) => {

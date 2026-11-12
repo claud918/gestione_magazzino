@@ -72,6 +72,23 @@ export interface RigaDisponibilita {
   scoperto: number;
 }
 
+// --- Vista rese (raggruppata per campagna + prodotto + varietà + clone + portainnesto + tipologia) ---
+
+export interface RigaResa {
+  campagna: string;
+  prodotto: string;
+  codice_varieta: string;
+  codice_clone: string;
+  codice_portainnesto: string;
+  tipologia: string;
+  /** Σ quantità innestata (tabella innesti) */
+  innestato: number;
+  /** Σ quantità prodotta (tabella lotti_magazzino) */
+  prodotto_qta: number;
+  /** Resa percentuale (prodotto_qta / innestato * 100) */
+  resa: number;
+}
+
 // --- Risposte API CRUD ---
 
 export interface ErroreApi {
