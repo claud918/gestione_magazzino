@@ -837,6 +837,17 @@ export class App implements OnInit {
     this.caricaDatiTabella(this.tabellaSelezionata());
   }
 
+  protected aggiornaVistaAttiva(): void {
+    const sez = this.sezioneAttiva();
+    if (sez === 'disponibilita') {
+      this.caricaDisponibilita();
+    } else if (sez === 'rese') {
+      this.caricaRese();
+    } else {
+      this.caricaDatiTabella(this.tabellaSelezionata());
+    }
+  }
+
   protected selezionaSezione(sez: SezioneAttiva): void {
     this.sezioneAttiva.set(sez);
     this.menuMobileAperto.set(false);

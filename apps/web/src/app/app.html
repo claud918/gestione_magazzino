@@ -248,17 +248,27 @@
         }
 
         <ng-template #colCustomizerTpl>
+          <button
+            type="button"
+            class="btn-table-head-icon"
+            (click)="aggiornaVistaAttiva()"
+            title="Aggiorna dati"
+            aria-label="Aggiorna dati"
+          >
+            ↻
+          </button>
           <div class="col-customizer-wrap">
             <button
               type="button"
-              class="btn btn-sm btn-outline-secondary btn-columns-toggle"
+              class="btn-table-head-icon btn-columns-toggle"
               [class.active]="menuColonneAperto()"
               (click)="toggleMenuColonne($event)"
-              title="Personalizza colonne visibili"
+              title="Personalizza colonne ({{ campiTabellaVisibili().length }}/{{ campiConfigurabili().length }})"
+              aria-label="Personalizza colonne"
             >
-              <span>⚙️ Colonne ({{ campiTabellaVisibili().length }}/{{ campiConfigurabili().length }})</span>
+              ⚙️
               @if (haPersonalizzazioniColonne()) {
-                <span class="col-custom-badge" title="Colonne personalizzate per questa vista"></span>
+                <span class="col-custom-badge" title="Colonne personalizzate"></span>
               }
             </button>
 
@@ -466,8 +476,6 @@
                 <input type="checkbox" [(ngModel)]="filtroDispSoloScoperti" />
                 <span class="badge-danger-text">Solo scoperti (&gt;0)</span>
               </label>
-              <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
-              <button class="btn btn-sm btn-secondary" (click)="caricaDisponibilita()">Aggiorna</button>
             </div>
           </div>
 
@@ -547,8 +555,12 @@
 
             <!-- MODALITA TABELLARE (DESKTOP) -->
             @if (vistaDisponibilitaModalita() === 'tabellare') {
-              <div class="table-responsive">
-                <table class="data-table">
+              <div class="table-wrapper">
+                <div class="table-head-tools">
+                  <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
+                </div>
+                <div class="table-responsive">
+                  <table class="data-table">
                   <thead>
                     <tr>
                       @for (col of campiTabellaVisibili(); track col.nome) {
@@ -647,6 +659,7 @@
                     }
                   </tbody>
                 </table>
+                </div>
               </div>
             }
           }
@@ -754,10 +767,6 @@
                 }
               </div>
             </div>
-            <div class="filter-toggles">
-              <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
-              <button class="btn btn-sm btn-secondary" (click)="caricaRese()">Aggiorna</button>
-            </div>
           </div>
 
           @if (caricamentoRese()) {
@@ -804,8 +813,12 @@
 
             <!-- MODALITA TABELLARE (DESKTOP) -->
             @if (vistaReseModalita() === 'tabellare') {
-              <div class="table-responsive">
-                <table class="data-table">
+              <div class="table-wrapper">
+                <div class="table-head-tools">
+                  <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
+                </div>
+                <div class="table-responsive">
+                  <table class="data-table">
                   <thead>
                     <tr>
                       @for (col of campiTabellaVisibili(); track col.nome) {
@@ -847,6 +860,7 @@
                     }
                   </tbody>
                 </table>
+                </div>
               </div>
             }
           }
@@ -937,7 +951,6 @@
               <span class="badge-tag">1 riga selezionata (clicca per deselezionare)</span>
             }
             <div class="filter-bar-right">
-              <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
               <span class="count-badge">{{ righeFiltrate().length }} elementi</span>
             </div>
           </div>
@@ -956,8 +969,12 @@
           } @else {
             @if (modalitaVista() === 'tabella') {
               <!-- 1. VISTA TABELLARE -->
-              <div class="table-responsive">
-                <table class="data-table">
+              <div class="table-wrapper">
+                <div class="table-head-tools">
+                  <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
+                </div>
+                <div class="table-responsive">
+                  <table class="data-table">
                   <thead>
                     <tr>
                       @for (campo of campiTabellaVisibili(); track campo.nome) {
@@ -999,6 +1016,7 @@
                     }
                   </tbody>
                 </table>
+                </div>
               </div>
             } @else {
               <!-- 2. VISTA SCHEDE -->
