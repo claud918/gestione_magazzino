@@ -800,7 +800,57 @@
             @if (rigaSelezionata()) {
               <span class="badge-tag">1 riga selezionata (clicca per deselezionare)</span>
             }
-            <span class="count-badge">{{ righeFiltrate().length }} elementi</span>
+            <div class="filter-bar-right">
+              @if (modalitaVista() === 'tabella') {
+                <div class="col-customizer-wrap">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary btn-columns-toggle"
+                    [class.active]="menuColonneAperto()"
+                    (click)="toggleMenuColonne($event)"
+                    title="Personalizza colonne visibili"
+                  >
+                    <span>⚙️ Colonne ({{ campiTabellaVisibili().length }}/{{ campiConfigurabili().length }})</span>
+                    @if (haPersonalizzazioniColonne()) {
+                      <span class="col-custom-badge" title="Colonne personalizzate per questa tabella"></span>
+                    }
+                  </button>
+
+                  @if (menuColonneAperto()) {
+                    <div class="col-customizer-dropdown" (click)="$event.stopPropagation()">
+                      <div class="col-dropdown-header">
+                        <span class="col-dropdown-title">Personalizza colonne</span>
+                        <button type="button" class="btn-close-sm" (click)="menuColonneAperto.set(false)" title="Chiudi">✕</button>
+                      </div>
+                      <div class="col-dropdown-actions">
+                        <button type="button" class="btn-link-action" (click)="mostraTutteLeColonne()">Mostra tutte</button>
+                        <span class="sep">•</span>
+                        <button type="button" class="btn-link-action" (click)="ripristinaColonnePredefinite()">Ripristina</button>
+                      </div>
+                      <div class="col-dropdown-list">
+                        @for (c of campiConfigurabili(); track c.nome) {
+                          <label class="col-checkbox-label" [class.col-disabled]="isUltimaColonna(c.nome)">
+                            <input
+                              type="checkbox"
+                              [checked]="isColonnaVisibile(c.nome)"
+                              [disabled]="isUltimaColonna(c.nome)"
+                              (change)="toggleVisibilitaColonna(c.nome)"
+                            />
+                            <span class="col-label-text">{{ c.etichetta }}</span>
+                          </label>
+                        }
+                      </div>
+                      @if (haPersonalizzazioniColonne()) {
+                        <div class="col-dropdown-footer">
+                          <span class="col-footer-hint">💾 Salvato per le prossime sessioni</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+              <span class="count-badge">{{ righeFiltrate().length }} elementi</span>
+            </div>
           </div>
 
           @if (caricamentoDati()) {
@@ -821,10 +871,8 @@
                 <table class="data-table">
                   <thead>
                     <tr>
-                      @for (campo of defTabella().campi; track campo.nome) {
-                        @if (!campo.automatico && !campo.nascostoInTabella) {
-                          <th>{{ campo.etichetta }}</th>
-                        }
+                      @for (campo of campiTabellaVisibili(); track campo.nome) {
+                        <th>{{ campo.etichetta }}</th>
                       }
                       @if (utente()?.ruolo === 'admin') {
                         <th class="actions-col">Azioni</th>
@@ -834,12 +882,10 @@
                   <tbody>
                     @for (riga of righeFiltrate(); track $index) {
                       <tr [class.row-selected]="rigaSelezionata() === riga" (click)="selezionaRiga(riga)" style="cursor: pointer;">
-                        @for (campo of defTabella().campi; track campo.nome) {
-                          @if (!campo.automatico && !campo.nascostoInTabella) {
-                            <td [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'">
-                              {{ formattaValoreTabella(campo, riga[campo.nome]) }}
-                            </td>
-                          }
+                        @for (campo of campiTabellaVisibili(); track campo.nome) {
+                          <td [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'">
+                            {{ formattaValoreTabella(campo, riga[campo.nome]) }}
+                          </td>
                         }
                         @if (utente()?.ruolo === 'admin') {
                           <td class="actions-col" (click)="$event.stopPropagation()">

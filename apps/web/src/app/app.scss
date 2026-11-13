@@ -676,6 +676,184 @@
     color: #718096;
     white-space: nowrap;
   }
+
+  .filter-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+}
+
+// Personalizzazione Colonne Tabelle
+.col-customizer-wrap {
+  position: relative;
+  display: inline-block;
+
+  .btn-columns-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    border-radius: 6px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background-color: #f1f5f9;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+
+    &.active {
+      background: #e2e8f0;
+      border-color: #64748b;
+      color: #0f172a;
+    }
+
+    .col-custom-badge {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #2d6a4f;
+      margin-left: 2px;
+    }
+  }
+
+  .col-customizer-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1050;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+    width: 270px;
+    max-width: calc(100vw - 2rem);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    .col-dropdown-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.85rem;
+      border-bottom: 1px solid #f1f5f9;
+      background: #f8fafc;
+
+      .col-dropdown-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #1e293b;
+      }
+
+      .btn-close-sm {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+        font-size: 0.85rem;
+        padding: 0.15rem 0.35rem;
+        border-radius: 4px;
+        line-height: 1;
+
+        &:hover {
+          color: #1e293b;
+          background: #e2e8f0;
+        }
+      }
+    }
+
+    .col-dropdown-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.85rem;
+      background: #ffffff;
+      border-bottom: 1px solid #f1f5f9;
+
+      .btn-link-action {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #2d6a4f;
+        cursor: pointer;
+        text-decoration: underline;
+
+        &:hover {
+          color: #1b4332;
+        }
+      }
+
+      .sep {
+        color: #cbd5e1;
+        font-size: 0.75rem;
+      }
+    }
+
+    .col-dropdown-list {
+      max-height: 260px;
+      overflow-y: auto;
+      padding: 0.35rem 0;
+
+      .col-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.4rem 0.85rem;
+        font-size: 0.82rem;
+        color: #334155;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.12s ease;
+
+        &:hover {
+          background-color: #f8fafc;
+        }
+
+        &.col-disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        input[type="checkbox"] {
+          width: 15px;
+          height: 15px;
+          accent-color: #2d6a4f;
+          cursor: pointer;
+        }
+
+        .col-label-text {
+          flex: 1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+
+    .col-dropdown-footer {
+      padding: 0.45rem 0.85rem;
+      background: #f8fafc;
+      border-top: 1px solid #f1f5f9;
+      text-align: center;
+
+      .col-footer-hint {
+        font-size: 0.72rem;
+        color: #64748b;
+      }
+    }
+  }
 }
 
 .checkbox-label {
@@ -1013,6 +1191,17 @@
     &:hover {
       background-color: #2d6a4f;
       color: #fff;
+    }
+  }
+
+  &-outline-secondary {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    &:hover {
+      background-color: #f8fafc;
+      border-color: #94a3b8;
+      color: #1e293b;
     }
   }
 

@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, HostListener, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -158,6 +158,129 @@ export class App implements OnInit {
   protected readonly campiForm = computed<CampoTabella[]>(() => {
     return campiModificabili(this.defTabella());
   });
+
+  // --- Personalizzazione Colonne Tabelle (Persistenza in localStorage) ---
+  private static readonly STORAGE_COLONNE_KEY = 'magazzino_colonne_personalizzate_v1';
+  protected readonly menuColonneAperto = signal(false);
+  protected readonly preferenzeColonne = signal<Record<string, string[]>>(
+    this.caricaPreferenzeColonneDaStorage(),
+  );
+
+  // Computed: tutti i campi configurabili (non generati automaticamente come id uuid)
+  protected readonly campiConfigurabili = computed<CampoTabella[]>(() => {
+    return this.defTabella().campi.filter((c) => !c.automatico);
+  });
+
+  // Computed: colonne attualmente visibili nella tabella
+  protected readonly campiTabellaVisibili = computed<CampoTabella[]>(() => {
+    const tab = this.tabellaSelezionata();
+    const tutti = this.campiConfigurabili();
+    const salvati = this.preferenzeColonne()[tab];
+
+    if (Array.isArray(salvati) && salvati.length > 0) {
+      const visibili = tutti.filter((c) => salvati.includes(c.nome));
+      if (visibili.length > 0) {
+        return visibili;
+      }
+    }
+
+    // Default: quelli che non hanno nascostoInTabella
+    return tutti.filter((c) => !c.nascostoInTabella);
+  });
+
+  private caricaPreferenzeColonneDaStorage(): Record<string, string[]> {
+    try {
+      if (typeof localStorage === 'undefined') return {};
+      const raw = localStorage.getItem(App.STORAGE_COLONNE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      console.warn('Impossibile leggere preferenze colonne da localStorage', e);
+      return {};
+    }
+  }
+
+  private salvaPreferenzeColonneSuStorage(pref: Record<string, string[]>): void {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem(App.STORAGE_COLONNE_KEY, JSON.stringify(pref));
+    } catch (e) {
+      console.warn('Impossibile salvare preferenze colonne in localStorage', e);
+    }
+  }
+
+  protected isColonnaVisibile(nomeCampo: string): boolean {
+    return this.campiTabellaVisibili().some((c) => c.nome === nomeCampo);
+  }
+
+  protected isUltimaColonna(nomeCampo: string): boolean {
+    const vis = this.campiTabellaVisibili();
+    return vis.length === 1 && vis[0].nome === nomeCampo;
+  }
+
+  protected haPersonalizzazioniColonne(): boolean {
+    const tab = this.tabellaSelezionata();
+    return !!this.preferenzeColonne()[tab];
+  }
+
+  protected toggleMenuColonne(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.menuColonneAperto.update((v) => !v);
+  }
+
+  protected toggleVisibilitaColonna(nomeCampo: string): void {
+    const tab = this.tabellaSelezionata();
+    const visibiliAttuali = this.campiTabellaVisibili().map((c) => c.nome);
+    let nuoveColonne: string[];
+
+    if (visibiliAttuali.includes(nomeCampo)) {
+      if (visibiliAttuali.length <= 1) {
+        return; // Non permettere di nascondere tutte le colonne
+      }
+      nuoveColonne = visibiliAttuali.filter((n) => n !== nomeCampo);
+    } else {
+      // Aggiungi mantenendo l'ordine dei campi configurabili
+      const tuttiNomi = this.campiConfigurabili().map((c) => c.nome);
+      nuoveColonne = tuttiNomi.filter((n) => visibiliAttuali.includes(n) || n === nomeCampo);
+    }
+
+    const nuovePreferenze = {
+      ...this.preferenzeColonne(),
+      [tab]: nuoveColonne,
+    };
+    this.preferenzeColonne.set(nuovePreferenze);
+    this.salvaPreferenzeColonneSuStorage(nuovePreferenze);
+  }
+
+  protected mostraTutteLeColonne(): void {
+    const tab = this.tabellaSelezionata();
+    const tuttiNomi = this.campiConfigurabili().map((c) => c.nome);
+    const nuovePreferenze = {
+      ...this.preferenzeColonne(),
+      [tab]: tuttiNomi,
+    };
+    this.preferenzeColonne.set(nuovePreferenze);
+    this.salvaPreferenzeColonneSuStorage(nuovePreferenze);
+  }
+
+  protected ripristinaColonnePredefinite(): void {
+    const tab = this.tabellaSelezionata();
+    const nuovePreferenze = { ...this.preferenzeColonne() };
+    delete nuovePreferenze[tab];
+    this.preferenzeColonne.set(nuovePreferenze);
+    this.salvaPreferenzeColonneSuStorage(nuovePreferenze);
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (this.menuColonneAperto()) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.col-customizer-wrap')) {
+        this.menuColonneAperto.set(false);
+      }
+    }
+  }
 
   // Computed: promemoria disponibilità residua per inserimento/modifica ordini
   protected readonly disponibilitaPromemoria = computed(() => {
@@ -551,6 +674,7 @@ export class App implements OnInit {
     this.tabellaSelezionata.set(tab);
     this.sezioneAttiva.set('tabella');
     this.menuMobileAperto.set(false);
+    this.menuColonneAperto.set(false);
     this.ricercaTesto.set('');
     this.rigaSelezionata.set(null);
     if (typeof window !== 'undefined') {
