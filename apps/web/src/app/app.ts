@@ -161,27 +161,73 @@ export class App implements OnInit {
 
   // --- Personalizzazione Colonne Tabelle (Persistenza in localStorage) ---
   private static readonly STORAGE_COLONNE_KEY = 'magazzino_colonne_personalizzate_v1';
+
+  private static readonly COLONNE_DISPONIBILITA: CampoTabella[] = [
+    { nome: 'codice_varieta', etichetta: 'Varietà', tipo: 'testo' },
+    { nome: 'codice_clone', etichetta: 'Clone', tipo: 'testo' },
+    { nome: 'codice_portainnesto', etichetta: 'Portainnesto', tipo: 'testo' },
+    { nome: 'prodotto_qta', etichetta: 'Prodotto (Q.tà)', tipo: 'intero' },
+    { nome: 'ordinato', etichetta: 'Ordinato', tipo: 'intero' },
+    { nome: 'consegnato', etichetta: 'Consegnato', tipo: 'intero' },
+    { nome: 'disponibile', etichetta: 'Disponibile', tipo: 'intero' },
+    { nome: 'giacenza_fisica', etichetta: 'Giacenza fisica', tipo: 'intero' },
+    { nome: 'scoperto', etichetta: 'Scoperto', tipo: 'intero' },
+    { nome: 'disponibile_ripiantato', etichetta: 'Disp. Ripiantate', tipo: 'intero', nascostoInTabella: true },
+    { nome: 'disponibile_frigo_conservato', etichetta: 'Disp. Frigoconservate', tipo: 'intero', nascostoInTabella: true },
+    { nome: 'disponibile_seconde', etichetta: 'Disp. Seconde', tipo: 'intero', nascostoInTabella: true },
+  ];
+
+  private static readonly COLONNE_RESE: CampoTabella[] = [
+    { nome: 'codice_varieta', etichetta: 'Varietà', tipo: 'testo' },
+    { nome: 'codice_clone', etichetta: 'Clone', tipo: 'testo' },
+    { nome: 'codice_portainnesto', etichetta: 'Portainnesto', tipo: 'testo' },
+    { nome: 'tipologia', etichetta: 'Tipologia', tipo: 'testo' },
+    { nome: 'innestato', etichetta: 'Innestato', tipo: 'intero' },
+    { nome: 'prodotto_qta', etichetta: 'Prodotto', tipo: 'intero' },
+    { nome: 'resa', etichetta: 'Resa', tipo: 'numero' },
+  ];
+
+  private static readonly COLONNE_EXTRA_DISP = [
+    'disponibile_ripiantato',
+    'disponibile_frigo_conservato',
+    'disponibile_seconde',
+  ];
+
   protected readonly menuColonneAperto = signal(false);
   protected readonly preferenzeColonne = signal<Record<string, string[]>>(
     this.caricaPreferenzeColonneDaStorage(),
   );
 
-  // Computed: tutti i campi configurabili (non generati automaticamente come id uuid)
+  protected readonly chiaveTabellaAttiva = computed<string>(() => {
+    const sez = this.sezioneAttiva();
+    if (sez === 'disponibilita') return '__disp';
+    if (sez === 'rese') return '__rese';
+    return this.tabellaSelezionata();
+  });
+
+  // Computed: tutti i campi configurabili per la vista o tabella attiva
   protected readonly campiConfigurabili = computed<CampoTabella[]>(() => {
+    const chiave = this.chiaveTabellaAttiva();
+    if (chiave === '__disp') return App.COLONNE_DISPONIBILITA;
+    if (chiave === '__rese') return App.COLONNE_RESE;
     return this.defTabella().campi.filter((c) => !c.automatico);
   });
 
-  // Computed: colonne attualmente visibili nella tabella
+  // Computed: colonne attualmente visibili nella vista o tabella attiva
   protected readonly campiTabellaVisibili = computed<CampoTabella[]>(() => {
-    const tab = this.tabellaSelezionata();
+    const chiave = this.chiaveTabellaAttiva();
     const tutti = this.campiConfigurabili();
-    const salvati = this.preferenzeColonne()[tab];
+    const salvati = this.preferenzeColonne()[chiave];
 
     if (Array.isArray(salvati) && salvati.length > 0) {
       const visibili = tutti.filter((c) => salvati.includes(c.nome));
       if (visibili.length > 0) {
         return visibili;
       }
+    }
+
+    if (chiave === '__disp' && this.mostraUlterioriDisponibilita()) {
+      return tutti;
     }
 
     // Default: quelli che non hanno nascostoInTabella
@@ -218,8 +264,8 @@ export class App implements OnInit {
   }
 
   protected haPersonalizzazioniColonne(): boolean {
-    const tab = this.tabellaSelezionata();
-    return !!this.preferenzeColonne()[tab];
+    const chiave = this.chiaveTabellaAttiva();
+    return !!this.preferenzeColonne()[chiave];
   }
 
   protected toggleMenuColonne(event?: Event): void {
@@ -229,8 +275,26 @@ export class App implements OnInit {
     this.menuColonneAperto.update((v) => !v);
   }
 
+  protected toggleUlterioriDisponibilita(): void {
+    const nuovoStato = !this.mostraUlterioriDisponibilita();
+    this.mostraUlterioriDisponibilita.set(nuovoStato);
+
+    const salvati = this.preferenzeColonne()['__disp'];
+    if (Array.isArray(salvati)) {
+      const tuttiNomi = App.COLONNE_DISPONIBILITA.map((c) => c.nome);
+      const nuoveColonne = nuovoStato
+        ? tuttiNomi.filter((n) => salvati.includes(n) || App.COLONNE_EXTRA_DISP.includes(n))
+        : salvati.filter((n) => !App.COLONNE_EXTRA_DISP.includes(n));
+      if (nuoveColonne.length > 0) {
+        const nuovePref = { ...this.preferenzeColonne(), __disp: nuoveColonne };
+        this.preferenzeColonne.set(nuovePref);
+        this.salvaPreferenzeColonneSuStorage(nuovePref);
+      }
+    }
+  }
+
   protected toggleVisibilitaColonna(nomeCampo: string): void {
-    const tab = this.tabellaSelezionata();
+    const chiave = this.chiaveTabellaAttiva();
     const visibiliAttuali = this.campiTabellaVisibili().map((c) => c.nome);
     let nuoveColonne: string[];
 
@@ -247,27 +311,30 @@ export class App implements OnInit {
 
     const nuovePreferenze = {
       ...this.preferenzeColonne(),
-      [tab]: nuoveColonne,
+      [chiave]: nuoveColonne,
     };
     this.preferenzeColonne.set(nuovePreferenze);
     this.salvaPreferenzeColonneSuStorage(nuovePreferenze);
   }
 
   protected mostraTutteLeColonne(): void {
-    const tab = this.tabellaSelezionata();
+    const chiave = this.chiaveTabellaAttiva();
     const tuttiNomi = this.campiConfigurabili().map((c) => c.nome);
     const nuovePreferenze = {
       ...this.preferenzeColonne(),
-      [tab]: tuttiNomi,
+      [chiave]: tuttiNomi,
     };
     this.preferenzeColonne.set(nuovePreferenze);
     this.salvaPreferenzeColonneSuStorage(nuovePreferenze);
   }
 
   protected ripristinaColonnePredefinite(): void {
-    const tab = this.tabellaSelezionata();
+    const chiave = this.chiaveTabellaAttiva();
+    if (chiave === '__disp') {
+      this.mostraUlterioriDisponibilita.set(false);
+    }
     const nuovePreferenze = { ...this.preferenzeColonne() };
-    delete nuovePreferenze[tab];
+    delete nuovePreferenze[chiave];
     this.preferenzeColonne.set(nuovePreferenze);
     this.salvaPreferenzeColonneSuStorage(nuovePreferenze);
   }
@@ -658,6 +725,7 @@ export class App implements OnInit {
   protected selezionaSezione(sez: SezioneAttiva): void {
     this.sezioneAttiva.set(sez);
     this.menuMobileAperto.set(false);
+    this.menuColonneAperto.set(false);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }

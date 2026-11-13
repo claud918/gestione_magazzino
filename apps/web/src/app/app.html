@@ -247,6 +247,55 @@
           <div class="toast toast-danger">{{ messaggioErrore() }}</div>
         }
 
+        <ng-template #colCustomizerTpl>
+          <div class="col-customizer-wrap">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary btn-columns-toggle"
+              [class.active]="menuColonneAperto()"
+              (click)="toggleMenuColonne($event)"
+              title="Personalizza colonne visibili"
+            >
+              <span>⚙️ Colonne ({{ campiTabellaVisibili().length }}/{{ campiConfigurabili().length }})</span>
+              @if (haPersonalizzazioniColonne()) {
+                <span class="col-custom-badge" title="Colonne personalizzate per questa vista"></span>
+              }
+            </button>
+
+            @if (menuColonneAperto()) {
+              <div class="col-customizer-dropdown" (click)="$event.stopPropagation()">
+                <div class="col-dropdown-header">
+                  <span class="col-dropdown-title">Personalizza colonne</span>
+                  <button type="button" class="btn-close-sm" (click)="menuColonneAperto.set(false)" title="Chiudi">✕</button>
+                </div>
+                <div class="col-dropdown-actions">
+                  <button type="button" class="btn-link-action" (click)="mostraTutteLeColonne()">Mostra tutte</button>
+                  <span class="sep">•</span>
+                  <button type="button" class="btn-link-action" (click)="ripristinaColonnePredefinite()">Ripristina</button>
+                </div>
+                <div class="col-dropdown-list">
+                  @for (c of campiConfigurabili(); track c.nome) {
+                    <label class="col-checkbox-label" [class.col-disabled]="isUltimaColonna(c.nome)">
+                      <input
+                        type="checkbox"
+                        [checked]="isColonnaVisibile(c.nome)"
+                        [disabled]="isUltimaColonna(c.nome)"
+                        (change)="toggleVisibilitaColonna(c.nome)"
+                      />
+                      <span class="col-label-text">{{ c.etichetta }}</span>
+                    </label>
+                  }
+                </div>
+                @if (haPersonalizzazioniColonne()) {
+                  <div class="col-dropdown-footer">
+                    <span class="col-footer-hint">💾 Salvato per le prossime sessioni</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </ng-template>
+
         <!-- ============================================================== -->
         <!-- SEZIONE 1: REPORT DISPONIBILITA (Mobile Schede + Desktop Tabellare) -->
         <!-- ============================================================== -->
@@ -374,7 +423,7 @@
                 class="btn btn-sm"
                 [class.btn-primary]="mostraUlterioriDisponibilita()"
                 [class.btn-outline-secondary]="!mostraUlterioriDisponibilita()"
-                (click)="mostraUlterioriDisponibilita.set(!mostraUlterioriDisponibilita())"
+                (click)="toggleUlterioriDisponibilita()"
               >
                 {{ mostraUlterioriDisponibilita() ? 'Nascondi ulteriori disponibilità' : 'Mostra ulteriori disponibilità' }}
               </button>
@@ -386,6 +435,7 @@
                 <input type="checkbox" [(ngModel)]="filtroDispSoloScoperti" />
                 <span class="badge-danger-text">Solo scoperti (&gt;0)</span>
               </label>
+              <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
               <button class="btn btn-sm btn-secondary" (click)="caricaDisponibilita()">Aggiorna</button>
             </div>
           </div>
@@ -440,15 +490,19 @@
                           <strong>{{ item.scoperto | number }}</strong>
                         </div>
                       }
-                      @if (mostraUlterioriDisponibilita()) {
+                      @if (isColonnaVisibile('disponibile_ripiantato')) {
                         <div class="indicator ind-extra">
                           <small>Disp. Ripiantate</small>
                           <strong>{{ item.disponibile_ripiantato | number }}</strong>
                         </div>
+                      }
+                      @if (isColonnaVisibile('disponibile_frigo_conservato')) {
                         <div class="indicator ind-extra">
                           <small>Disp. Frigo</small>
                           <strong>{{ item.disponibile_frigo_conservato | number }}</strong>
                         </div>
+                      }
+                      @if (isColonnaVisibile('disponibile_seconde')) {
                         <div class="indicator ind-extra">
                           <small>Disp. Seconde</small>
                           <strong>{{ item.disponibile_seconde | number }}</strong>
@@ -466,37 +520,59 @@
                 <table class="data-table">
                   <thead>
                     <tr>
-                      <th>Varietà</th>
-                      <th>Clone</th>
-                      <th>Portainnesto</th>
-                      <th class="num">Prodotto (Q.tà)</th>
-                      <th class="num">Ordinato</th>
-                      <th class="num">Consegnato</th>
-                      <th class="num">Disponibile</th>
-                      <th class="num">Giacenza fisica</th>
-                      <th class="num">Scoperto</th>
-                      @if (mostraUlterioriDisponibilita()) {
-                        <th class="num th-extra">Disp. Ripiantate</th>
-                        <th class="num th-extra">Disp. Frigoconservate</th>
-                        <th class="num th-extra">Disp. Seconde</th>
-                      }
+                      @if (isColonnaVisibile('codice_varieta')) { <th>Varietà</th> }
+                      @if (isColonnaVisibile('codice_clone')) { <th>Clone</th> }
+                      @if (isColonnaVisibile('codice_portainnesto')) { <th>Portainnesto</th> }
+                      @if (isColonnaVisibile('prodotto_qta')) { <th class="num">Prodotto (Q.tà)</th> }
+                      @if (isColonnaVisibile('ordinato')) { <th class="num">Ordinato</th> }
+                      @if (isColonnaVisibile('consegnato')) { <th class="num">Consegnato</th> }
+                      @if (isColonnaVisibile('disponibile')) { <th class="num">Disponibile</th> }
+                      @if (isColonnaVisibile('giacenza_fisica')) { <th class="num">Giacenza fisica</th> }
+                      @if (isColonnaVisibile('scoperto')) { <th class="num">Scoperto</th> }
+                      @if (isColonnaVisibile('disponibile_ripiantato')) { <th class="num th-extra">Disp. Ripiantate</th> }
+                      @if (isColonnaVisibile('disponibile_frigo_conservato')) { <th class="num th-extra">Disp. Frigoconservate</th> }
+                      @if (isColonnaVisibile('disponibile_seconde')) { <th class="num th-extra">Disp. Seconde</th> }
                     </tr>
                     <!-- RIGA DI TOTALE IN ALTO AGGIORNATA SUI FILTRI -->
                     <tr class="row-totale-top">
-                      <td colspan="3"><strong>TOTALE ({{ disponibilitaFiltrata().length }} combinazioni)</strong></td>
-                      <td class="num font-mono font-bold">{{ kpiDisponibilita().totProdotto | number }}</td>
-                      <td class="num font-mono font-bold">{{ kpiDisponibilita().totOrdinato | number }}</td>
-                      <td class="num font-mono font-bold">{{ kpiDisponibilita().totConsegnato | number }}</td>
-                      <td class="num font-mono font-bold" [class.text-success]="kpiDisponibilita().totDisponibile >= 0" [class.text-danger]="kpiDisponibilita().totDisponibile < 0">
-                        {{ kpiDisponibilita().totDisponibile | number }}
-                      </td>
-                      <td class="num font-mono font-bold">{{ (kpiDisponibilita().totProdotto - kpiDisponibilita().totConsegnato) | number }}</td>
-                      <td class="num font-mono font-bold" [class.text-danger]="kpiDisponibilita().totScoperto > 0">
-                        {{ kpiDisponibilita().totScoperto > 0 ? (kpiDisponibilita().totScoperto | number) : '—' }}
-                      </td>
-                      @if (mostraUlterioriDisponibilita()) {
+                      @if (isColonnaVisibile('codice_varieta')) {
+                        <td><strong>TOTALE ({{ disponibilitaFiltrata().length }})</strong></td>
+                      }
+                      @if (isColonnaVisibile('codice_clone')) {
+                        <td>@if (!isColonnaVisibile('codice_varieta')) { <strong>TOTALE ({{ disponibilitaFiltrata().length }})</strong> }</td>
+                      }
+                      @if (isColonnaVisibile('codice_portainnesto')) {
+                        <td>@if (!isColonnaVisibile('codice_varieta') && !isColonnaVisibile('codice_clone')) { <strong>TOTALE ({{ disponibilitaFiltrata().length }})</strong> }</td>
+                      }
+                      @if (isColonnaVisibile('prodotto_qta')) {
+                        <td class="num font-mono font-bold">{{ kpiDisponibilita().totProdotto | number }}</td>
+                      }
+                      @if (isColonnaVisibile('ordinato')) {
+                        <td class="num font-mono font-bold">{{ kpiDisponibilita().totOrdinato | number }}</td>
+                      }
+                      @if (isColonnaVisibile('consegnato')) {
+                        <td class="num font-mono font-bold">{{ kpiDisponibilita().totConsegnato | number }}</td>
+                      }
+                      @if (isColonnaVisibile('disponibile')) {
+                        <td class="num font-mono font-bold" [class.text-success]="kpiDisponibilita().totDisponibile >= 0" [class.text-danger]="kpiDisponibilita().totDisponibile < 0">
+                          {{ kpiDisponibilita().totDisponibile | number }}
+                        </td>
+                      }
+                      @if (isColonnaVisibile('giacenza_fisica')) {
+                        <td class="num font-mono font-bold">{{ (kpiDisponibilita().totProdotto - kpiDisponibilita().totConsegnato) | number }}</td>
+                      }
+                      @if (isColonnaVisibile('scoperto')) {
+                        <td class="num font-mono font-bold" [class.text-danger]="kpiDisponibilita().totScoperto > 0">
+                          {{ kpiDisponibilita().totScoperto > 0 ? (kpiDisponibilita().totScoperto | number) : '—' }}
+                        </td>
+                      }
+                      @if (isColonnaVisibile('disponibile_ripiantato')) {
                         <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totRipiantato | number }}</td>
+                      }
+                      @if (isColonnaVisibile('disponibile_frigo_conservato')) {
                         <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totFrigo | number }}</td>
+                      }
+                      @if (isColonnaVisibile('disponibile_seconde')) {
                         <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totSeconde | number }}</td>
                       }
                     </tr>
@@ -504,24 +580,26 @@
                   <tbody>
                     @for (item of disponibilitaFiltrata(); track $index) {
                       <tr [class.row-alert]="item.scoperto > 0">
-                        <td><strong>{{ item.codice_varieta }}</strong></td>
-                        <td>{{ item.codice_clone }}</td>
-                        <td>{{ item.codice_portainnesto }}</td>
-                        <td class="num font-mono">{{ item.prodotto_qta | number }}</td>
-                        <td class="num font-mono">{{ item.ordinato | number }}</td>
-                        <td class="num font-mono">{{ item.consegnato | number }}</td>
-                        <td class="num font-mono font-bold" [class.text-success]="item.disponibile >= 0" [class.text-danger]="item.disponibile < 0">
-                          {{ item.disponibile | number }}
-                        </td>
-                        <td class="num font-mono">{{ item.giacenza_fisica | number }}</td>
-                        <td class="num font-mono font-bold" [class.text-danger]="item.scoperto > 0">
-                          {{ item.scoperto > 0 ? (item.scoperto | number) : '—' }}
-                        </td>
-                        @if (mostraUlterioriDisponibilita()) {
-                          <td class="num font-mono td-extra">{{ item.disponibile_ripiantato | number }}</td>
-                          <td class="num font-mono td-extra">{{ item.disponibile_frigo_conservato | number }}</td>
-                          <td class="num font-mono td-extra">{{ item.disponibile_seconde | number }}</td>
+                        @if (isColonnaVisibile('codice_varieta')) { <td><strong>{{ item.codice_varieta }}</strong></td> }
+                        @if (isColonnaVisibile('codice_clone')) { <td>{{ item.codice_clone }}</td> }
+                        @if (isColonnaVisibile('codice_portainnesto')) { <td>{{ item.codice_portainnesto }}</td> }
+                        @if (isColonnaVisibile('prodotto_qta')) { <td class="num font-mono">{{ item.prodotto_qta | number }}</td> }
+                        @if (isColonnaVisibile('ordinato')) { <td class="num font-mono">{{ item.ordinato | number }}</td> }
+                        @if (isColonnaVisibile('consegnato')) { <td class="num font-mono">{{ item.consegnato | number }}</td> }
+                        @if (isColonnaVisibile('disponibile')) {
+                          <td class="num font-mono font-bold" [class.text-success]="item.disponibile >= 0" [class.text-danger]="item.disponibile < 0">
+                            {{ item.disponibile | number }}
+                          </td>
                         }
+                        @if (isColonnaVisibile('giacenza_fisica')) { <td class="num font-mono">{{ item.giacenza_fisica | number }}</td> }
+                        @if (isColonnaVisibile('scoperto')) {
+                          <td class="num font-mono font-bold" [class.text-danger]="item.scoperto > 0">
+                            {{ item.scoperto > 0 ? (item.scoperto | number) : '—' }}
+                          </td>
+                        }
+                        @if (isColonnaVisibile('disponibile_ripiantato')) { <td class="num font-mono td-extra">{{ item.disponibile_ripiantato | number }}</td> }
+                        @if (isColonnaVisibile('disponibile_frigo_conservato')) { <td class="num font-mono td-extra">{{ item.disponibile_frigo_conservato | number }}</td> }
+                        @if (isColonnaVisibile('disponibile_seconde')) { <td class="num font-mono td-extra">{{ item.disponibile_seconde | number }}</td> }
                       </tr>
                     }
                   </tbody>
@@ -634,6 +712,7 @@
               </div>
             </div>
             <div class="filter-toggles">
+              <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
               <button class="btn btn-sm btn-secondary" (click)="caricaRese()">Aggiorna</button>
             </div>
           </div>
@@ -686,27 +765,29 @@
                 <table class="data-table">
                   <thead>
                     <tr>
-                      <th>Varietà</th>
-                      <th>Clone</th>
-                      <th>Portainnesto</th>
-                      <th>Tipologia</th>
-                      <th class="num">Innestato</th>
-                      <th class="num">Prodotto</th>
-                      <th class="num">Resa</th>
+                      @if (isColonnaVisibile('codice_varieta')) { <th>Varietà</th> }
+                      @if (isColonnaVisibile('codice_clone')) { <th>Clone</th> }
+                      @if (isColonnaVisibile('codice_portainnesto')) { <th>Portainnesto</th> }
+                      @if (isColonnaVisibile('tipologia')) { <th>Tipologia</th> }
+                      @if (isColonnaVisibile('innestato')) { <th class="num">Innestato</th> }
+                      @if (isColonnaVisibile('prodotto_qta')) { <th class="num">Prodotto</th> }
+                      @if (isColonnaVisibile('resa')) { <th class="num">Resa</th> }
                     </tr>
                   </thead>
                   <tbody>
                     @for (item of reseFiltrate(); track $index) {
                       <tr>
-                        <td><strong>{{ item.codice_varieta }}</strong></td>
-                        <td>{{ item.codice_clone }}</td>
-                        <td>{{ item.codice_portainnesto }}</td>
-                        <td><small>{{ item.tipologia }}</small></td>
-                        <td class="num font-mono">{{ item.innestato | number }}</td>
-                        <td class="num font-mono">{{ item.prodotto_qta | number }}</td>
-                        <td class="num font-mono font-bold" [class.text-success]="item.resa > 65" [class.text-danger]="item.resa < 50">
-                          {{ item.resa | number:'1.1-2' }}%
-                        </td>
+                        @if (isColonnaVisibile('codice_varieta')) { <td><strong>{{ item.codice_varieta }}</strong></td> }
+                        @if (isColonnaVisibile('codice_clone')) { <td>{{ item.codice_clone }}</td> }
+                        @if (isColonnaVisibile('codice_portainnesto')) { <td>{{ item.codice_portainnesto }}</td> }
+                        @if (isColonnaVisibile('tipologia')) { <td><small>{{ item.tipologia }}</small></td> }
+                        @if (isColonnaVisibile('innestato')) { <td class="num font-mono">{{ item.innestato | number }}</td> }
+                        @if (isColonnaVisibile('prodotto_qta')) { <td class="num font-mono">{{ item.prodotto_qta | number }}</td> }
+                        @if (isColonnaVisibile('resa')) {
+                          <td class="num font-mono font-bold" [class.text-success]="item.resa > 65" [class.text-danger]="item.resa < 50">
+                            {{ item.resa | number:'1.1-2' }}%
+                          </td>
+                        }
                       </tr>
                     }
                   </tbody>
@@ -801,54 +882,7 @@
               <span class="badge-tag">1 riga selezionata (clicca per deselezionare)</span>
             }
             <div class="filter-bar-right">
-              @if (modalitaVista() === 'tabella') {
-                <div class="col-customizer-wrap">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-secondary btn-columns-toggle"
-                    [class.active]="menuColonneAperto()"
-                    (click)="toggleMenuColonne($event)"
-                    title="Personalizza colonne visibili"
-                  >
-                    <span>⚙️ Colonne ({{ campiTabellaVisibili().length }}/{{ campiConfigurabili().length }})</span>
-                    @if (haPersonalizzazioniColonne()) {
-                      <span class="col-custom-badge" title="Colonne personalizzate per questa tabella"></span>
-                    }
-                  </button>
-
-                  @if (menuColonneAperto()) {
-                    <div class="col-customizer-dropdown" (click)="$event.stopPropagation()">
-                      <div class="col-dropdown-header">
-                        <span class="col-dropdown-title">Personalizza colonne</span>
-                        <button type="button" class="btn-close-sm" (click)="menuColonneAperto.set(false)" title="Chiudi">✕</button>
-                      </div>
-                      <div class="col-dropdown-actions">
-                        <button type="button" class="btn-link-action" (click)="mostraTutteLeColonne()">Mostra tutte</button>
-                        <span class="sep">•</span>
-                        <button type="button" class="btn-link-action" (click)="ripristinaColonnePredefinite()">Ripristina</button>
-                      </div>
-                      <div class="col-dropdown-list">
-                        @for (c of campiConfigurabili(); track c.nome) {
-                          <label class="col-checkbox-label" [class.col-disabled]="isUltimaColonna(c.nome)">
-                            <input
-                              type="checkbox"
-                              [checked]="isColonnaVisibile(c.nome)"
-                              [disabled]="isUltimaColonna(c.nome)"
-                              (change)="toggleVisibilitaColonna(c.nome)"
-                            />
-                            <span class="col-label-text">{{ c.etichetta }}</span>
-                          </label>
-                        }
-                      </div>
-                      @if (haPersonalizzazioniColonne()) {
-                        <div class="col-dropdown-footer">
-                          <span class="col-footer-hint">💾 Salvato per le prossime sessioni</span>
-                        </div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
+              <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
               <span class="count-badge">{{ righeFiltrate().length }} elementi</span>
             </div>
           </div>
@@ -918,7 +952,7 @@
                     </div>
                     <div class="mobile-card-body">
                       @for (campo of defTabella().campi; track campo.nome) {
-                        @if (!campo.automatico && campo.nome !== defTabella().titoloScheda && (campo.inScheda || riga[campo.nome])) {
+                        @if (!campo.automatico && campo.nome !== defTabella().titoloScheda && (campo.inScheda || riga[campo.nome]) && (!haPersonalizzazioniColonne() || isColonnaVisibile(campo.nome))) {
                           <div class="mobile-field-row">
                             <span class="field-label">{{ campo.etichetta }}:</span>
                             <span class="field-val">{{ formattaValoreTabella(campo, riga[campo.nome]) }}</span>
