@@ -24,12 +24,13 @@ export class StickyScrollbarDirective implements AfterViewInit, OnDestroy {
   private mutationObserver: MutationObserver | null = null;
   private observedTable: Element | null = null;
   private metricsRafId: number | null = null;
-  private sourceResetTimerId: number | null = null;
   private timerIds: number[] = [];
   private cleanupListeners: Array<() => void> = [];
 
-  private activeSource: 'host' | 'bar' | null = null;
-  private isDraggingBar = false;
+  private lastBarScrollTime = 0;
+  private lastHostScrollTime = 0;
+  private lastAssignedToHost: number | null = null;
+  private lastAssignedToBar: number | null = null;
 
   private lastVisible: boolean | null = null;
   private lastPinned: boolean | null = null;
@@ -60,74 +61,44 @@ export class StickyScrollbarDirective implements AfterViewInit, OnDestroy {
       this.barEl = barEl;
       this.innerEl = innerEl;
 
-      const scheduleSourceReset = (): void => {
-        if (this.sourceResetTimerId !== null) {
-          clearTimeout(this.sourceResetTimerId);
-        }
-        this.sourceResetTimerId = window.setTimeout(() => {
-          this.sourceResetTimerId = null;
-          if (!this.isDraggingBar) {
-            this.activeSource = null;
-          }
-        }, 150);
-      };
-
-      const onBarPointerDown = (): void => {
-        this.isDraggingBar = true;
-        this.activeSource = 'bar';
-        if (this.sourceResetTimerId !== null) {
-          clearTimeout(this.sourceResetTimerId);
-          this.sourceResetTimerId = null;
-        }
-      };
-
-      const onBarPointerEnd = (): void => {
-        if (!this.isDraggingBar) {
-          return;
-        }
-        this.isDraggingBar = false;
-        scheduleSourceReset();
-      };
-
       const onBarScroll = (): void => {
-        if (this.activeSource === 'host' && !this.isDraggingBar) {
+        const now = performance.now();
+        const sl = barEl.scrollLeft;
+        if (
+          now - this.lastHostScrollTime < 200 &&
+          this.lastAssignedToBar !== null &&
+          Math.abs(sl - this.lastAssignedToBar) <= 1
+        ) {
           return;
         }
-        this.activeSource = 'bar';
-        scheduleSourceReset();
-        const targetScrollLeft = barEl.scrollLeft;
-        if (Math.abs(hostEl.scrollLeft - targetScrollLeft) >= 0.5) {
-          hostEl.scrollLeft = targetScrollLeft;
-        }
+        this.lastBarScrollTime = now;
+        this.lastAssignedToHost = sl;
+        hostEl.scrollLeft = sl;
       };
 
       const onHostScroll = (): void => {
-        if (this.isDraggingBar || this.activeSource === 'bar') {
+        const now = performance.now();
+        const sl = hostEl.scrollLeft;
+        if (
+          now - this.lastBarScrollTime < 200 ||
+          (this.lastAssignedToHost !== null && Math.abs(sl - this.lastAssignedToHost) <= 1)
+        ) {
           return;
         }
-        this.activeSource = 'host';
-        scheduleSourceReset();
-        const targetScrollLeft = hostEl.scrollLeft;
-        if (Math.abs(barEl.scrollLeft - targetScrollLeft) >= 0.5) {
-          barEl.scrollLeft = targetScrollLeft;
-        }
+        this.lastHostScrollTime = now;
+        this.lastAssignedToBar = sl;
+        barEl.scrollLeft = sl;
       };
 
       const onWindowScroll = (): void => this.scheduleUpdateMetrics();
       const onWindowResize = (): void => this.scheduleUpdateMetrics();
 
-      barEl.addEventListener('pointerdown', onBarPointerDown, { passive: true });
-      window.addEventListener('pointerup', onBarPointerEnd, { passive: true });
-      window.addEventListener('pointercancel', onBarPointerEnd, { passive: true });
       barEl.addEventListener('scroll', onBarScroll, { passive: true });
       hostEl.addEventListener('scroll', onHostScroll, { passive: true });
       window.addEventListener('scroll', onWindowScroll, { passive: true });
       window.addEventListener('resize', onWindowResize, { passive: true });
 
       this.cleanupListeners.push(
-        () => barEl.removeEventListener('pointerdown', onBarPointerDown),
-        () => window.removeEventListener('pointerup', onBarPointerEnd),
-        () => window.removeEventListener('pointercancel', onBarPointerEnd),
         () => barEl.removeEventListener('scroll', onBarScroll),
         () => hostEl.removeEventListener('scroll', onHostScroll),
         () => window.removeEventListener('scroll', onWindowScroll),
@@ -166,10 +137,6 @@ export class StickyScrollbarDirective implements AfterViewInit, OnDestroy {
     if (this.metricsRafId !== null) {
       cancelAnimationFrame(this.metricsRafId);
       this.metricsRafId = null;
-    }
-    if (this.sourceResetTimerId !== null) {
-      clearTimeout(this.sourceResetTimerId);
-      this.sourceResetTimerId = null;
     }
     for (const timerId of this.timerIds) {
       clearTimeout(timerId);
@@ -287,7 +254,7 @@ export class StickyScrollbarDirective implements AfterViewInit, OnDestroy {
         this.lastScrollWidth = scrollWidth;
       }
 
-      if (!this.isDraggingBar && this.activeSource !== 'bar') {
+      if (performance.now() - this.lastBarScrollTime >= 250) {
         const hostScrollLeft = hostEl.scrollLeft;
         if (Math.abs(barEl.scrollLeft - hostScrollLeft) >= 0.5) {
           barEl.scrollLeft = hostScrollLeft;
