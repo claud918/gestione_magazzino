@@ -227,6 +227,9 @@ export class App implements OnInit {
   protected readonly colonnaInTrascinamento = signal<string | null>(null);
   protected readonly filtriColonne = signal<Record<string, Record<string, string>>>({});
   protected readonly filtriMultiColonne = signal<Record<string, Record<string, string[]>>>({});
+  protected readonly filtriDataColonne = signal<
+    Record<string, Record<string, { da?: string; a?: string }>>
+  >({});
   protected readonly ordinamentoColonna = signal<
     Record<string, { campo: string; direzione: 'asc' | 'desc' } | null>
   >({});
@@ -240,7 +243,9 @@ export class App implements OnInit {
     const hasSingoli = !!filtri && Object.values(filtri).some((v) => v.trim() !== '');
     const multi = this.filtriMultiColonne()[chiave];
     const hasMulti = !!multi && Object.values(multi).some((arr) => arr.length > 0);
-    return hasSingoli || hasMulti;
+    const date = this.filtriDataColonne()[chiave];
+    const hasDate = !!date && Object.values(date).some((r) => !!(r?.da || r?.a));
+    return hasSingoli || hasMulti || hasDate;
   });
 
   protected readonly haOrdinamentoColonnaAttivo = computed<boolean>(() => {
@@ -253,7 +258,7 @@ export class App implements OnInit {
     if (!campo) return [];
 
     const tipoFiltro = this.getTipoFiltroColonna(campo);
-    if (tipoFiltro === 'testo') return [];
+    if (tipoFiltro === 'testo' || tipoFiltro === 'data') return [];
     if (campo.tipo === 'booleano') return ['Sì', 'No'];
     if (tipoFiltro === 'select' && campo.opzioni && campo.opzioni.length > 0) {
       return [...campo.opzioni];
@@ -492,7 +497,10 @@ export class App implements OnInit {
     }
   }
 
-  protected getTipoFiltroColonna(campo: CampoTabella): 'select' | 'multiselect' | 'testo' {
+  protected getTipoFiltroColonna(
+    campo: CampoTabella,
+  ): 'select' | 'multiselect' | 'data' | 'testo' {
+    if (campo.tipo === 'data') return 'data';
     if (campo.tipo === 'booleano') return 'select';
     if (campo.tipo === 'scelta' && (campo.opzioni?.length ?? 0) <= 2) return 'select';
     if (
@@ -575,11 +583,44 @@ export class App implements OnInit {
     });
   }
 
+  protected getFiltroDataDa(nomeCampo: string): string {
+    const chiave = this.chiaveTabellaAttiva();
+    return this.filtriDataColonne()[chiave]?.[nomeCampo]?.da ?? '';
+  }
+
+  protected getFiltroDataA(nomeCampo: string): string {
+    const chiave = this.chiaveTabellaAttiva();
+    return this.filtriDataColonne()[chiave]?.[nomeCampo]?.a ?? '';
+  }
+
+  protected setFiltroDataColonna(nomeCampo: string, lato: 'da' | 'a', valore: string): void {
+    const chiave = this.chiaveTabellaAttiva();
+    const tutti = this.filtriDataColonne();
+    const mappaChiave = { ...(tutti[chiave] || {}) };
+    const attuale = { ...(mappaChiave[nomeCampo] || {}) };
+    if (valore) {
+      attuale[lato] = valore;
+    } else {
+      delete attuale[lato];
+    }
+    if (attuale.da || attuale.a) {
+      mappaChiave[nomeCampo] = attuale;
+    } else {
+      delete mappaChiave[nomeCampo];
+    }
+    this.filtriDataColonne.set({
+      ...tutti,
+      [chiave]: mappaChiave,
+    });
+  }
+
   protected isColonnaFiltrata(nomeCampo: string): boolean {
     const chiave = this.chiaveTabellaAttiva();
     const singolo = (this.filtriColonne()[chiave]?.[nomeCampo] ?? '').trim();
     const multi = this.filtriMultiColonne()[chiave]?.[nomeCampo];
-    return singolo !== '' || (!!multi && multi.length > 0);
+    const dataRange = this.filtriDataColonne()[chiave]?.[nomeCampo];
+    const hasData = !!(dataRange?.da || dataRange?.a);
+    return singolo !== '' || (!!multi && multi.length > 0) || hasData;
   }
 
   protected azzeraFiltroSingolaColonna(nomeCampo: string): void {
@@ -592,6 +633,15 @@ export class App implements OnInit {
       this.filtriMultiColonne.set({
         ...tutti,
         [chiave]: mappaChiave,
+      });
+    }
+    const tutteDate = this.filtriDataColonne();
+    if (tutteDate[chiave]?.[nomeCampo]) {
+      const mappaChiaveDate = { ...tutteDate[chiave] };
+      delete mappaChiaveDate[nomeCampo];
+      this.filtriDataColonne.set({
+        ...tutteDate,
+        [chiave]: mappaChiaveDate,
       });
     }
   }
@@ -634,6 +684,10 @@ export class App implements OnInit {
     const nuoviMulti = { ...this.filtriMultiColonne() };
     delete nuoviMulti[chiave];
     this.filtriMultiColonne.set(nuoviMulti);
+
+    const nuoveDate = { ...this.filtriDataColonne() };
+    delete nuoveDate[chiave];
+    this.filtriDataColonne.set(nuoveDate);
 
     const nuoviOrd = { ...this.ordinamentoColonna() };
     delete nuoviOrd[chiave];
@@ -702,6 +756,17 @@ export class App implements OnInit {
     return rawStr.includes(q) || fmtStr.includes(q);
   }
 
+  private normalizzaDataIso(val: any): string | null {
+    if (val === null || val === undefined) return null;
+    const str = String(val).trim();
+    if (!str) return null;
+    const mIso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (mIso) return `${mIso[1]}-${mIso[2]}-${mIso[3]}`;
+    const mIt = str.match(/^(\d{2})[-\/](\d{2})[-\/](\d{4})$/);
+    if (mIt) return `${mIt[3]}-${mIt[2]}-${mIt[1]}`;
+    return null;
+  }
+
   private applicaFiltriEOrdinamentoColonne<T extends Record<string, any>>(
     righe: T[],
     campi: CampoTabella[],
@@ -710,6 +775,7 @@ export class App implements OnInit {
   ): T[] {
     const filtri = this.filtriColonne()[chiave];
     const filtriMulti = this.filtriMultiColonne()[chiave];
+    const filtriData = this.filtriDataColonne()[chiave];
     const mappaCampi = new Map(campi.map((c) => [c.nome, c]));
 
     const attiviSingoli = filtri
@@ -718,9 +784,12 @@ export class App implements OnInit {
     const attiviMulti = filtriMulti
       ? Object.entries(filtriMulti).filter(([, arr]) => arr.length > 0)
       : [];
+    const attiviData = filtriData
+      ? Object.entries(filtriData).filter(([, range]) => !!(range?.da || range?.a))
+      : [];
 
     let risultato = righe;
-    if (attiviSingoli.length > 0 || attiviMulti.length > 0) {
+    if (attiviSingoli.length > 0 || attiviMulti.length > 0 || attiviData.length > 0) {
       risultato = righe.filter((riga) => {
         const okSingoli = attiviSingoli.every(([nomeCampo, valFiltro]) => {
           const campo = mappaCampi.get(nomeCampo);
@@ -729,12 +798,21 @@ export class App implements OnInit {
         });
         if (!okSingoli) return false;
 
-        return attiviMulti.every(([nomeCampo, valoriAmmessi]) => {
+        const okMulti = attiviMulti.every(([nomeCampo, valoriAmmessi]) => {
           const valStr =
             riga[nomeCampo] === null || riga[nomeCampo] === undefined
               ? ''
               : String(riga[nomeCampo]).trim();
           return valoriAmmessi.includes(valStr);
+        });
+        if (!okMulti) return false;
+
+        return attiviData.every(([nomeCampo, range]) => {
+          const isoRiga = this.normalizzaDataIso(riga[nomeCampo]);
+          if (!isoRiga) return false;
+          if (range.da && isoRiga < range.da) return false;
+          if (range.a && isoRiga > range.a) return false;
+          return true;
         });
       });
     }
@@ -1710,6 +1788,14 @@ export class App implements OnInit {
 
   protected formattaValoreTabella(campo: CampoTabella, val: any): string {
     if (val === null || val === undefined || val === '') return '—';
+    if (campo.tipo === 'data') {
+      const str = String(val).trim();
+      const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) {
+        return `${m[3]}-${m[2]}-${m[1]}`;
+      }
+      return str;
+    }
     if (campo.tipo === 'valuta') {
       return Number(val).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
     }

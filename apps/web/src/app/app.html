@@ -991,21 +991,8 @@
             </div>
           </div>
 
-          <!-- Barra di ricerca rapida -->
+          <!-- Barra informazioni / conteggio -->
           <div class="filter-bar">
-            <div class="filter-input-wrap">
-              <div class="search-input-box">
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="Digita per filtrare righe..."
-                  [(ngModel)]="ricercaTesto"
-                />
-                @if (ricercaTesto()) {
-                  <button type="button" class="btn-clear-search" (click)="ricercaTesto.set('')" title="Cancella ricerca">✕</button>
-                }
-              </div>
-            </div>
             @if (rigaSelezionata()) {
               <span class="badge-tag">1 riga selezionata (clicca per deselezionare)</span>
             }
@@ -1183,6 +1170,38 @@
                   </button>
                 </div>
               }
+            } @else if (getTipoFiltroColonna(colAperta) === 'data') {
+              <div class="th-popover-date-wrap">
+                <label class="th-date-field">
+                  <span class="th-date-label">Da</span>
+                  <input
+                    type="date"
+                    class="th-popover-input"
+                    [ngModel]="getFiltroDataDa(colAperta.nome)"
+                    (ngModelChange)="setFiltroDataColonna(colAperta.nome, 'da', $event)"
+                  />
+                </label>
+                <label class="th-date-field">
+                  <span class="th-date-label">A</span>
+                  <input
+                    type="date"
+                    class="th-popover-input"
+                    [ngModel]="getFiltroDataA(colAperta.nome)"
+                    (ngModelChange)="setFiltroDataColonna(colAperta.nome, 'a', $event)"
+                  />
+                </label>
+                @if (isColonnaFiltrata(colAperta.nome)) {
+                  <div class="th-popover-footer">
+                    <button
+                      type="button"
+                      class="btn-popover-clear"
+                      (click)="azzeraFiltroSingolaColonna(colAperta.nome)"
+                    >
+                      Azzera
+                    </button>
+                  </div>
+                }
+              </div>
             } @else {
               <div class="th-popover-text-wrap">
                 <input

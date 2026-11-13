@@ -1177,6 +1177,27 @@
     gap: 0.35rem;
   }
 
+  .th-popover-date-wrap {
+    padding: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .th-date-field {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+
+    .th-date-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #475569;
+      min-width: 22px;
+    }
+  }
+
   .th-popover-input {
     width: 100%;
     height: 32px;
