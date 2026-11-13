@@ -399,6 +399,56 @@ export class App implements OnInit {
       });
   }
 
+  // --- Cambio password ---
+  protected readonly cambioPasswordAperto = signal(false);
+  protected readonly cambioPasswordErrore = signal<string | null>(null);
+  protected readonly pwdAttuale = signal('');
+  protected readonly pwdNuova = signal('');
+  protected readonly pwdConferma = signal('');
+
+  protected apriCambioPassword(): void {
+    this.pwdAttuale.set('');
+    this.pwdNuova.set('');
+    this.pwdConferma.set('');
+    this.cambioPasswordErrore.set(null);
+    this.cambioPasswordAperto.set(true);
+  }
+
+  protected chiudiCambioPassword(): void {
+    this.cambioPasswordAperto.set(false);
+  }
+
+  protected eseguiCambioPassword(): void {
+    if (this.pwdNuova().length < 12) {
+      this.cambioPasswordErrore.set('La nuova password deve avere almeno 12 caratteri');
+      return;
+    }
+    if (this.pwdNuova() !== this.pwdConferma()) {
+      this.cambioPasswordErrore.set('Le due password non coincidono');
+      return;
+    }
+    this.inInvio.set(true);
+    this.cambioPasswordErrore.set(null);
+    this.http
+      .post('/api/auth/change-password', {
+        passwordAttuale: this.pwdAttuale(),
+        nuovaPassword: this.pwdNuova(),
+      })
+      .subscribe({
+        next: () => {
+          this.inInvio.set(false);
+          this.cambioPasswordAperto.set(false);
+          this.mostraOk('Password aggiornata');
+        },
+        error: (err) => {
+          this.inInvio.set(false);
+          this.cambioPasswordErrore.set(
+            err.error?.error || err.error?.details?.fieldErrors?.nuovaPassword?.[0] || 'Errore nel cambio password',
+          );
+        },
+      });
+  }
+
   protected eseguiLogout(): void {
     this.http.post('/api/auth/logout', {}).subscribe(() => {
       this.utente.set(null);

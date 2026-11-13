@@ -21,6 +21,7 @@
         <span class="user-info">
           <strong>{{ utente()!.nome }}</strong>
         </span>
+        <button class="btn btn-sm btn-outline-light" (click)="apriCambioPassword()">🔑 Password</button>
         <button class="btn btn-sm btn-outline-light" (click)="eseguiLogout()">Esci</button>
       </div>
     }
@@ -1018,6 +1019,46 @@
             <button type="button" class="btn btn-secondary" (click)="chiudiModal()">Annulla</button>
             <button type="submit" class="btn btn-primary" [disabled]="inInvio()">
               {{ inInvio() ? 'Salvataggio...' : 'Salva' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODALE CAMBIO PASSWORD -->
+  @if (cambioPasswordAperto()) {
+    <div class="modal-backdrop">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+          <h3>Cambia password</h3>
+          <button type="button" class="btn-close" (click)="chiudiCambioPassword()">✕</button>
+        </div>
+        <form (ngSubmit)="eseguiCambioPassword()">
+          <div class="modal-body">
+            @if (cambioPasswordErrore()) {
+              <div class="alert alert-danger">{{ cambioPasswordErrore() }}</div>
+            }
+            <div class="form-group">
+              <label for="pwdAttuale">Password attuale</label>
+              <input id="pwdAttuale" name="pwdAttuale" type="password" class="form-control"
+                autocomplete="current-password" [(ngModel)]="pwdAttuale" required />
+            </div>
+            <div class="form-group">
+              <label for="pwdNuova">Nuova password (min. 12 caratteri)</label>
+              <input id="pwdNuova" name="pwdNuova" type="password" class="form-control"
+                autocomplete="new-password" [(ngModel)]="pwdNuova" required minlength="12" />
+            </div>
+            <div class="form-group">
+              <label for="pwdConferma">Conferma nuova password</label>
+              <input id="pwdConferma" name="pwdConferma" type="password" class="form-control"
+                autocomplete="new-password" [(ngModel)]="pwdConferma" required />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="chiudiCambioPassword()">Annulla</button>
+            <button type="submit" class="btn btn-primary" [disabled]="inInvio()">
+              {{ inInvio() ? 'Salvataggio...' : 'Cambia password' }}
             </button>
           </div>
         </form>

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import {
   CambioPasswordInput,
   CreaUtenteInput,
@@ -157,6 +157,14 @@ authRoutes.post('/change-password', requireAuth, async (c) => {
 
   const newHash = await hashPassword(parsed.data.nuovaPassword);
   await db.update(utenti).set({ passwordHash: newHash }).where(eq(utenti.id, currentUser.id));
+
+  // Revoca tutte le altre sessioni dell'utente (mantiene quella corrente)
+  const currentToken = getCookie(c, SESSION_COOKIE_NAME);
+  if (currentToken) {
+    await db
+      .delete(sessioni)
+      .where(and(eq(sessioni.utenteId, currentUser.id), ne(sessioni.id, currentToken)));
+  }
 
   return c.json({ ok: true });
 });

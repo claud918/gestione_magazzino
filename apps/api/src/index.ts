@@ -16,6 +16,16 @@ export interface Env {
 
 const app = new Hono<{ Bindings: Env; Variables: AppVariables }>().basePath('/api');
 
+// Header di sicurezza sulle risposte API
+app.use('*', async (c, next) => {
+  await next();
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'no-referrer');
+  c.header('Cache-Control', 'no-store');
+  c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+});
+
 app.get('/health', async (c) => {
   const row = await c.env.DB.prepare('SELECT 1 AS ok').first<{ ok: number }>();
   const body: HealthResponse = HealthResponse.parse({ status: 'ok', db: row?.ok === 1 });

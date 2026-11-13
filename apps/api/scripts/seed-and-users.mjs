@@ -101,7 +101,12 @@ if (command === 'user') {
   runD1Sql(sql, isRemote);
   console.log(`Utente '${email}' (admin) creato o aggiornato con successo.`);
 } else if (command === 'seed') {
-  const adminHash = await hashPassword('magazzino');
+  const seedPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!seedPassword || seedPassword.length < 12) {
+    console.error('Imposta la variabile SEED_ADMIN_PASSWORD (min. 12 caratteri) prima di eseguire il seed.');
+    process.exit(1);
+  }
+  const adminHash = await hashPassword(seedPassword);
 
   const sql = `
     -- Utente amministratore ad uso interno

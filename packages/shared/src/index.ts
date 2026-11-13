@@ -37,14 +37,14 @@ export type LoginInput = z.infer<typeof LoginInput>;
 
 export const CambioPasswordInput = z.object({
   passwordAttuale: z.string().min(1),
-  nuovaPassword: z.string().min(8, 'La nuova password deve avere almeno 8 caratteri'),
+  nuovaPassword: z.string().min(12, 'La nuova password deve avere almeno 12 caratteri'),
 });
 export type CambioPasswordInput = z.infer<typeof CambioPasswordInput>;
 
 export const CreaUtenteInput = z.object({
   email: z.string().trim().toLowerCase().email('Email non valida'),
   nome: z.string().trim().min(1, 'Nome obbligatorio'),
-  password: z.string().min(8, 'La password deve avere almeno 8 caratteri'),
+  password: z.string().min(12, 'La password deve avere almeno 12 caratteri'),
   ruolo: RuoloUtente,
 });
 export type CreaUtenteInput = z.infer<typeof CreaUtenteInput>;
