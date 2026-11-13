@@ -161,6 +161,7 @@ export class App implements OnInit {
 
   // --- Personalizzazione Colonne Tabelle (Persistenza in localStorage) ---
   private static readonly STORAGE_COLONNE_KEY = 'magazzino_colonne_personalizzate_v1';
+  private static readonly STORAGE_ORDINE_COLONNE_KEY = 'magazzino_ordine_colonne_v1';
 
   private static readonly COLONNE_DISPONIBILITA: CampoTabella[] = [
     { nome: 'codice_varieta', etichetta: 'Varietà', tipo: 'testo' },
@@ -197,6 +198,10 @@ export class App implements OnInit {
   protected readonly preferenzeColonne = signal<Record<string, string[]>>(
     this.caricaPreferenzeColonneDaStorage(),
   );
+  protected readonly ordineColonne = signal<Record<string, string[]>>(
+    this.caricaOrdineColonneDaStorage(),
+  );
+  protected readonly colonnaInTrascinamento = signal<string | null>(null);
 
   protected readonly chiaveTabellaAttiva = computed<string>(() => {
     const sez = this.sezioneAttiva();
@@ -205,15 +210,41 @@ export class App implements OnInit {
     return this.tabellaSelezionata();
   });
 
-  // Computed: tutti i campi configurabili per la vista o tabella attiva
-  protected readonly campiConfigurabili = computed<CampoTabella[]>(() => {
+  // Computed: elenco base predefinito dei campi configurabili per la vista o tabella attiva
+  protected readonly campiConfigurabiliBase = computed<CampoTabella[]>(() => {
     const chiave = this.chiaveTabellaAttiva();
     if (chiave === '__disp') return App.COLONNE_DISPONIBILITA;
     if (chiave === '__rese') return App.COLONNE_RESE;
     return this.defTabella().campi.filter((c) => !c.automatico);
   });
 
-  // Computed: colonne attualmente visibili nella vista o tabella attiva
+  // Computed: tutti i campi configurabili nell'ordine scelto dall'utente (o predefinito)
+  protected readonly campiConfigurabili = computed<CampoTabella[]>(() => {
+    const chiave = this.chiaveTabellaAttiva();
+    const base = this.campiConfigurabiliBase();
+    const ordine = this.ordineColonne()[chiave];
+
+    if (!Array.isArray(ordine) || ordine.length === 0) {
+      return base;
+    }
+
+    const mappa = new Map(base.map((c) => [c.nome, c]));
+    const ordinati: CampoTabella[] = [];
+    for (const nome of ordine) {
+      const campo = mappa.get(nome);
+      if (campo) {
+        ordinati.push(campo);
+        mappa.delete(nome);
+      }
+    }
+    // Aggiunge in coda eventuali nuovi campi non presenti nell'ordine salvato
+    for (const resto of mappa.values()) {
+      ordinati.push(resto);
+    }
+    return ordinati;
+  });
+
+  // Computed: colonne attualmente visibili nella vista o tabella attiva (già ordinate)
   protected readonly campiTabellaVisibili = computed<CampoTabella[]>(() => {
     const chiave = this.chiaveTabellaAttiva();
     const tutti = this.campiConfigurabili();
@@ -234,24 +265,40 @@ export class App implements OnInit {
     return tutti.filter((c) => !c.nascostoInTabella);
   });
 
-  private caricaPreferenzeColonneDaStorage(): Record<string, string[]> {
+  private caricaMappaDaStorage(chiaveStorage: string): Record<string, string[]> {
     try {
       if (typeof localStorage === 'undefined') return {};
-      const raw = localStorage.getItem(App.STORAGE_COLONNE_KEY);
+      const raw = localStorage.getItem(chiaveStorage);
       return raw ? JSON.parse(raw) : {};
     } catch (e) {
-      console.warn('Impossibile leggere preferenze colonne da localStorage', e);
+      console.warn(`Impossibile leggere ${chiaveStorage} da localStorage`, e);
       return {};
     }
   }
 
-  private salvaPreferenzeColonneSuStorage(pref: Record<string, string[]>): void {
+  private salvaMappaSuStorage(chiaveStorage: string, dati: Record<string, string[]>): void {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(App.STORAGE_COLONNE_KEY, JSON.stringify(pref));
+      localStorage.setItem(chiaveStorage, JSON.stringify(dati));
     } catch (e) {
-      console.warn('Impossibile salvare preferenze colonne in localStorage', e);
+      console.warn(`Impossibile salvare ${chiaveStorage} in localStorage`, e);
     }
+  }
+
+  private caricaPreferenzeColonneDaStorage(): Record<string, string[]> {
+    return this.caricaMappaDaStorage(App.STORAGE_COLONNE_KEY);
+  }
+
+  private salvaPreferenzeColonneSuStorage(pref: Record<string, string[]>): void {
+    this.salvaMappaSuStorage(App.STORAGE_COLONNE_KEY, pref);
+  }
+
+  private caricaOrdineColonneDaStorage(): Record<string, string[]> {
+    return this.caricaMappaDaStorage(App.STORAGE_ORDINE_COLONNE_KEY);
+  }
+
+  private salvaOrdineColonneSuStorage(ordine: Record<string, string[]>): void {
+    this.salvaMappaSuStorage(App.STORAGE_ORDINE_COLONNE_KEY, ordine);
   }
 
   protected isColonnaVisibile(nomeCampo: string): boolean {
@@ -265,7 +312,7 @@ export class App implements OnInit {
 
   protected haPersonalizzazioniColonne(): boolean {
     const chiave = this.chiaveTabellaAttiva();
-    return !!this.preferenzeColonne()[chiave];
+    return !!this.preferenzeColonne()[chiave] || !!this.ordineColonne()[chiave];
   }
 
   protected toggleMenuColonne(event?: Event): void {
@@ -281,7 +328,7 @@ export class App implements OnInit {
 
     const salvati = this.preferenzeColonne()['__disp'];
     if (Array.isArray(salvati)) {
-      const tuttiNomi = App.COLONNE_DISPONIBILITA.map((c) => c.nome);
+      const tuttiNomi = this.campiConfigurabili().map((c) => c.nome);
       const nuoveColonne = nuovoStato
         ? tuttiNomi.filter((n) => salvati.includes(n) || App.COLONNE_EXTRA_DISP.includes(n))
         : salvati.filter((n) => !App.COLONNE_EXTRA_DISP.includes(n));
@@ -304,7 +351,7 @@ export class App implements OnInit {
       }
       nuoveColonne = visibiliAttuali.filter((n) => n !== nomeCampo);
     } else {
-      // Aggiungi mantenendo l'ordine dei campi configurabili
+      // Aggiungi mantenendo l'ordine attuale dei campi configurabili
       const tuttiNomi = this.campiConfigurabili().map((c) => c.nome);
       nuoveColonne = tuttiNomi.filter((n) => visibiliAttuali.includes(n) || n === nomeCampo);
     }
@@ -315,6 +362,69 @@ export class App implements OnInit {
     };
     this.preferenzeColonne.set(nuovePreferenze);
     this.salvaPreferenzeColonneSuStorage(nuovePreferenze);
+  }
+
+  protected spostaColonna(nomeCampo: string, direzione: -1 | 1, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const nomi = this.campiConfigurabili().map((c) => c.nome);
+    const idx = nomi.indexOf(nomeCampo);
+    const nuovoIdx = idx + direzione;
+    if (idx < 0 || nuovoIdx < 0 || nuovoIdx >= nomi.length) return;
+
+    const nuovoOrdine = [...nomi];
+    [nuovoOrdine[idx], nuovoOrdine[nuovoIdx]] = [nuovoOrdine[nuovoIdx], nuovoOrdine[idx]];
+    this.aggiornaOrdineColonne(nuovoOrdine);
+  }
+
+  private aggiornaOrdineColonne(nuovoOrdine: string[]): void {
+    const chiave = this.chiaveTabellaAttiva();
+    const nuoviOrdini = {
+      ...this.ordineColonne(),
+      [chiave]: nuovoOrdine,
+    };
+    this.ordineColonne.set(nuoviOrdini);
+    this.salvaOrdineColonneSuStorage(nuoviOrdini);
+  }
+
+  protected onColDragStart(nomeCampo: string, event: DragEvent): void {
+    this.colonnaInTrascinamento.set(nomeCampo);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', nomeCampo);
+    }
+  }
+
+  protected onColDragOver(event: DragEvent): void {
+    if (this.colonnaInTrascinamento()) {
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+    }
+  }
+
+  protected onColDrop(nomeTarget: string, event: DragEvent): void {
+    event.preventDefault();
+    const sorgente = this.colonnaInTrascinamento() || event.dataTransfer?.getData('text/plain');
+    this.colonnaInTrascinamento.set(null);
+    if (!sorgente || sorgente === nomeTarget) return;
+
+    const nomi = this.campiConfigurabili().map((c) => c.nome);
+    const fromIdx = nomi.indexOf(sorgente);
+    const toIdx = nomi.indexOf(nomeTarget);
+    if (fromIdx < 0 || toIdx < 0) return;
+
+    const nuovoOrdine = [...nomi];
+    const [spostato] = nuovoOrdine.splice(fromIdx, 1);
+    nuovoOrdine.splice(toIdx, 0, spostato);
+    this.aggiornaOrdineColonne(nuovoOrdine);
+  }
+
+  protected onColDragEnd(): void {
+    this.colonnaInTrascinamento.set(null);
   }
 
   protected mostraTutteLeColonne(): void {
@@ -337,6 +447,11 @@ export class App implements OnInit {
     delete nuovePreferenze[chiave];
     this.preferenzeColonne.set(nuovePreferenze);
     this.salvaPreferenzeColonneSuStorage(nuovePreferenze);
+
+    const nuoviOrdini = { ...this.ordineColonne() };
+    delete nuoviOrdini[chiave];
+    this.ordineColonne.set(nuoviOrdini);
+    this.salvaOrdineColonneSuStorage(nuoviOrdini);
   }
 
   @HostListener('document:click', ['$event'])
