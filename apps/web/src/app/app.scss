@@ -459,19 +459,89 @@
 // Filter Bar
 .filter-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
 
-  .filter-input-wrap {
+  &.filter-bar-reports {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  .filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 170px;
     flex: 1;
-    min-width: 220px;
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
 
     @media (max-width: 640px) {
       min-width: 100%;
       width: 100%;
+    }
+  }
+
+  .filter-input-wrap {
+    flex: 1.5;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    @media (max-width: 640px) {
+      min-width: 100%;
+      width: 100%;
+    }
+  }
+
+  .search-input-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+
+    input {
+      padding-right: 2rem;
+    }
+
+    .btn-clear-search {
+      position: absolute;
+      right: 0.5rem;
+      background: none;
+      border: none;
+      color: #a0aec0;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.25rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        color: #4a5568;
+      }
     }
   }
 
@@ -480,6 +550,7 @@
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
+    padding-bottom: 0.25rem;
 
     @media (max-width: 640px) {
       width: 100%;

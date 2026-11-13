@@ -338,6 +338,7 @@ export const ordineImpieghi = sqliteTable(
       .notNull()
       .references(() => clienti.ragioneSociale, { onUpdate: 'cascade', onDelete: 'restrict' }),
     tipologia: text('tipologia').notNull().default('Nuova produzione'),
+    progressivoCartellino: text('progressivo_cartellino'),
   },
   (t) => [
     check('ordine_impieghi_quantita_check', sql`${t.quantita} > 0`),
@@ -349,13 +350,6 @@ export const ordineImpieghi = sqliteTable(
     })
       .onUpdate('cascade')
       .onDelete('restrict'),
-    foreignKey({
-      name: 'ordine_impieghi_innesti_fk',
-      columns: [t.riferimentoLotto],
-      foreignColumns: [innesti.riferimentoLottoParlante],
-    })
-      .onUpdate('cascade')
-      .onDelete('set null'),
     index('ordine_impieghi_cliente_idx').on(t.cliente),
   ],
 );

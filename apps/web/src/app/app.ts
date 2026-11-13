@@ -86,8 +86,8 @@ export class App implements OnInit {
   protected readonly caricamentoDisponibilita = signal(false);
   protected readonly listaDisponibilita = signal<RigaDisponibilita[]>([]);
   protected readonly vistaDisponibilitaModalita = signal<'schede' | 'tabellare'>('schede');
-  protected readonly filtroDispCampagna = signal<string>('');
-  protected readonly filtroDispProdotto = signal<string>('');
+  protected readonly filtroDispCampagna = signal<string>(campagnaCorrente());
+  protected readonly filtroDispProdotto = signal<string>('Barbatelle innestate');
   protected readonly filtroDispSoloDisponibili = signal(false);
   protected readonly filtroDispSoloScoperti = signal(false);
   protected readonly filtroDispRicerca = signal('');
@@ -96,9 +96,42 @@ export class App implements OnInit {
   protected readonly caricamentoRese = signal(false);
   protected readonly listaRese = signal<RigaResa[]>([]);
   protected readonly vistaReseModalita = signal<'schede' | 'tabellare'>('tabellare');
-  protected readonly filtroReseCampagna = signal<string>('');
-  protected readonly filtroReseProdotto = signal<string>('');
+  protected readonly filtroReseCampagna = signal<string>(campagnaCorrente());
+  protected readonly filtroReseProdotto = signal<string>('Barbatelle innestate');
   protected readonly filtroReseRicerca = signal('');
+
+  // Computed per datalist dinamiche dei filtri
+  protected readonly listaCampagneDisponibili = computed<string[]>(() => {
+    const set = new Set<string>();
+    set.add(campagnaCorrente());
+    for (const r of this.listaDisponibilita()) {
+      if (r.campagna) set.add(r.campagna);
+    }
+    for (const r of this.listaRese()) {
+      if (r.campagna) set.add(r.campagna);
+    }
+    return Array.from(set).sort().reverse();
+  });
+
+  protected readonly listaTipiProdotto = computed<string[]>(() => {
+    const set = new Set<string>();
+    set.add('Barbatelle innestate');
+    set.add('Pezzoni Barbatelloni');
+    set.add('Pezzoni Standard');
+    set.add('Marze');
+    for (const r of this.listaDisponibilita()) {
+      if (r.prodotto) set.add(r.prodotto);
+    }
+    for (const r of this.listaRese()) {
+      if (r.prodotto) set.add(r.prodotto);
+    }
+    const opz = this.opzioniRiferimento()['prodotto'] || [];
+    for (const o of opz) {
+      const p = typeof o === 'string' ? o : o['prodotto'];
+      if (p) set.add(p);
+    }
+    return Array.from(set);
+  });
 
   // Computed: definizione della tabella attiva
   protected readonly defTabella = computed<DefinizioneTabella>(() => {
@@ -184,12 +217,16 @@ export class App implements OnInit {
     const q = this.filtroDispRicerca().trim().toLowerCase();
     const soloDisp = this.filtroDispSoloDisponibili();
     const soloScop = this.filtroDispSoloScoperti();
+    const fCampagna = this.filtroDispCampagna().trim();
+    const fProdotto = this.filtroDispProdotto().trim();
 
     return righe.filter((r) => {
+      if (fCampagna && r.campagna !== fCampagna) return false;
+      if (fProdotto && r.prodotto !== fProdotto) return false;
       if (soloDisp && r.disponibile <= 0) return false;
       if (soloScop && r.scoperto <= 0) return false;
       if (q) {
-        const full = `${r.campagna} ${r.prodotto} ${r.codice_varieta} ${r.codice_clone} ${r.codice_portainnesto} ${r.tipologia}`.toLowerCase();
+        const full = `${r.codice_varieta} ${r.codice_clone} ${r.codice_portainnesto} ${r.tipologia}`.toLowerCase();
         if (!full.includes(q)) return false;
       }
       return true;
@@ -231,14 +268,16 @@ export class App implements OnInit {
   protected readonly reseFiltrate = computed<RigaResa[]>(() => {
     const righe = this.listaRese();
     const q = this.filtroReseRicerca().trim().toLowerCase();
-    const fCampagna = this.filtroReseCampagna();
-    const fProdotto = this.filtroReseProdotto();
+    const fCampagna = this.filtroReseCampagna().trim();
+    const fProdotto = this.filtroReseProdotto().trim();
 
     return righe.filter((r) => {
+      // Requisito: nel report rese si mostri solo i record che hanno una produzione (prodotto_qta <> 0)
+      if (!r.prodotto_qta || r.prodotto_qta === 0) return false;
       if (fCampagna && r.campagna !== fCampagna) return false;
       if (fProdotto && r.prodotto !== fProdotto) return false;
       if (q) {
-        const full = `${r.campagna} ${r.prodotto} ${r.codice_varieta} ${r.codice_clone} ${r.codice_portainnesto} ${r.tipologia}`.toLowerCase();
+        const full = `${r.codice_varieta} ${r.codice_clone} ${r.codice_portainnesto} ${r.tipologia}`.toLowerCase();
         if (!full.includes(q)) return false;
       }
       return true;
@@ -462,6 +501,14 @@ export class App implements OnInit {
         val[c.nome] = '';
       }
     }
+    const prod = String(val['prodotto'] || '').trim();
+    if (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') {
+      val['codice_varieta'] = 'NC';
+      val['codice_clone'] = 'NC';
+    }
+    if (prod === 'Marze') {
+      val['codice_portainnesto'] = 'NC';
+    }
     this.modalValori.set(val);
     this.modalErrori.set({});
     this.modalModo.set('nuovo');
@@ -529,7 +576,19 @@ export class App implements OnInit {
   protected onCampoChange(campo: CampoTabella): void {
     const val = this.modalValori();
 
-    // Se il campo referenziato ha un'istruzione di auto-compilazione (es. Ordine -> Lotto)
+    // Regole speciali Pezzoni e Marze
+    if (campo.nome === 'prodotto') {
+      const prod = String(val['prodotto'] || '').trim();
+      if (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') {
+        val['codice_varieta'] = 'NC';
+        val['codice_clone'] = 'NC';
+      }
+      if (prod === 'Marze') {
+        val['codice_portainnesto'] = 'NC';
+      }
+    }
+
+    // Se il campo referenziato ha un'istruzione di auto-compilazione (es. Ordine -> Innesto)
     if (campo.riferimento?.compila && val[campo.nome]) {
       const opzioni = this.opzioniRiferimento()[campo.nome] || [];
       const lottoSelezionato = opzioni.find(
@@ -540,6 +599,15 @@ export class App implements OnInit {
           if (lottoSelezionato[targetCol] !== undefined) {
             val[targetCol] = lottoSelezionato[targetCol];
           }
+        }
+        // Riapplica regole speciali se il prodotto è stato compilato dall'innesto
+        const prod = String(val['prodotto'] || '').trim();
+        if (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') {
+          val['codice_varieta'] = 'NC';
+          val['codice_clone'] = 'NC';
+        }
+        if (prod === 'Marze') {
+          val['codice_portainnesto'] = 'NC';
         }
         this.modalValori.set({ ...val });
       }
@@ -586,25 +654,25 @@ export class App implements OnInit {
   }
 
   protected isCampoDisabilitato(campo: CampoTabella): boolean {
-    // Se siamo in ordine_impieghi e c'è un riferimento_lotto selezionato, i campi presi dall'innesto sono bloccati
-    if (this.tabellaSelezionata() === 'ordine_impieghi') {
-      const lotto = this.modalValori()['riferimento_lotto'];
-      const campiDerivatiDaLotto = [
-        'campagna',
-        'prodotto',
-        'codice_varieta',
-        'codice_clone',
-        'codice_portainnesto',
-        'tipologia',
-        'cliente',
-      ];
-      if (lotto && campiDerivatiDaLotto.includes(campo.nome)) {
-        return true;
-      }
+    const val = this.modalValori();
+    const prod = String(val['prodotto'] || '').trim();
+
+    // Pezzoni: varietà e clone non devono essere alimentati
+    if (
+      (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') &&
+      (campo.nome === 'codice_varieta' || campo.nome === 'codice_clone')
+    ) {
+      return true;
     }
+
+    // Marze: portainnesto non deve essere alimentato
+    if (prod === 'Marze' && campo.nome === 'codice_portainnesto') {
+      return true;
+    }
+
     // Se siamo in lotti_magazzino e c'è un riferimento_innesto selezionato, i campi presi dall'innesto sono bloccati
     if (this.tabellaSelezionata() === 'lotti_magazzino') {
-      const innesto = this.modalValori()['riferimento_innesto'];
+      const innesto = val['riferimento_innesto'];
       const campiDerivatiDaInnesto = [
         'campagna',
         'prodotto',
@@ -617,10 +685,13 @@ export class App implements OnInit {
         return true;
       }
     }
+
     // In modifica, le chiavi primarie testuali (se non uuid) non si modificano
     if (this.modalModo() === 'modifica' && this.defTabella().chiave.includes(campo.nome)) {
       return true;
     }
+
+    // Requisito 6: riferimento innesto nella tabella degli ordini NON è vincolato dal lotto ed è sempre editabile
     return false;
   }
 

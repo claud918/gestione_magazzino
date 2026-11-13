@@ -20,7 +20,7 @@ reseRoutes.get('/', async (c) => {
   const prodotto = c.req.query('prodotto');
   const varieta = c.req.query('codice_varieta');
 
-  const whereParts: string[] = [];
+  const whereParts: string[] = ['prodotto_qta > 0'];
   const params: unknown[] = [];
 
   if (campagna) {

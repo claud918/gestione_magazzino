@@ -589,7 +589,7 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
       },
       {
         nome: 'riferimento_lotto',
-        etichetta: 'Riferimento innesto (facoltativo)',
+        etichetta: 'Riferimento innesto',
         tipo: 'riferimento',
         riferimento: {
           tabella: 'innesti',
@@ -604,8 +604,14 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
             'cliente',
           ],
         },
-        aiuto: 'Se scegli un innesto, campagna, prodotto, varietà, clone, portainnesto, tipologia e cliente vengono presi dall\'innesto.',
-        nascostoInTabella: true,
+        aiuto: 'Se scegli un innesto, i dati vengono precompilati ma rimangono sempre modificabili.',
+        inScheda: true,
+      },
+      {
+        nome: 'progressivo_cartellino',
+        etichetta: 'Progressivo cartellino',
+        tipo: 'testo',
+        inScheda: true,
       },
       {
         nome: 'campagna',
@@ -771,6 +777,14 @@ export function riferimentoInnestoParlante(r: RigaTabella): string {
  */
 export function calcolaCampiDerivati(tabella: NomeTabella, valori: RigaTabella): RigaTabella {
   const r = { ...valori };
+  const prod = String(r['prodotto'] || '').trim();
+  if (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') {
+    r['codice_varieta'] = 'NC';
+    r['codice_clone'] = 'NC';
+  }
+  if (prod === 'Marze') {
+    r['codice_portainnesto'] = 'NC';
+  }
   switch (tabella) {
     case 'anagrafica_personale':
       r['nome_cognome'] = `${r['nome'] ?? ''} ${r['cognome'] ?? ''}`.trim();
@@ -804,8 +818,21 @@ export function validaRiga(
 ): { valori: RigaTabella; errori: ErroreCampo[] } {
   const valori: RigaTabella = {};
   const errori: ErroreCampo[] = [];
+  const prod = String(input['prodotto'] ?? '').trim();
+  const isPezzoni = prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard';
+  const isMarze = prod === 'Marze';
 
   for (const campo of campiModificabili(def)) {
+    // Gestione regole speciali Pezzoni e Marze: non alimentabili, default 'NC' per evitare il null
+    if (isPezzoni && (campo.nome === 'codice_varieta' || campo.nome === 'codice_clone')) {
+      valori[campo.nome] = 'NC';
+      continue;
+    }
+    if (isMarze && campo.nome === 'codice_portainnesto') {
+      valori[campo.nome] = 'NC';
+      continue;
+    }
+
     let v = input[campo.nome];
     if (typeof v === 'string') v = v.trim();
     const vuoto = v === undefined || v === null || v === '';

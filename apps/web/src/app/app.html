@@ -300,14 +300,43 @@
           </div>
 
           <!-- Filtri disponibilità -->
-          <div class="filter-bar">
-            <div class="filter-input-wrap">
+          <div class="filter-bar filter-bar-reports">
+            <div class="filter-field">
+              <label for="dispFiltroProdotto">Prodotto</label>
               <input
+                id="dispFiltroProdotto"
                 type="text"
+                list="prodottiList"
                 class="form-control"
-                placeholder="Cerca varietà, clone, portainnesto..."
-                [(ngModel)]="filtroDispRicerca"
+                placeholder="Digita o seleziona prodotto..."
+                [(ngModel)]="filtroDispProdotto"
               />
+            </div>
+            <div class="filter-field">
+              <label for="dispFiltroCampagna">Campagna</label>
+              <input
+                id="dispFiltroCampagna"
+                type="text"
+                list="campagneList"
+                class="form-control"
+                placeholder="AAAA/AA (es. 2026/27)"
+                [(ngModel)]="filtroDispCampagna"
+              />
+            </div>
+            <div class="filter-input-wrap">
+              <label for="dispFiltroRicerca">Cerca (varietà, clone, portainnesto)</label>
+              <div class="search-input-box">
+                <input
+                  id="dispFiltroRicerca"
+                  type="text"
+                  class="form-control"
+                  placeholder="Digita per cercare..."
+                  [(ngModel)]="filtroDispRicerca"
+                />
+                @if (filtroDispRicerca()) {
+                  <button type="button" class="btn-clear-search" (click)="filtroDispRicerca.set('')" title="Cancella ricerca">✕</button>
+                }
+              </div>
             </div>
             <div class="filter-toggles">
               <label class="checkbox-label">
@@ -384,8 +413,6 @@
                 <table class="data-table">
                   <thead>
                     <tr>
-                      <th>Campagna</th>
-                      <th>Prodotto</th>
                       <th>Varietà</th>
                       <th>Clone</th>
                       <th>Portainnesto</th>
@@ -401,8 +428,6 @@
                   <tbody>
                     @for (item of disponibilitaFiltrata(); track $index) {
                       <tr [class.row-alert]="item.scoperto > 0">
-                        <td><span class="badge-tag">{{ item.campagna }}</span></td>
-                        <td>{{ item.prodotto }}</td>
                         <td><strong>{{ item.codice_varieta }}</strong></td>
                         <td>{{ item.codice_clone }}</td>
                         <td>{{ item.codice_portainnesto }}</td>
@@ -484,14 +509,43 @@
           </div>
 
           <!-- Filtri Rese -->
-          <div class="filter-bar">
-            <div class="filter-input-wrap">
+          <div class="filter-bar filter-bar-reports">
+            <div class="filter-field">
+              <label for="reseFiltroProdotto">Prodotto</label>
               <input
+                id="reseFiltroProdotto"
                 type="text"
+                list="prodottiList"
                 class="form-control"
-                placeholder="Cerca varietà, clone, portainnesto..."
-                [(ngModel)]="filtroReseRicerca"
+                placeholder="Digita o seleziona prodotto..."
+                [(ngModel)]="filtroReseProdotto"
               />
+            </div>
+            <div class="filter-field">
+              <label for="reseFiltroCampagna">Campagna</label>
+              <input
+                id="reseFiltroCampagna"
+                type="text"
+                list="campagneList"
+                class="form-control"
+                placeholder="AAAA/AA (es. 2026/27)"
+                [(ngModel)]="filtroReseCampagna"
+              />
+            </div>
+            <div class="filter-input-wrap">
+              <label for="reseFiltroRicerca">Cerca (varietà, clone, portainnesto)</label>
+              <div class="search-input-box">
+                <input
+                  id="reseFiltroRicerca"
+                  type="text"
+                  class="form-control"
+                  placeholder="Digita per cercare..."
+                  [(ngModel)]="filtroReseRicerca"
+                />
+                @if (filtroReseRicerca()) {
+                  <button type="button" class="btn-clear-search" (click)="filtroReseRicerca.set('')" title="Cancella ricerca">✕</button>
+                }
+              </div>
             </div>
             <div class="filter-toggles">
               <button class="btn btn-sm btn-secondary" (click)="caricaRese()">Aggiorna</button>
@@ -530,7 +584,7 @@
                     </div>
 
                     <div class="disp-footer-indicators">
-                      <div class="indicator" [class.ind-pos]="item.resa >= 70" [class.ind-neg]="item.resa < 50" [class.ind-neutral]="item.resa >= 50 && item.resa < 70">
+                      <div class="indicator" [class.ind-pos]="item.resa > 65" [class.ind-neg]="item.resa < 50" [class.ind-neutral]="item.resa >= 50 && item.resa <= 65">
                         <small>Resa</small>
                         <strong>{{ item.resa | number:'1.1-2' }}%</strong>
                       </div>
@@ -546,8 +600,6 @@
                 <table class="data-table">
                   <thead>
                     <tr>
-                      <th>Campagna</th>
-                      <th>Prodotto</th>
                       <th>Varietà</th>
                       <th>Clone</th>
                       <th>Portainnesto</th>
@@ -560,15 +612,13 @@
                   <tbody>
                     @for (item of reseFiltrate(); track $index) {
                       <tr>
-                        <td><span class="badge-tag">{{ item.campagna }}</span></td>
-                        <td>{{ item.prodotto }}</td>
                         <td><strong>{{ item.codice_varieta }}</strong></td>
                         <td>{{ item.codice_clone }}</td>
                         <td>{{ item.codice_portainnesto }}</td>
                         <td><small>{{ item.tipologia }}</small></td>
                         <td class="num font-mono">{{ item.innestato | number }}</td>
                         <td class="num font-mono">{{ item.prodotto_qta | number }}</td>
-                        <td class="num font-mono font-bold" [class.text-success]="item.resa >= 70" [class.text-danger]="item.resa < 50">
+                        <td class="num font-mono font-bold" [class.text-success]="item.resa > 65" [class.text-danger]="item.resa < 50">
                           {{ item.resa | number:'1.1-2' }}%
                         </td>
                       </tr>
@@ -649,12 +699,17 @@
           <!-- Barra di ricerca rapida -->
           <div class="filter-bar">
             <div class="filter-input-wrap">
-              <input
-                type="text"
-                class="form-control"
-                placeholder="Filtra righe..."
-                [(ngModel)]="ricercaTesto"
-              />
+              <div class="search-input-box">
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="Digita per filtrare righe..."
+                  [(ngModel)]="ricercaTesto"
+                />
+                @if (ricercaTesto()) {
+                  <button type="button" class="btn-clear-search" (click)="ricercaTesto.set('')" title="Cancella ricerca">✕</button>
+                }
+              </div>
             </div>
             @if (rigaSelezionata()) {
               <span class="badge-tag">1 riga selezionata (clicca per deselezionare)</span>
@@ -790,23 +845,25 @@
                   </select>
                 }
 
-                <!-- RIFERIMENTO FK / MENU A CASCATA -->
+                <!-- RIFERIMENTO FK / MENU A CASCATA CON RICERCA TESTUALE DINAMICA -->
                 @else if (campo.tipo === 'riferimento') {
-                  <select
+                  <input
+                    type="text"
                     [id]="'form_' + campo.nome"
                     class="form-control"
+                    [attr.list]="'list_' + campo.nome"
                     [(ngModel)]="modalValori()[campo.nome]"
                     [name]="campo.nome"
                     [disabled]="isCampoDisabilitato(campo)"
                     (ngModelChange)="onCampoChange(campo)"
-                  >
-                    <option value="">-- Seleziona {{ campo.etichetta }} --</option>
+                    placeholder="Digita per cercare o seleziona {{ campo.etichetta }}..."
+                    autocomplete="off"
+                  />
+                  <datalist [id]="'list_' + campo.nome">
                     @for (item of getOpzioniPerCampo(campo); track $index) {
-                      <option [value]="item[campo.riferimento!.colonna]">
-                        {{ item[campo.riferimento!.colonna] }}
-                      </option>
+                      <option [value]="item[campo.riferimento!.colonna]"></option>
                     }
-                  </select>
+                  </datalist>
                 }
 
                 <!-- BOOLEANO -->
@@ -1149,4 +1206,16 @@
       </div>
     </div>
   }
+
+  <!-- Datalist condivise per filtri dinamici -->
+  <datalist id="prodottiList">
+    @for (p of listaTipiProdotto(); track p) {
+      <option [value]="p"></option>
+    }
+  </datalist>
+  <datalist id="campagneList">
+    @for (c of listaCampagneDisponibili(); track c) {
+      <option [value]="c"></option>
+    }
+  </datalist>
 </div>
