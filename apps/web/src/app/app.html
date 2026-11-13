@@ -2,7 +2,12 @@
   <!-- Top Navigation Bar -->
   <header class="app-header">
     <div class="header-brand">
-      <button class="mobile-menu-btn" (click)="menuMobileAperto.set(!menuMobileAperto())" aria-label="Menu">
+      <button
+        class="header-menu-btn"
+        (click)="toggleSidebar()"
+        [attr.aria-label]="sidebarChiusaDesktop() ? 'Espandi menu' : 'Riduci menu'"
+        [title]="sidebarChiusaDesktop() ? 'Espandi menu' : 'Riduci menu'"
+      >
         <span>☰</span>
       </button>
       <div class="brand-title">
@@ -83,8 +88,12 @@
         ></div>
       }
 
-      <!-- Sidebar / Menu Mobile -->
-      <aside class="app-sidebar" [class.mobile-open]="menuMobileAperto()">
+      <!-- Sidebar / Menu Mobile & Desktop Collapsible -->
+      <aside
+        class="app-sidebar"
+        [class.mobile-open]="menuMobileAperto()"
+        [class.desktop-collapsed]="sidebarChiusaDesktop()"
+      >
         <div class="sidebar-mobile-header">
           <span>Navigazione</span>
           <button class="btn-close-sidebar" (click)="menuMobileAperto.set(false)" aria-label="Chiudi menu">✕</button>

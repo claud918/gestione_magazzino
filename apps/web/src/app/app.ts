@@ -50,6 +50,7 @@ export class App implements OnInit {
   protected readonly tabellaSelezionata = signal<NomeTabella>('lotti_magazzino');
   protected readonly modalitaVista = signal<'tabella' | 'schede'>('tabella'); // desktop default tabella, mobile toggle
   protected readonly menuMobileAperto = signal(false);
+  protected readonly sidebarChiusaDesktop = signal(false);
 
   // Messaggi feedback
   protected readonly messaggioOk = signal<string | null>(null);
@@ -307,7 +308,29 @@ export class App implements OnInit {
     if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const salvato = localStorage.getItem('sidebar_chiusa_desktop');
+        if (salvato === 'true') {
+          this.sidebarChiusaDesktop.set(true);
+        }
+      }
+    } catch {}
     this.verificaSessione();
+  }
+
+  protected toggleSidebar(): void {
+    if (typeof window !== 'undefined' && window.innerWidth <= 850) {
+      this.menuMobileAperto.set(!this.menuMobileAperto());
+    } else {
+      const nuovoStato = !this.sidebarChiusaDesktop();
+      this.sidebarChiusaDesktop.set(nuovoStato);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('sidebar_chiusa_desktop', String(nuovoStato));
+        }
+      } catch {}
+    }
   }
 
   // --- Auth ---
