@@ -8,3 +8,6 @@
   - Eseguire script di seed (`db:seed`, `seed-and-users.mjs`, ecc.) o comandi di pulizia/sovrascrittura (`db:clean:remote`, ecc.) verso il database reale o remoto.
   - Creare, modificare o eliminare record di produzione per eseguire test manuali, salvo esplicita richiesta dell'utente.
 
+## Deploy automatico insieme al push
+- **Quando viene richiesto il push su Git, eseguire sempre anche il deploy su Cloudflare (`npm.cmd run deploy` / `npm.cmd run deploy:api`).**
+
