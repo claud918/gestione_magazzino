@@ -62,7 +62,8 @@ function runD1Sql(sqlText, isRemote) {
       isRemote ? '--remote' : '--local',
       `--file=${tmpFile}`,
     ];
-    execFileSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
+    const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    execFileSync(cmd, args, {
       stdio: 'inherit',
       shell: process.platform === 'win32',
     });
