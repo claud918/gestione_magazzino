@@ -248,65 +248,27 @@
         }
 
         <ng-template #thHeaderContentTpl let-col="col">
-          <div
-            class="th-sort-header"
-            (click)="toggleOrdinamentoColonna(col.nome, $event)"
-            title="Clicca per ordinare (trascina per spostare la colonna)"
-          >
+          <div class="th-header-cell">
             <span class="th-title-text">{{ col.etichetta }}</span>
-            <span
-              class="th-sort-icon"
-              [class.is-active]="getDirezioneOrdinamento(col.nome) !== null"
-              aria-hidden="true"
-            >
-              @if (getDirezioneOrdinamento(col.nome) === 'asc') {
-                ▲
-              } @else if (getDirezioneOrdinamento(col.nome) === 'desc') {
-                ▼
-              } @else {
-                ⇅
-              }
-            </span>
-          </div>
-          <div
-            class="th-filter-wrap"
-            (click)="$event.stopPropagation()"
-            (mousedown)="$event.stopPropagation()"
-          >
-            @if (col.tipo === 'booleano') {
-              <select
-                class="th-filter-input th-filter-select"
-                [ngModel]="getFiltroColonna(col.nome)"
-                (ngModelChange)="setFiltroColonna(col.nome, $event)"
-                [attr.aria-label]="'Filtra ' + col.etichetta"
-              >
-                <option value="">Tutti</option>
-                <option value="si">Sì</option>
-                <option value="no">No</option>
-              </select>
-            } @else {
-              <div class="th-filter-input-box">
-                <input
-                  type="text"
-                  class="th-filter-input"
-                  [placeholder]="(col.tipo === 'intero' || col.tipo === 'numero' || col.tipo === 'valuta') ? 'Filtra (es. >0)...' : 'Filtra...'"
-                  [ngModel]="getFiltroColonna(col.nome)"
-                  (ngModelChange)="setFiltroColonna(col.nome, $event)"
-                  [attr.aria-label]="'Filtra ' + col.etichetta"
-                />
-                @if (getFiltroColonna(col.nome)) {
-                  <button
-                    type="button"
-                    class="btn-clear-th-filter"
-                    (click)="setFiltroColonna(col.nome, '')"
-                    title="Cancella filtro"
-                    aria-label="Cancella filtro"
-                  >
-                    ✕
-                  </button>
-                }
-              </div>
+            @if (getDirezioneOrdinamento(col.nome); as dir) {
+              <span class="th-sort-badge" aria-hidden="true">{{ dir === 'asc' ? '▲' : '▼' }}</span>
             }
+            <button
+              type="button"
+              class="btn-th-filter-trigger"
+              [class.is-open]="colonnaFiltroAperta()?.nome === col.nome"
+              [class.is-active]="isColonnaFiltrata(col.nome)"
+              (click)="toggleMenuFiltroColonna(col, $event)"
+              (mousedown)="$event.stopPropagation()"
+              [attr.aria-label]="'Filtra ' + col.etichetta"
+              title="Filtra colonna"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+                <rect x="2" y="3.5" width="12" height="1.7" rx="0.85"></rect>
+                <rect x="4" y="7.15" width="8" height="1.7" rx="0.85"></rect>
+                <rect x="6" y="10.8" width="4" height="1.7" rx="0.85"></rect>
+              </svg>
+            </button>
           </div>
         </ng-template>
 
@@ -644,11 +606,13 @@
                           [class.th-extra]="col.nascostoInTabella"
                           [class.col-dragging]="colonnaInTrascinamento() === col.nome"
                           [class.th-sorted]="getDirezioneOrdinamento(col.nome) !== null"
-                          [class.th-filtered]="!!getFiltroColonna(col.nome).trim()"
+                          [class.th-filtered]="isColonnaFiltrata(col.nome)"
+                          (click)="toggleOrdinamentoColonna(col.nome, $event)"
                           (dragstart)="onColDragStart(col.nome, $event)"
                           (dragover)="onColDragOver($event)"
                           (drop)="onColDrop(col.nome, $event)"
                           (dragend)="onColDragEnd()"
+                          title="Clicca per ordinare (trascina per spostare la colonna)"
                         >
                           <ng-container *ngTemplateOutlet="thHeaderContentTpl; context: { col: col }"></ng-container>
                         </th>
@@ -911,11 +875,13 @@
                           [class.num]="col.tipo === 'intero' || col.tipo === 'numero' || col.tipo === 'valuta'"
                           [class.col-dragging]="colonnaInTrascinamento() === col.nome"
                           [class.th-sorted]="getDirezioneOrdinamento(col.nome) !== null"
-                          [class.th-filtered]="!!getFiltroColonna(col.nome).trim()"
+                          [class.th-filtered]="isColonnaFiltrata(col.nome)"
+                          (click)="toggleOrdinamentoColonna(col.nome, $event)"
                           (dragstart)="onColDragStart(col.nome, $event)"
                           (dragover)="onColDragOver($event)"
                           (drop)="onColDrop(col.nome, $event)"
                           (dragend)="onColDragEnd()"
+                          title="Clicca per ordinare (trascina per spostare la colonna)"
                         >
                           <ng-container *ngTemplateOutlet="thHeaderContentTpl; context: { col: col }"></ng-container>
                         </th>
@@ -1077,11 +1043,13 @@
                           [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'"
                           [class.col-dragging]="colonnaInTrascinamento() === campo.nome"
                           [class.th-sorted]="getDirezioneOrdinamento(campo.nome) !== null"
-                          [class.th-filtered]="!!getFiltroColonna(campo.nome).trim()"
+                          [class.th-filtered]="isColonnaFiltrata(campo.nome)"
+                          (click)="toggleOrdinamentoColonna(campo.nome, $event)"
                           (dragstart)="onColDragStart(campo.nome, $event)"
                           (dragover)="onColDragOver($event)"
                           (drop)="onColDrop(campo.nome, $event)"
                           (dragend)="onColDragEnd()"
+                          title="Clicca per ordinare (trascina per spostare la colonna)"
                         >
                           <ng-container *ngTemplateOutlet="thHeaderContentTpl; context: { col: campo }"></ng-container>
                         </th>
@@ -1153,6 +1121,91 @@
               </div>
             }
           }
+        }
+
+        <!-- POPOVER FILTRO COLONNA -->
+        @if (colonnaFiltroAperta(); as colAperta) {
+          <div
+            class="th-filter-popover"
+            [style.top.px]="filtroPopoverPos().top"
+            [style.left.px]="filtroPopoverPos().left"
+            (click)="$event.stopPropagation()"
+          >
+            @if (getTipoFiltroColonna(colAperta) === 'select') {
+              <div class="th-popover-options">
+                @for (opz of opzioniColonnaFiltroAperta(); track opz) {
+                  <button
+                    type="button"
+                    class="filter-radio-item"
+                    [class.selected]="getFiltroColonna(colAperta.nome) === opz"
+                    (click)="selezionaOpzioneSelectColonna(colAperta.nome, opz)"
+                  >
+                    <span class="radio-circle" aria-hidden="true"></span>
+                    <span class="filter-option-label">{{ opz }}</span>
+                  </button>
+                }
+              </div>
+            } @else if (getTipoFiltroColonna(colAperta) === 'multiselect') {
+              @if (opzioniColonnaFiltroAperta().length > 6 || ricercaFiltroPopover()) {
+                <div class="th-popover-search">
+                  <input
+                    type="text"
+                    class="th-popover-input"
+                    placeholder="Cerca..."
+                    [ngModel]="ricercaFiltroPopover()"
+                    (ngModelChange)="ricercaFiltroPopover.set($event)"
+                  />
+                </div>
+              }
+              <div class="th-popover-options th-popover-options-scroll">
+                @for (opz of opzioniColonnaFiltroAperta(); track opz) {
+                  <button
+                    type="button"
+                    class="filter-check-item"
+                    [class.selected]="isOpzioneMultiSelezionata(colAperta.nome, opz)"
+                    (click)="toggleOpzioneMultiColonna(colAperta.nome, opz)"
+                  >
+                    <span class="check-box" aria-hidden="true"></span>
+                    <span class="filter-option-label">{{ opz }}</span>
+                  </button>
+                } @empty {
+                  <div class="th-popover-empty">Nessun valore</div>
+                }
+              </div>
+              @if (isColonnaFiltrata(colAperta.nome)) {
+                <div class="th-popover-footer">
+                  <button
+                    type="button"
+                    class="btn-popover-clear"
+                    (click)="azzeraFiltroSingolaColonna(colAperta.nome)"
+                  >
+                    Azzera
+                  </button>
+                </div>
+              }
+            } @else {
+              <div class="th-popover-text-wrap">
+                <input
+                  type="text"
+                  class="th-popover-input"
+                  [placeholder]="(colAperta.tipo === 'intero' || colAperta.tipo === 'numero' || colAperta.tipo === 'valuta') ? 'Es. >0, 10..50, 100...' : 'Filtra ' + colAperta.etichetta + '...'"
+                  [ngModel]="getFiltroColonna(colAperta.nome)"
+                  (ngModelChange)="setFiltroColonna(colAperta.nome, $event)"
+                />
+                @if (isColonnaFiltrata(colAperta.nome)) {
+                  <div class="th-popover-footer">
+                    <button
+                      type="button"
+                      class="btn-popover-clear"
+                      (click)="azzeraFiltroSingolaColonna(colAperta.nome)"
+                    >
+                      Azzera
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
         }
       </main>
     </div>

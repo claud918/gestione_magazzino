@@ -195,6 +195,28 @@ export class App implements OnInit {
     'disponibile_seconde',
   ];
 
+  private static readonly COLONNE_MULTISELECT = new Set([
+    'codice_varieta',
+    'codice_clone',
+    'codice_portainnesto',
+    'tipologia',
+    'prodotto',
+    'campagna',
+    'causale',
+    'centro_di_costo',
+    'dettaglio_cdc',
+    'attivita',
+    'dipendente',
+    'cliente',
+    'riferimento_innesto',
+    'riferimento_lotto',
+    'collocazione',
+    'confezionamento',
+    'citta',
+    'campo',
+    'varieta',
+  ]);
+
   protected readonly menuColonneAperto = signal(false);
   protected readonly preferenzeColonne = signal<Record<string, string[]>>(
     this.caricaPreferenzeColonneDaStorage(),
@@ -204,20 +226,71 @@ export class App implements OnInit {
   );
   protected readonly colonnaInTrascinamento = signal<string | null>(null);
   protected readonly filtriColonne = signal<Record<string, Record<string, string>>>({});
+  protected readonly filtriMultiColonne = signal<Record<string, Record<string, string[]>>>({});
   protected readonly ordinamentoColonna = signal<
     Record<string, { campo: string; direzione: 'asc' | 'desc' } | null>
   >({});
+  protected readonly colonnaFiltroAperta = signal<CampoTabella | null>(null);
+  protected readonly filtroPopoverPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
+  protected readonly ricercaFiltroPopover = signal<string>('');
 
   protected readonly haFiltriColonnaAttivi = computed<boolean>(() => {
     const chiave = this.chiaveTabellaAttiva();
     const filtri = this.filtriColonne()[chiave];
-    if (!filtri) return false;
-    return Object.values(filtri).some((v) => v.trim() !== '');
+    const hasSingoli = !!filtri && Object.values(filtri).some((v) => v.trim() !== '');
+    const multi = this.filtriMultiColonne()[chiave];
+    const hasMulti = !!multi && Object.values(multi).some((arr) => arr.length > 0);
+    return hasSingoli || hasMulti;
   });
 
   protected readonly haOrdinamentoColonnaAttivo = computed<boolean>(() => {
     const chiave = this.chiaveTabellaAttiva();
     return !!this.ordinamentoColonna()[chiave];
+  });
+
+  protected readonly opzioniColonnaFiltroAperta = computed<string[]>(() => {
+    const campo = this.colonnaFiltroAperta();
+    if (!campo) return [];
+
+    const tipoFiltro = this.getTipoFiltroColonna(campo);
+    if (tipoFiltro === 'testo') return [];
+    if (campo.tipo === 'booleano') return ['Sì', 'No'];
+    if (tipoFiltro === 'select' && campo.opzioni && campo.opzioni.length > 0) {
+      return [...campo.opzioni];
+    }
+
+    const chiave = this.chiaveTabellaAttiva();
+    let righeSorgente: Record<string, any>[] = [];
+    if (chiave === '__disp') {
+      righeSorgente = this.listaDisponibilita();
+    } else if (chiave === '__rese') {
+      righeSorgente = this.listaRese();
+    } else {
+      righeSorgente = this.righeTabella();
+    }
+
+    const set = new Set<string>();
+    if (campo.opzioni) {
+      for (const opt of campo.opzioni) {
+        if (opt) set.add(opt);
+      }
+    }
+    for (const riga of righeSorgente) {
+      const val = riga[campo.nome];
+      if (val !== null && val !== undefined) {
+        const str = String(val).trim();
+        if (str !== '') {
+          set.add(str);
+        }
+      }
+    }
+
+    const ordinate = Array.from(set).sort((a, b) =>
+      a.localeCompare(b, 'it', { numeric: true, sensitivity: 'base' }),
+    );
+    const q = this.ricercaFiltroPopover().trim().toLowerCase();
+    if (!q) return ordinate;
+    return ordinate.filter((opt) => opt.toLowerCase().includes(q));
   });
 
   protected readonly chiaveTabellaAttiva = computed<string>(() => {
@@ -408,7 +481,7 @@ export class App implements OnInit {
 
   protected onColDragStart(nomeCampo: string, event: DragEvent): void {
     const target = event.target as HTMLElement | null;
-    if (target?.closest('.th-filter-wrap')) {
+    if (target?.closest('.btn-th-filter-trigger')) {
       event.preventDefault();
       return;
     }
@@ -417,6 +490,38 @@ export class App implements OnInit {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', nomeCampo);
     }
+  }
+
+  protected getTipoFiltroColonna(campo: CampoTabella): 'select' | 'multiselect' | 'testo' {
+    if (campo.tipo === 'booleano') return 'select';
+    if (campo.tipo === 'scelta' && (campo.opzioni?.length ?? 0) <= 2) return 'select';
+    if (
+      campo.tipo === 'scelta' ||
+      campo.tipo === 'riferimento' ||
+      campo.tipo === 'campagna' ||
+      App.COLONNE_MULTISELECT.has(campo.nome)
+    ) {
+      return 'multiselect';
+    }
+    return 'testo';
+  }
+
+  protected toggleMenuFiltroColonna(campo: CampoTabella, event: MouseEvent): void {
+    event.stopPropagation();
+    this.menuColonneAperto.set(false);
+    if (this.colonnaFiltroAperta()?.nome === campo.nome) {
+      this.colonnaFiltroAperta.set(null);
+      return;
+    }
+    const triggerEl = event.currentTarget as HTMLElement | null;
+    if (triggerEl && typeof window !== 'undefined') {
+      const rect = triggerEl.getBoundingClientRect();
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - 250));
+      const top = rect.bottom + 6;
+      this.filtroPopoverPos.set({ top, left });
+    }
+    this.ricercaFiltroPopover.set('');
+    this.colonnaFiltroAperta.set(campo);
   }
 
   protected getFiltroColonna(nomeCampo: string): string {
@@ -439,6 +544,58 @@ export class App implements OnInit {
     });
   }
 
+  protected selezionaOpzioneSelectColonna(nomeCampo: string, opzione: string): void {
+    const attuale = this.getFiltroColonna(nomeCampo);
+    this.setFiltroColonna(nomeCampo, attuale === opzione ? '' : opzione);
+  }
+
+  protected isOpzioneMultiSelezionata(nomeCampo: string, opzione: string): boolean {
+    const chiave = this.chiaveTabellaAttiva();
+    const lista = this.filtriMultiColonne()[chiave]?.[nomeCampo];
+    return !!lista && lista.includes(opzione);
+  }
+
+  protected toggleOpzioneMultiColonna(nomeCampo: string, opzione: string): void {
+    const chiave = this.chiaveTabellaAttiva();
+    const tutti = this.filtriMultiColonne();
+    const mappaChiave = { ...(tutti[chiave] || {}) };
+    const attuali = mappaChiave[nomeCampo] || [];
+    const nuovi = attuali.includes(opzione)
+      ? attuali.filter((v) => v !== opzione)
+      : [...attuali, opzione];
+
+    if (nuovi.length > 0) {
+      mappaChiave[nomeCampo] = nuovi;
+    } else {
+      delete mappaChiave[nomeCampo];
+    }
+    this.filtriMultiColonne.set({
+      ...tutti,
+      [chiave]: mappaChiave,
+    });
+  }
+
+  protected isColonnaFiltrata(nomeCampo: string): boolean {
+    const chiave = this.chiaveTabellaAttiva();
+    const singolo = (this.filtriColonne()[chiave]?.[nomeCampo] ?? '').trim();
+    const multi = this.filtriMultiColonne()[chiave]?.[nomeCampo];
+    return singolo !== '' || (!!multi && multi.length > 0);
+  }
+
+  protected azzeraFiltroSingolaColonna(nomeCampo: string): void {
+    this.setFiltroColonna(nomeCampo, '');
+    const chiave = this.chiaveTabellaAttiva();
+    const tutti = this.filtriMultiColonne();
+    if (tutti[chiave]?.[nomeCampo]) {
+      const mappaChiave = { ...tutti[chiave] };
+      delete mappaChiave[nomeCampo];
+      this.filtriMultiColonne.set({
+        ...tutti,
+        [chiave]: mappaChiave,
+      });
+    }
+  }
+
   protected getDirezioneOrdinamento(nomeCampo: string): 'asc' | 'desc' | null {
     const chiave = this.chiaveTabellaAttiva();
     const ord = this.ordinamentoColonna()[chiave];
@@ -447,7 +604,7 @@ export class App implements OnInit {
 
   protected toggleOrdinamentoColonna(nomeCampo: string, event?: Event): void {
     const target = event?.target as HTMLElement | null;
-    if (target?.closest('.th-filter-wrap')) {
+    if (target?.closest('.btn-th-filter-trigger') || target?.closest('.th-filter-popover')) {
       return;
     }
     const chiave = this.chiaveTabellaAttiva();
@@ -474,6 +631,10 @@ export class App implements OnInit {
     delete nuoviFiltri[chiave];
     this.filtriColonne.set(nuoviFiltri);
 
+    const nuoviMulti = { ...this.filtriMultiColonne() };
+    delete nuoviMulti[chiave];
+    this.filtriMultiColonne.set(nuoviMulti);
+
     const nuoviOrd = { ...this.ordinamentoColonna() };
     delete nuoviOrd[chiave];
     this.ordinamentoColonna.set(nuoviOrd);
@@ -488,6 +649,12 @@ export class App implements OnInit {
       const b = Boolean(valoreRiga);
       if (f === 'si' || f === 'sì' || f === 'true' || f === '1') return b;
       if (f === 'no' || f === 'false' || f === '0') return !b;
+    }
+
+    if (this.getTipoFiltroColonna(campo) === 'select') {
+      const rawStr =
+        valoreRiga === null || valoreRiga === undefined ? '' : String(valoreRiga).trim().toLowerCase();
+      return rawStr === trimmed.toLowerCase();
     }
 
     const isNumerico =
@@ -542,20 +709,34 @@ export class App implements OnInit {
     ordinamentoDefault?: (a: T, b: T) => number,
   ): T[] {
     const filtri = this.filtriColonne()[chiave];
+    const filtriMulti = this.filtriMultiColonne()[chiave];
     const mappaCampi = new Map(campi.map((c) => [c.nome, c]));
 
+    const attiviSingoli = filtri
+      ? Object.entries(filtri).filter(([, val]) => val.trim() !== '')
+      : [];
+    const attiviMulti = filtriMulti
+      ? Object.entries(filtriMulti).filter(([, arr]) => arr.length > 0)
+      : [];
+
     let risultato = righe;
-    if (filtri) {
-      const attivi = Object.entries(filtri).filter(([, val]) => val.trim() !== '');
-      if (attivi.length > 0) {
-        risultato = righe.filter((riga) => {
-          return attivi.every(([nomeCampo, valFiltro]) => {
-            const campo = mappaCampi.get(nomeCampo);
-            if (!campo) return true;
-            return this.verificaFiltroColonna(campo, riga[nomeCampo], valFiltro);
-          });
+    if (attiviSingoli.length > 0 || attiviMulti.length > 0) {
+      risultato = righe.filter((riga) => {
+        const okSingoli = attiviSingoli.every(([nomeCampo, valFiltro]) => {
+          const campo = mappaCampi.get(nomeCampo);
+          if (!campo) return true;
+          return this.verificaFiltroColonna(campo, riga[nomeCampo], valFiltro);
         });
-      }
+        if (!okSingoli) return false;
+
+        return attiviMulti.every(([nomeCampo, valoriAmmessi]) => {
+          const valStr =
+            riga[nomeCampo] === null || riga[nomeCampo] === undefined
+              ? ''
+              : String(riga[nomeCampo]).trim();
+          return valoriAmmessi.includes(valStr);
+        });
+      });
     }
 
     const ord = this.ordinamentoColonna()[chiave];
@@ -658,11 +839,16 @@ export class App implements OnInit {
 
   @HostListener('document:click', ['$event'])
   protected onDocumentClick(event: MouseEvent): void {
-    if (this.menuColonneAperto()) {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.col-customizer-wrap')) {
-        this.menuColonneAperto.set(false);
-      }
+    const target = event.target as HTMLElement;
+    if (this.menuColonneAperto() && !target.closest('.col-customizer-wrap')) {
+      this.menuColonneAperto.set(false);
+    }
+    if (
+      this.colonnaFiltroAperta() &&
+      !target.closest('.th-filter-popover') &&
+      !target.closest('.btn-th-filter-trigger')
+    ) {
+      this.colonnaFiltroAperta.set(null);
     }
   }
 
@@ -1071,6 +1257,7 @@ export class App implements OnInit {
     this.sezioneAttiva.set(sez);
     this.menuMobileAperto.set(false);
     this.menuColonneAperto.set(false);
+    this.colonnaFiltroAperta.set(null);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
@@ -1088,6 +1275,7 @@ export class App implements OnInit {
     this.sezioneAttiva.set('tabella');
     this.menuMobileAperto.set(false);
     this.menuColonneAperto.set(false);
+    this.colonnaFiltroAperta.set(null);
     this.ricercaTesto.set('');
     this.rigaSelezionata.set(null);
     if (typeof window !== 'undefined') {
