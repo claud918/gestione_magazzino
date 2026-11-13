@@ -203,6 +203,22 @@ export class App implements OnInit {
     this.caricaOrdineColonneDaStorage(),
   );
   protected readonly colonnaInTrascinamento = signal<string | null>(null);
+  protected readonly filtriColonne = signal<Record<string, Record<string, string>>>({});
+  protected readonly ordinamentoColonna = signal<
+    Record<string, { campo: string; direzione: 'asc' | 'desc' } | null>
+  >({});
+
+  protected readonly haFiltriColonnaAttivi = computed<boolean>(() => {
+    const chiave = this.chiaveTabellaAttiva();
+    const filtri = this.filtriColonne()[chiave];
+    if (!filtri) return false;
+    return Object.values(filtri).some((v) => v.trim() !== '');
+  });
+
+  protected readonly haOrdinamentoColonnaAttivo = computed<boolean>(() => {
+    const chiave = this.chiaveTabellaAttiva();
+    return !!this.ordinamentoColonna()[chiave];
+  });
 
   protected readonly chiaveTabellaAttiva = computed<string>(() => {
     const sez = this.sezioneAttiva();
@@ -391,11 +407,196 @@ export class App implements OnInit {
   }
 
   protected onColDragStart(nomeCampo: string, event: DragEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.th-filter-wrap')) {
+      event.preventDefault();
+      return;
+    }
     this.colonnaInTrascinamento.set(nomeCampo);
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', nomeCampo);
     }
+  }
+
+  protected getFiltroColonna(nomeCampo: string): string {
+    const chiave = this.chiaveTabellaAttiva();
+    return this.filtriColonne()[chiave]?.[nomeCampo] ?? '';
+  }
+
+  protected setFiltroColonna(nomeCampo: string, valore: string): void {
+    const chiave = this.chiaveTabellaAttiva();
+    const filtriAttuali = this.filtriColonne();
+    const mappaChiave = { ...(filtriAttuali[chiave] || {}) };
+    if (valore) {
+      mappaChiave[nomeCampo] = valore;
+    } else {
+      delete mappaChiave[nomeCampo];
+    }
+    this.filtriColonne.set({
+      ...filtriAttuali,
+      [chiave]: mappaChiave,
+    });
+  }
+
+  protected getDirezioneOrdinamento(nomeCampo: string): 'asc' | 'desc' | null {
+    const chiave = this.chiaveTabellaAttiva();
+    const ord = this.ordinamentoColonna()[chiave];
+    return ord && ord.campo === nomeCampo ? ord.direzione : null;
+  }
+
+  protected toggleOrdinamentoColonna(nomeCampo: string, event?: Event): void {
+    const target = event?.target as HTMLElement | null;
+    if (target?.closest('.th-filter-wrap')) {
+      return;
+    }
+    const chiave = this.chiaveTabellaAttiva();
+    const ordAttuale = this.ordinamentoColonna()[chiave];
+    let prossimo: { campo: string; direzione: 'asc' | 'desc' } | null;
+
+    if (!ordAttuale || ordAttuale.campo !== nomeCampo) {
+      prossimo = { campo: nomeCampo, direzione: 'asc' };
+    } else if (ordAttuale.direzione === 'asc') {
+      prossimo = { campo: nomeCampo, direzione: 'desc' };
+    } else {
+      prossimo = null;
+    }
+
+    this.ordinamentoColonna.set({
+      ...this.ordinamentoColonna(),
+      [chiave]: prossimo,
+    });
+  }
+
+  protected azzeraFiltriEOrdinamentoColonne(): void {
+    const chiave = this.chiaveTabellaAttiva();
+    const nuoviFiltri = { ...this.filtriColonne() };
+    delete nuoviFiltri[chiave];
+    this.filtriColonne.set(nuoviFiltri);
+
+    const nuoviOrd = { ...this.ordinamentoColonna() };
+    delete nuoviOrd[chiave];
+    this.ordinamentoColonna.set(nuoviOrd);
+  }
+
+  private verificaFiltroColonna(campo: CampoTabella, valoreRiga: any, filtroRaw: string): boolean {
+    const trimmed = filtroRaw.trim();
+    if (!trimmed) return true;
+
+    if (campo.tipo === 'booleano') {
+      const f = trimmed.toLowerCase();
+      const b = Boolean(valoreRiga);
+      if (f === 'si' || f === 'sì' || f === 'true' || f === '1') return b;
+      if (f === 'no' || f === 'false' || f === '0') return !b;
+    }
+
+    const isNumerico =
+      campo.tipo === 'intero' || campo.tipo === 'numero' || campo.tipo === 'valuta';
+
+    if (isNumerico) {
+      const rangeMatch = trimmed.match(/^(-?\d+(?:[.,]\d+)?)\s*\.\.\s*(-?\d+(?:[.,]\d+)?)$/);
+      if (rangeMatch) {
+        if (valoreRiga === null || valoreRiga === undefined || valoreRiga === '') return false;
+        const num = Number(valoreRiga);
+        if (Number.isNaN(num)) return false;
+        const min = Number(rangeMatch[1].replace(',', '.'));
+        const max = Number(rangeMatch[2].replace(',', '.'));
+        return num >= min && num <= max;
+      }
+
+      const opMatch = trimmed.match(/^(>=|<=|!=|<>|>|<|=)\s*(-?\d+(?:[.,]\d+)?)$/);
+      if (opMatch) {
+        if (valoreRiga === null || valoreRiga === undefined || valoreRiga === '') return false;
+        const num = Number(valoreRiga);
+        if (Number.isNaN(num)) return false;
+        const target = Number(opMatch[2].replace(',', '.'));
+        switch (opMatch[1]) {
+          case '>=':
+            return num >= target;
+          case '<=':
+            return num <= target;
+          case '!=':
+          case '<>':
+            return num !== target;
+          case '>':
+            return num > target;
+          case '<':
+            return num < target;
+          case '=':
+            return num === target;
+        }
+      }
+    }
+
+    const q = trimmed.toLowerCase();
+    const rawStr =
+      valoreRiga === null || valoreRiga === undefined ? '' : String(valoreRiga).toLowerCase();
+    const fmtStr = this.formattaValoreTabella(campo, valoreRiga).toLowerCase();
+    return rawStr.includes(q) || fmtStr.includes(q);
+  }
+
+  private applicaFiltriEOrdinamentoColonne<T extends Record<string, any>>(
+    righe: T[],
+    campi: CampoTabella[],
+    chiave: string,
+    ordinamentoDefault?: (a: T, b: T) => number,
+  ): T[] {
+    const filtri = this.filtriColonne()[chiave];
+    const mappaCampi = new Map(campi.map((c) => [c.nome, c]));
+
+    let risultato = righe;
+    if (filtri) {
+      const attivi = Object.entries(filtri).filter(([, val]) => val.trim() !== '');
+      if (attivi.length > 0) {
+        risultato = righe.filter((riga) => {
+          return attivi.every(([nomeCampo, valFiltro]) => {
+            const campo = mappaCampi.get(nomeCampo);
+            if (!campo) return true;
+            return this.verificaFiltroColonna(campo, riga[nomeCampo], valFiltro);
+          });
+        });
+      }
+    }
+
+    const ord = this.ordinamentoColonna()[chiave];
+    if (ord) {
+      const campoOrd = mappaCampi.get(ord.campo);
+      const dir = ord.direzione === 'asc' ? 1 : -1;
+      const isNum =
+        campoOrd?.tipo === 'intero' ||
+        campoOrd?.tipo === 'numero' ||
+        campoOrd?.tipo === 'valuta';
+      const isBool = campoOrd?.tipo === 'booleano';
+
+      return [...risultato].sort((a, b) => {
+        const aVal = a[ord.campo];
+        const bVal = b[ord.campo];
+        const aEmpty = aVal === null || aVal === undefined || aVal === '';
+        const bEmpty = bVal === null || bVal === undefined || bVal === '';
+        if (aEmpty && bEmpty) return 0;
+        if (aEmpty) return 1;
+        if (bEmpty) return -1;
+
+        let cmp = 0;
+        if (isNum) {
+          cmp = Number(aVal) - Number(bVal);
+        } else if (isBool) {
+          cmp = (aVal ? 1 : 0) - (bVal ? 1 : 0);
+        } else {
+          cmp = String(aVal).localeCompare(String(bVal), 'it', {
+            numeric: true,
+            sensitivity: 'base',
+          });
+        }
+        return cmp * dir;
+      });
+    }
+
+    if (ordinamentoDefault) {
+      return [...risultato].sort(ordinamentoDefault);
+    }
+
+    return risultato;
   }
 
   protected onColDragOver(event: DragEvent): void {
@@ -524,13 +725,20 @@ export class App implements OnInit {
   protected readonly righeFiltrate = computed<RigaTabella[]>(() => {
     const q = this.ricercaTesto().trim().toLowerCase();
     const righe = this.righeTabella();
-    if (!q) return righe;
-    return righe.filter((riga) => {
-      return Object.values(riga).some((val) => {
-        if (val === null || val === undefined) return false;
-        return String(val).toLowerCase().includes(q);
-      });
-    });
+    const filtrateTesto = !q
+      ? righe
+      : righe.filter((riga) => {
+          return Object.values(riga).some((val) => {
+            if (val === null || val === undefined) return false;
+            return String(val).toLowerCase().includes(q);
+          });
+        });
+
+    return this.applicaFiltriEOrdinamentoColonne(
+      filtrateTesto,
+      this.defTabella().campi.filter((c) => !c.automatico),
+      this.tabellaSelezionata(),
+    );
   });
 
   // Computed: disponibilità filtrata
@@ -575,14 +783,19 @@ export class App implements OnInit {
       };
     });
 
-    // Requisito: Ordinamento per varietà, clone, portainnesto
-    return arricchite.sort((a, b) => {
-      const varCmp = (a.codice_varieta || '').localeCompare(b.codice_varieta || '');
-      if (varCmp !== 0) return varCmp;
-      const cloneCmp = (a.codice_clone || '').localeCompare(b.codice_clone || '');
-      if (cloneCmp !== 0) return cloneCmp;
-      return (a.codice_portainnesto || '').localeCompare(b.codice_portainnesto || '');
-    });
+    // Requisito: Ordinamento predefinito per varietà, clone, portainnesto
+    return this.applicaFiltriEOrdinamentoColonne(
+      arricchite,
+      App.COLONNE_DISPONIBILITA,
+      '__disp',
+      (a, b) => {
+        const varCmp = (a.codice_varieta || '').localeCompare(b.codice_varieta || '');
+        if (varCmp !== 0) return varCmp;
+        const cloneCmp = (a.codice_clone || '').localeCompare(b.codice_clone || '');
+        if (cloneCmp !== 0) return cloneCmp;
+        return (a.codice_portainnesto || '').localeCompare(b.codice_portainnesto || '');
+      },
+    );
   });
 
   // Computed: KPI Disponibilità
@@ -649,14 +862,19 @@ export class App implements OnInit {
       return true;
     });
 
-    // Requisito: Ordinamento per varietà, clone, portainnesto
-    return filtrate.sort((a, b) => {
-      const varCmp = (a.codice_varieta || '').localeCompare(b.codice_varieta || '');
-      if (varCmp !== 0) return varCmp;
-      const cloneCmp = (a.codice_clone || '').localeCompare(b.codice_clone || '');
-      if (cloneCmp !== 0) return cloneCmp;
-      return (a.codice_portainnesto || '').localeCompare(b.codice_portainnesto || '');
-    });
+    // Requisito: Ordinamento predefinito per varietà, clone, portainnesto
+    return this.applicaFiltriEOrdinamentoColonne(
+      filtrate,
+      App.COLONNE_RESE,
+      '__rese',
+      (a, b) => {
+        const varCmp = (a.codice_varieta || '').localeCompare(b.codice_varieta || '');
+        if (varCmp !== 0) return varCmp;
+        const cloneCmp = (a.codice_clone || '').localeCompare(b.codice_clone || '');
+        if (cloneCmp !== 0) return cloneCmp;
+        return (a.codice_portainnesto || '').localeCompare(b.codice_portainnesto || '');
+      },
+    );
   });
 
   // Computed: KPI Rese

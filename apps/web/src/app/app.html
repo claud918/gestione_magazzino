@@ -247,7 +247,80 @@
           <div class="toast toast-danger">{{ messaggioErrore() }}</div>
         }
 
+        <ng-template #thHeaderContentTpl let-col="col">
+          <div
+            class="th-sort-header"
+            (click)="toggleOrdinamentoColonna(col.nome, $event)"
+            title="Clicca per ordinare (trascina per spostare la colonna)"
+          >
+            <span class="th-title-text">{{ col.etichetta }}</span>
+            <span
+              class="th-sort-icon"
+              [class.is-active]="getDirezioneOrdinamento(col.nome) !== null"
+              aria-hidden="true"
+            >
+              @if (getDirezioneOrdinamento(col.nome) === 'asc') {
+                ▲
+              } @else if (getDirezioneOrdinamento(col.nome) === 'desc') {
+                ▼
+              } @else {
+                ⇅
+              }
+            </span>
+          </div>
+          <div
+            class="th-filter-wrap"
+            (click)="$event.stopPropagation()"
+            (mousedown)="$event.stopPropagation()"
+          >
+            @if (col.tipo === 'booleano') {
+              <select
+                class="th-filter-input th-filter-select"
+                [ngModel]="getFiltroColonna(col.nome)"
+                (ngModelChange)="setFiltroColonna(col.nome, $event)"
+                [attr.aria-label]="'Filtra ' + col.etichetta"
+              >
+                <option value="">Tutti</option>
+                <option value="si">Sì</option>
+                <option value="no">No</option>
+              </select>
+            } @else {
+              <div class="th-filter-input-box">
+                <input
+                  type="text"
+                  class="th-filter-input"
+                  [placeholder]="(col.tipo === 'intero' || col.tipo === 'numero' || col.tipo === 'valuta') ? 'Filtra (es. >0)...' : 'Filtra...'"
+                  [ngModel]="getFiltroColonna(col.nome)"
+                  (ngModelChange)="setFiltroColonna(col.nome, $event)"
+                  [attr.aria-label]="'Filtra ' + col.etichetta"
+                />
+                @if (getFiltroColonna(col.nome)) {
+                  <button
+                    type="button"
+                    class="btn-clear-th-filter"
+                    (click)="setFiltroColonna(col.nome, '')"
+                    title="Cancella filtro"
+                    aria-label="Cancella filtro"
+                  >
+                    ✕
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </ng-template>
+
         <ng-template #colCustomizerTpl>
+          @if (haFiltriColonnaAttivi() || haOrdinamentoColonnaAttivo()) {
+            <button
+              type="button"
+              class="btn-reset-col-filters"
+              (click)="azzeraFiltriEOrdinamentoColonne()"
+              title="Azzera tutti i filtri e l'ordinamento delle colonne"
+            >
+              ✕ Filtri
+            </button>
+          }
           <button
             type="button"
             class="btn-table-head-icon"
@@ -481,7 +554,7 @@
 
           @if (caricamentoDisponibilita()) {
             <div class="loading-box">Calcolo disponibilità in corso...</div>
-          } @else if (disponibilitaFiltrata().length === 0) {
+          } @else if (disponibilitaFiltrata().length === 0 && (!haFiltriColonnaAttivi() || vistaDisponibilitaModalita() === 'schede')) {
             <div class="empty-state">Nessuna disponibilità corrispondente ai filtri</div>
           } @else {
             <!-- MODALITA SCHEDE (OTTIMIZZATA SMARTPHONE) -->
@@ -570,13 +643,14 @@
                           [class.num]="col.tipo === 'intero' || col.tipo === 'numero' || col.tipo === 'valuta'"
                           [class.th-extra]="col.nascostoInTabella"
                           [class.col-dragging]="colonnaInTrascinamento() === col.nome"
+                          [class.th-sorted]="getDirezioneOrdinamento(col.nome) !== null"
+                          [class.th-filtered]="!!getFiltroColonna(col.nome).trim()"
                           (dragstart)="onColDragStart(col.nome, $event)"
                           (dragover)="onColDragOver($event)"
                           (drop)="onColDrop(col.nome, $event)"
                           (dragend)="onColDragEnd()"
-                          title="Trascina per spostare la colonna"
                         >
-                          {{ col.etichetta }}
+                          <ng-container *ngTemplateOutlet="thHeaderContentTpl; context: { col: col }"></ng-container>
                         </th>
                       }
                     </tr>
@@ -655,6 +729,15 @@
                             @case ('disponibile_seconde') { <td class="num font-mono td-extra">{{ item.disponibile_seconde | number }}</td> }
                           }
                         }
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td [attr.colspan]="campiTabellaVisibili().length" class="table-empty-cell">
+                          <span>Nessuna riga corrisponde ai filtri sulle colonne.</span>
+                          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="azzeraFiltriEOrdinamentoColonne()">
+                            Azzera filtri colonne
+                          </button>
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -771,7 +854,7 @@
 
           @if (caricamentoRese()) {
             <div class="loading-box">Calcolo rese in corso...</div>
-          } @else if (reseFiltrate().length === 0) {
+          } @else if (reseFiltrate().length === 0 && (!haFiltriColonnaAttivi() || vistaReseModalita() === 'schede')) {
             <div class="empty-state">Nessuna resa corrispondente ai filtri</div>
           } @else {
             <!-- MODALITA SCHEDE (OTTIMIZZATA SMARTPHONE) -->
@@ -827,13 +910,14 @@
                           class="th-draggable"
                           [class.num]="col.tipo === 'intero' || col.tipo === 'numero' || col.tipo === 'valuta'"
                           [class.col-dragging]="colonnaInTrascinamento() === col.nome"
+                          [class.th-sorted]="getDirezioneOrdinamento(col.nome) !== null"
+                          [class.th-filtered]="!!getFiltroColonna(col.nome).trim()"
                           (dragstart)="onColDragStart(col.nome, $event)"
                           (dragover)="onColDragOver($event)"
                           (drop)="onColDrop(col.nome, $event)"
                           (dragend)="onColDragEnd()"
-                          title="Trascina per spostare la colonna"
                         >
-                          {{ col.etichetta }}
+                          <ng-container *ngTemplateOutlet="thHeaderContentTpl; context: { col: col }"></ng-container>
                         </th>
                       }
                     </tr>
@@ -856,6 +940,15 @@
                             }
                           }
                         }
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td [attr.colspan]="campiTabellaVisibili().length" class="table-empty-cell">
+                          <span>Nessuna riga corrisponde ai filtri sulle colonne.</span>
+                          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="azzeraFiltriEOrdinamentoColonne()">
+                            Azzera filtri colonne
+                          </button>
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -957,7 +1050,7 @@
 
           @if (caricamentoDati()) {
             <div class="loading-box">Caricamento in corso...</div>
-          } @else if (righeFiltrate().length === 0) {
+          } @else if (righeFiltrate().length === 0 && (!haFiltriColonnaAttivi() || modalitaVista() === 'schede')) {
             <div class="empty-state">
               <p>Nessun record presente in questa tabella.</p>
               @if (utente()?.ruolo === 'admin') {
@@ -983,13 +1076,14 @@
                           class="th-draggable"
                           [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'"
                           [class.col-dragging]="colonnaInTrascinamento() === campo.nome"
+                          [class.th-sorted]="getDirezioneOrdinamento(campo.nome) !== null"
+                          [class.th-filtered]="!!getFiltroColonna(campo.nome).trim()"
                           (dragstart)="onColDragStart(campo.nome, $event)"
                           (dragover)="onColDragOver($event)"
                           (drop)="onColDrop(campo.nome, $event)"
                           (dragend)="onColDragEnd()"
-                          title="Trascina per spostare la colonna"
                         >
-                          {{ campo.etichetta }}
+                          <ng-container *ngTemplateOutlet="thHeaderContentTpl; context: { col: campo }"></ng-container>
                         </th>
                       }
                       @if (utente()?.ruolo === 'admin') {
@@ -1012,6 +1106,15 @@
                             <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
                           </td>
                         }
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td [attr.colspan]="campiTabellaVisibili().length + (utente()?.ruolo === 'admin' ? 1 : 0)" class="table-empty-cell">
+                          <span>Nessuna riga corrisponde ai filtri sulle colonne.</span>
+                          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="azzeraFiltriEOrdinamentoColonne()">
+                            Azzera filtri colonne
+                          </button>
+                        </td>
                       </tr>
                     }
                   </tbody>
