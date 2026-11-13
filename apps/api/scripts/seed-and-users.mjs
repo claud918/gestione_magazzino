@@ -7,7 +7,7 @@
  *   node scripts/seed-and-users.mjs seed [--remote]
  *   node scripts/seed-and-users.mjs user <email> <password> <ruolo> "<nome>" [--remote]
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { webcrypto } from 'node:crypto';
 import { writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
@@ -54,19 +54,13 @@ function runD1Sql(sqlText, isRemote) {
   const tmpFile = join(process.cwd(), `.tmp-d1-${Date.now()}.sql`);
   writeFileSync(tmpFile, sqlText, 'utf8');
   try {
-    const args = [
-      'wrangler',
-      'd1',
-      'execute',
-      'gestione_magazzino',
-      isRemote ? '--remote' : '--local',
-      `--file=${tmpFile}`,
-    ];
-    const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    execFileSync(cmd, args, {
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-    });
+    const remoteFlag = isRemote ? '--remote' : '--local';
+    const cmd = `npx.cmd wrangler d1 execute gestione_magazzino ${remoteFlag} --file="${tmpFile}"`;
+    if (process.platform === 'win32') {
+      execSync(cmd, { stdio: 'inherit' });
+    } else {
+      execSync(`npx wrangler d1 execute gestione_magazzino ${remoteFlag} --file="${tmpFile}"`, { stdio: 'inherit' });
+    }
   } finally {
     try {
       unlinkSync(tmpFile);
