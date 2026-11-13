@@ -24,9 +24,19 @@ export class StickyScrollbarDirective implements AfterViewInit, OnDestroy {
   private mutationObserver: MutationObserver | null = null;
   private observedTable: Element | null = null;
   private metricsRafId: number | null = null;
-  private syncRafId: number | null = null;
+  private sourceResetTimerId: number | null = null;
   private timerIds: number[] = [];
   private cleanupListeners: Array<() => void> = [];
+
+  private activeSource: 'host' | 'bar' | null = null;
+  private isDraggingBar = false;
+
+  private lastVisible: boolean | null = null;
+  private lastPinned: boolean | null = null;
+  private lastLeft: number | null = null;
+  private lastWidth: number | null = null;
+  private lastBottom: number | null = null;
+  private lastScrollWidth: number | null = null;
 
   ngAfterViewInit(): void {
     const hostEl = this.el.nativeElement;
@@ -50,41 +60,78 @@ export class StickyScrollbarDirective implements AfterViewInit, OnDestroy {
       this.barEl = barEl;
       this.innerEl = innerEl;
 
-      let syncingFrom: 'host' | 'bar' | null = null;
-
-      const syncScroll = (from: 'host' | 'bar', source: HTMLElement, target: HTMLElement): void => {
-        if (syncingFrom && syncingFrom !== from) {
-          return;
+      const scheduleSourceReset = (): void => {
+        if (this.sourceResetTimerId !== null) {
+          clearTimeout(this.sourceResetTimerId);
         }
-        if (target.scrollLeft === source.scrollLeft) {
-          return;
-        }
-        syncingFrom = from;
-        target.scrollLeft = source.scrollLeft;
-
-        if (this.syncRafId !== null) {
-          cancelAnimationFrame(this.syncRafId);
-        }
-        this.syncRafId = requestAnimationFrame(() => {
-          syncingFrom = null;
-          this.syncRafId = null;
-        });
+        this.sourceResetTimerId = window.setTimeout(() => {
+          this.sourceResetTimerId = null;
+          if (!this.isDraggingBar) {
+            this.activeSource = null;
+          }
+        }, 150);
       };
 
-      const onHostScroll = (): void => syncScroll('host', hostEl, barEl);
-      const onBarScroll = (): void => syncScroll('bar', barEl, hostEl);
-      const onWindowChange = (): void => this.scheduleUpdateMetrics();
+      const onBarPointerDown = (): void => {
+        this.isDraggingBar = true;
+        this.activeSource = 'bar';
+        if (this.sourceResetTimerId !== null) {
+          clearTimeout(this.sourceResetTimerId);
+          this.sourceResetTimerId = null;
+        }
+      };
 
-      hostEl.addEventListener('scroll', onHostScroll, { passive: true });
+      const onBarPointerEnd = (): void => {
+        if (!this.isDraggingBar) {
+          return;
+        }
+        this.isDraggingBar = false;
+        scheduleSourceReset();
+      };
+
+      const onBarScroll = (): void => {
+        if (this.activeSource === 'host' && !this.isDraggingBar) {
+          return;
+        }
+        this.activeSource = 'bar';
+        scheduleSourceReset();
+        const targetScrollLeft = barEl.scrollLeft;
+        if (Math.abs(hostEl.scrollLeft - targetScrollLeft) >= 0.5) {
+          hostEl.scrollLeft = targetScrollLeft;
+        }
+      };
+
+      const onHostScroll = (): void => {
+        if (this.isDraggingBar || this.activeSource === 'bar') {
+          return;
+        }
+        this.activeSource = 'host';
+        scheduleSourceReset();
+        const targetScrollLeft = hostEl.scrollLeft;
+        if (Math.abs(barEl.scrollLeft - targetScrollLeft) >= 0.5) {
+          barEl.scrollLeft = targetScrollLeft;
+        }
+      };
+
+      const onWindowScroll = (): void => this.scheduleUpdateMetrics();
+      const onWindowResize = (): void => this.scheduleUpdateMetrics();
+
+      barEl.addEventListener('pointerdown', onBarPointerDown, { passive: true });
+      window.addEventListener('pointerup', onBarPointerEnd, { passive: true });
+      window.addEventListener('pointercancel', onBarPointerEnd, { passive: true });
       barEl.addEventListener('scroll', onBarScroll, { passive: true });
-      window.addEventListener('scroll', onWindowChange, { passive: true, capture: true });
-      window.addEventListener('resize', onWindowChange, { passive: true });
+      hostEl.addEventListener('scroll', onHostScroll, { passive: true });
+      window.addEventListener('scroll', onWindowScroll, { passive: true });
+      window.addEventListener('resize', onWindowResize, { passive: true });
 
       this.cleanupListeners.push(
-        () => hostEl.removeEventListener('scroll', onHostScroll),
+        () => barEl.removeEventListener('pointerdown', onBarPointerDown),
+        () => window.removeEventListener('pointerup', onBarPointerEnd),
+        () => window.removeEventListener('pointercancel', onBarPointerEnd),
         () => barEl.removeEventListener('scroll', onBarScroll),
-        () => window.removeEventListener('scroll', onWindowChange, { capture: true }),
-        () => window.removeEventListener('resize', onWindowChange),
+        () => hostEl.removeEventListener('scroll', onHostScroll),
+        () => window.removeEventListener('scroll', onWindowScroll),
+        () => window.removeEventListener('resize', onWindowResize),
       );
 
       if (typeof ResizeObserver !== 'undefined') {
@@ -120,9 +167,9 @@ export class StickyScrollbarDirective implements AfterViewInit, OnDestroy {
       cancelAnimationFrame(this.metricsRafId);
       this.metricsRafId = null;
     }
-    if (this.syncRafId !== null) {
-      cancelAnimationFrame(this.syncRafId);
-      this.syncRafId = null;
+    if (this.sourceResetTimerId !== null) {
+      clearTimeout(this.sourceResetTimerId);
+      this.sourceResetTimerId = null;
     }
     for (const timerId of this.timerIds) {
       clearTimeout(timerId);
@@ -199,27 +246,60 @@ export class StickyScrollbarDirective implements AfterViewInit, OnDestroy {
       wrapperRect.bottom > 48 &&
       hostRect.top < window.innerHeight - 24;
 
-    if (hasHorizontalOverflow && isVisibleInViewport) {
+    const shouldShow = hasHorizontalOverflow && isVisibleInViewport;
+
+    if (shouldShow) {
+      const leftPx = Math.round(hostRect.left);
+      const widthPx = Math.round(hostRect.width);
       const bottomPx = Math.max(0, Math.round(window.innerHeight - wrapperRect.bottom));
-      this.renderer.addClass(hostEl, 'has-sticky-scrollbar');
-      this.renderer.addClass(parentEl, 'has-sticky-scrollbar');
-      this.renderer.addClass(barEl, 'is-visible');
-      if (bottomPx === 0) {
-        this.renderer.addClass(barEl, 'is-pinned-viewport');
-      } else {
-        this.renderer.removeClass(barEl, 'is-pinned-viewport');
+      const isPinned = bottomPx === 0;
+
+      if (this.lastVisible !== true) {
+        this.renderer.addClass(hostEl, 'has-sticky-scrollbar');
+        this.renderer.addClass(parentEl, 'has-sticky-scrollbar');
+        this.renderer.addClass(barEl, 'is-visible');
+        this.lastVisible = true;
       }
 
-      this.renderer.setStyle(barEl, 'left', `${Math.round(hostRect.left)}px`);
-      this.renderer.setStyle(barEl, 'width', `${Math.round(hostRect.width)}px`);
-      this.renderer.setStyle(barEl, 'bottom', `${bottomPx}px`);
-      this.renderer.setStyle(innerEl, 'width', `${scrollWidth}px`);
-      barEl.scrollLeft = hostEl.scrollLeft;
-    } else {
+      if (this.lastPinned !== isPinned) {
+        if (isPinned) {
+          this.renderer.addClass(barEl, 'is-pinned-viewport');
+        } else {
+          this.renderer.removeClass(barEl, 'is-pinned-viewport');
+        }
+        this.lastPinned = isPinned;
+      }
+
+      if (this.lastLeft !== leftPx) {
+        this.renderer.setStyle(barEl, 'left', `${leftPx}px`);
+        this.lastLeft = leftPx;
+      }
+      if (this.lastWidth !== widthPx) {
+        this.renderer.setStyle(barEl, 'width', `${widthPx}px`);
+        this.lastWidth = widthPx;
+      }
+      if (this.lastBottom !== bottomPx) {
+        this.renderer.setStyle(barEl, 'bottom', `${bottomPx}px`);
+        this.lastBottom = bottomPx;
+      }
+      if (this.lastScrollWidth !== scrollWidth) {
+        this.renderer.setStyle(innerEl, 'width', `${scrollWidth}px`);
+        this.lastScrollWidth = scrollWidth;
+      }
+
+      if (!this.isDraggingBar && this.activeSource !== 'bar') {
+        const hostScrollLeft = hostEl.scrollLeft;
+        if (Math.abs(barEl.scrollLeft - hostScrollLeft) >= 0.5) {
+          barEl.scrollLeft = hostScrollLeft;
+        }
+      }
+    } else if (this.lastVisible !== false) {
       this.renderer.removeClass(barEl, 'is-visible');
       this.renderer.removeClass(barEl, 'is-pinned-viewport');
       this.renderer.removeClass(hostEl, 'has-sticky-scrollbar');
       this.renderer.removeClass(parentEl, 'has-sticky-scrollbar');
+      this.lastVisible = false;
+      this.lastPinned = false;
     }
   }
 }
