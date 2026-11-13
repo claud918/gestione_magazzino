@@ -63,7 +63,7 @@ disponibilitaRoutes.get('/', async (c) => {
       scoperto
     FROM disponibilita
     ${whereClause}
-    ORDER BY campagna DESC, prodotto ASC, codice_varieta ASC, codice_clone ASC, codice_portainnesto ASC
+    ORDER BY codice_varieta ASC, codice_clone ASC, codice_portainnesto ASC, campagna DESC, prodotto ASC
   `;
 
   const res = await c.env.DB.prepare(sql)

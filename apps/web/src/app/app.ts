@@ -11,6 +11,7 @@ import {
   campagnaCorrente,
   processaCsvPerTabella,
   generaTemplateCsv,
+  TIPOLOGIE_PRODOTTO,
   type NomeTabella,
   type DefinizioneTabella,
   type CampoTabella,
@@ -100,9 +101,12 @@ export class App implements OnInit {
   protected readonly vistaDisponibilitaModalita = signal<'schede' | 'tabellare'>('schede');
   protected readonly filtroDispCampagna = signal<string>(campagnaCorrente());
   protected readonly filtroDispProdotto = signal<string>('Barbatelle innestate');
+  protected readonly filtroDispTipologia = signal<string>('Nuova produzione');
+  protected readonly mostraUlterioriDisponibilita = signal<boolean>(false);
   protected readonly filtroDispSoloDisponibili = signal(false);
   protected readonly filtroDispSoloScoperti = signal(false);
   protected readonly filtroDispRicerca = signal('');
+  protected readonly listaTipologie = TIPOLOGIE_PRODOTTO;
 
   // Dati Report Rese
   protected readonly caricamentoRese = signal(false);
@@ -231,10 +235,20 @@ export class App implements OnInit {
     const soloScop = this.filtroDispSoloScoperti();
     const fCampagna = this.filtroDispCampagna().trim();
     const fProdotto = this.filtroDispProdotto().trim();
+    const fTipologia = this.filtroDispTipologia().trim();
 
-    return righe.filter((r) => {
+    // Mappa per calcolare le disponibilità delle altre tipologie a parità di combinazione
+    // Chiave: "campagna|prodotto|varieta|clone|pi|tipologia"
+    const mappaDispPerTipo = new Map<string, number>();
+    for (const r of righe) {
+      const k = `${r.campagna}|${r.prodotto}|${r.codice_varieta}|${r.codice_clone}|${r.codice_portainnesto}|${r.tipologia}`;
+      mappaDispPerTipo.set(k, r.disponibile);
+    }
+
+    const filtrate = righe.filter((r) => {
       if (fCampagna && r.campagna !== fCampagna) return false;
       if (fProdotto && r.prodotto !== fProdotto) return false;
+      if (fTipologia && r.tipologia !== fTipologia) return false;
       if (soloDisp && r.disponibile <= 0) return false;
       if (soloScop && r.scoperto <= 0) return false;
       if (q) {
@@ -242,6 +256,26 @@ export class App implements OnInit {
         if (!full.includes(q)) return false;
       }
       return true;
+    });
+
+    // Assegna a ciascuna riga i valori di disponibile per le tipologie Ripiantate, Frigoconservate e Seconde
+    const arricchite = filtrate.map((r) => {
+      const prefisso = `${r.campagna}|${r.prodotto}|${r.codice_varieta}|${r.codice_clone}|${r.codice_portainnesto}`;
+      return {
+        ...r,
+        disponibile_ripiantato: mappaDispPerTipo.get(`${prefisso}|Ripiantate`) ?? 0,
+        disponibile_frigo_conservato: mappaDispPerTipo.get(`${prefisso}|Frigoconservate`) ?? 0,
+        disponibile_seconde: mappaDispPerTipo.get(`${prefisso}|Seconde`) ?? 0,
+      };
+    });
+
+    // Requisito: Ordinamento per varietà, clone, portainnesto
+    return arricchite.sort((a, b) => {
+      const varCmp = (a.codice_varieta || '').localeCompare(b.codice_varieta || '');
+      if (varCmp !== 0) return varCmp;
+      const cloneCmp = (a.codice_clone || '').localeCompare(b.codice_clone || '');
+      if (cloneCmp !== 0) return cloneCmp;
+      return (a.codice_portainnesto || '').localeCompare(b.codice_portainnesto || '');
     });
   });
 
@@ -276,6 +310,20 @@ export class App implements OnInit {
     };
   });
 
+  // Computed: totali ulteriori disponibilità per la riga di totale in tabella
+  protected readonly totUlterioriDisponibilita = computed(() => {
+    const list = this.disponibilitaFiltrata();
+    let totRipiantato = 0;
+    let totFrigo = 0;
+    let totSeconde = 0;
+    for (const item of list) {
+      totRipiantato += item.disponibile_ripiantato || 0;
+      totFrigo += item.disponibile_frigo_conservato || 0;
+      totSeconde += item.disponibile_seconde || 0;
+    }
+    return { totRipiantato, totFrigo, totSeconde };
+  });
+
   // Computed: rese filtrate
   protected readonly reseFiltrate = computed<RigaResa[]>(() => {
     const righe = this.listaRese();
@@ -283,7 +331,7 @@ export class App implements OnInit {
     const fCampagna = this.filtroReseCampagna().trim();
     const fProdotto = this.filtroReseProdotto().trim();
 
-    return righe.filter((r) => {
+    const filtrate = righe.filter((r) => {
       // Requisito: nel report rese si mostri solo i record che hanno una produzione (prodotto_qta <> 0)
       if (!r.prodotto_qta || r.prodotto_qta === 0) return false;
       if (fCampagna && r.campagna !== fCampagna) return false;
@@ -293,6 +341,15 @@ export class App implements OnInit {
         if (!full.includes(q)) return false;
       }
       return true;
+    });
+
+    // Requisito: Ordinamento per varietà, clone, portainnesto
+    return filtrate.sort((a, b) => {
+      const varCmp = (a.codice_varieta || '').localeCompare(b.codice_varieta || '');
+      if (varCmp !== 0) return varCmp;
+      const cloneCmp = (a.codice_clone || '').localeCompare(b.codice_clone || '');
+      if (cloneCmp !== 0) return cloneCmp;
+      return (a.codice_portainnesto || '').localeCompare(b.codice_portainnesto || '');
     });
   });
 
@@ -577,7 +634,9 @@ export class App implements OnInit {
       if (c.predefinito === 'oggi') {
         val[c.nome] = dataOggi();
       } else if (c.predefinito === 'campagna_corrente') {
-        val[c.nome] = campagnaCorrente();
+        // Default campagna: valore dell'ultimo salvataggio se presente in localStorage, altrimenti campagnaCorrente()
+        const ultimaCampagna = typeof localStorage !== 'undefined' ? localStorage.getItem('ultima_campagna_salvata') : null;
+        val[c.nome] = ultimaCampagna || campagnaCorrente();
       } else if (c.predefinito !== undefined) {
         val[c.nome] = c.predefinito;
       } else if (c.tipo === 'booleano') {
@@ -785,8 +844,11 @@ export class App implements OnInit {
       }
     }
 
-    // In modifica, le chiavi primarie testuali (se non uuid) non si modificano
+    // In modifica, le chiavi primarie testuali (se non uuid) non si modificano tranne il soprannome in anagrafica_personale che deve essere editabile
     if (this.modalModo() === 'modifica' && this.defTabella().chiave.includes(campo.nome)) {
+      if (this.defTabella().nome === 'anagrafica_personale' && campo.nome === 'soprannome') {
+        return false;
+      }
       return true;
     }
 
@@ -813,6 +875,10 @@ export class App implements OnInit {
       this.http.post<{ riga: RigaTabella }>(`/api/crud/${def.nome}`, valori).subscribe({
         next: () => {
           this.inInvio.set(false);
+          // Memorizza l'ultima campagna salvata per riproporla come default nei successivi inserimenti
+          if (valori['campagna'] && typeof localStorage !== 'undefined') {
+            localStorage.setItem('ultima_campagna_salvata', String(valori['campagna']));
+          }
           this.chiudiModal();
           this.mostraOk('Elemento inserito con successo');
           this.caricaDatiTabella(def.nome);
@@ -841,6 +907,9 @@ export class App implements OnInit {
       this.http.put<{ riga: RigaTabella }>(`/api/crud/${def.nome}`, valori, { params }).subscribe({
         next: () => {
           this.inInvio.set(false);
+          if (valori['campagna'] && typeof localStorage !== 'undefined') {
+            localStorage.setItem('ultima_campagna_salvata', String(valori['campagna']));
+          }
           this.chiudiModal();
           this.mostraOk('Elemento modificato con successo');
           this.caricaDatiTabella(def.nome);
@@ -964,6 +1033,9 @@ export class App implements OnInit {
       'Disponibile',
       'Giacenza fisica',
       'Scoperto',
+      'Disp. Ripiantate',
+      'Disp. Frigoconservate',
+      'Disp. Seconde',
     ];
     const righe = items.map((it) => [
       it.campagna,
@@ -978,6 +1050,9 @@ export class App implements OnInit {
       String(it.disponibile),
       String(it.giacenza_fisica),
       String(it.scoperto),
+      String(it.disponibile_ripiantato ?? 0),
+      String(it.disponibile_frigo_conservato ?? 0),
+      String(it.disponibile_seconde ?? 0),
     ]);
     const dataStr = new Date().toISOString().slice(0, 10);
     this.scaricaCsv(`disponibilita_magazzino_${dataStr}.csv`, [intestazioni, ...righe]);

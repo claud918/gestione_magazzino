@@ -139,7 +139,11 @@ crudRoutes.put('/:tabella', requireAdmin, async (c) => {
 
   const rigaCompleta = calcolaCampiDerivati(def.nome, valori);
 
-  const setCols = Object.keys(rigaCompleta).filter((col) => !def.chiave.includes(col));
+  const setCols = Object.keys(rigaCompleta).filter((col) => {
+    // Permetti la modifica della chiave primaria per tabelle come anagrafica_personale (soprannome)
+    if (def.nome === 'anagrafica_personale' && col === 'soprannome') return true;
+    return !def.chiave.includes(col);
+  });
   if (setCols.length === 0) {
     return c.json({ error: 'Nessun campo modificabile fornito' }, 400);
   }

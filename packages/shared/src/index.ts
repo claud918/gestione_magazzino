@@ -70,6 +70,12 @@ export interface RigaDisponibilita {
   giacenza_fisica: number;
   /** max(0, Ordinato − Prodotto) */
   scoperto: number;
+  /** Disponibilità netta per ripiantate a parità di varietà/clone/PI/prodotto/campagna */
+  disponibile_ripiantato?: number;
+  /** Disponibilità netta per frigoconservate a parità di varietà/clone/PI/prodotto/campagna */
+  disponibile_frigo_conservato?: number;
+  /** Disponibilità netta per seconde a parità di varietà/clone/PI/prodotto/campagna */
+  disponibile_seconde?: number;
 }
 
 // --- Vista rese (raggruppata per campagna + prodotto + varietà + clone + portainnesto + tipologia) ---

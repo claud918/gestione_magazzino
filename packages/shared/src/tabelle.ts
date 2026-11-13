@@ -106,7 +106,7 @@ export interface DefinizioneTabella {
 }
 
 /** Formato campagna: AAAA/AA (es. 2025/26) */
-export const REGEX_CAMPAGNA = /^\d{4}\/\d{2}$/;
+export const REGEX_CAMPAGNA = /^\d{4}$/;
 export const REGEX_DATA = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -116,7 +116,7 @@ export const REGEX_DATA = /^\d{4}-\d{2}-\d{2}$/;
 export function campagnaCorrente(oggi: Date = new Date()): string {
   const anno = oggi.getFullYear();
   const inizio = oggi.getMonth() >= 8 ? anno : anno - 1;
-  return `${inizio}/${String((inizio + 1) % 100).padStart(2, '0')}`;
+  return String(inizio);
 }
 
 export function dataOggi(oggi: Date = new Date()): string {
@@ -674,10 +674,23 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
       },
       {
         nome: 'consegnato',
-        etichetta: 'Consegnato',
+        etichetta: 'Consegnato / Spedito',
         tipo: 'booleano',
         obbligatorio: true,
         predefinito: false,
+        inScheda: true,
+      },
+      {
+        nome: 'prezzo_vendita',
+        etichetta: 'Prezzo di vendita (€)',
+        tipo: 'valuta',
+        min: 0,
+        inScheda: true,
+      },
+      {
+        nome: 'indirizzo_consegna',
+        etichetta: 'Indirizzo di consegna',
+        tipo: 'testo',
         inScheda: true,
       },
       { nome: 'note', etichetta: 'Note', tipo: 'testo_lungo' },
@@ -837,6 +850,17 @@ export function validaRiga(
     if (typeof v === 'string') v = v.trim();
     const vuoto = v === undefined || v === null || v === '';
 
+    // Regola speciale per ordine_impieghi: progressivo_cartellino obbligatorio se spedito / consegnato = true
+    const isSpedito = input['consegnato'] === true || input['consegnato'] === 1 || input['consegnato'] === '1' || input['consegnato'] === 'true';
+    if (def.nome === 'ordine_impieghi' && campo.nome === 'progressivo_cartellino' && isSpedito && vuoto) {
+      errori.push({
+        campo: campo.nome,
+        messaggio: 'Progressivo cartellino: obbligatorio se lo stato è Spedito / Consegnato',
+      });
+      valori[campo.nome] = null;
+      continue;
+    }
+
     if (vuoto) {
       if (campo.tipo === 'booleano') {
         valori[campo.nome] = false;
@@ -889,7 +913,7 @@ export function validaRiga(
         if (typeof v !== 'string' || !REGEX_CAMPAGNA.test(v)) {
           errori.push({
             campo: campo.nome,
-            messaggio: `${campo.etichetta}: formato AAAA/AA (es. ${campagnaCorrente()})`,
+            messaggio: `${campo.etichetta}: formato AAAA (es. ${campagnaCorrente()})`,
           });
           break;
         }

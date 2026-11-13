@@ -339,6 +339,20 @@
                 }
               </select>
             </div>
+            <div class="filter-field">
+              <label for="dispFiltroTipologia">Tipologia</label>
+              <select
+                id="dispFiltroTipologia"
+                class="form-control"
+                [(ngModel)]="filtroDispTipologia"
+                (ngModelChange)="caricaDisponibilita()"
+              >
+                <option value="">-- Tutte le tipologie --</option>
+                @for (t of listaTipologie; track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
+            </div>
             <div class="filter-input-wrap">
               <label for="dispFiltroRicerca">Cerca (varietà, clone, portainnesto)</label>
               <div class="search-input-box">
@@ -355,6 +369,15 @@
               </div>
             </div>
             <div class="filter-toggles">
+              <button
+                type="button"
+                class="btn btn-sm"
+                [class.btn-primary]="mostraUlterioriDisponibilita()"
+                [class.btn-outline-secondary]="!mostraUlterioriDisponibilita()"
+                (click)="mostraUlterioriDisponibilita.set(!mostraUlterioriDisponibilita())"
+              >
+                {{ mostraUlterioriDisponibilita() ? 'Nascondi ulteriori disponibilità' : 'Mostra ulteriori disponibilità' }}
+              </button>
               <label class="checkbox-label">
                 <input type="checkbox" [(ngModel)]="filtroDispSoloDisponibili" />
                 <span>Solo disponibili (&gt;0)</span>
@@ -417,6 +440,20 @@
                           <strong>{{ item.scoperto | number }}</strong>
                         </div>
                       }
+                      @if (mostraUlterioriDisponibilita()) {
+                        <div class="indicator ind-extra">
+                          <small>Disp. Ripiantate</small>
+                          <strong>{{ item.disponibile_ripiantato | number }}</strong>
+                        </div>
+                        <div class="indicator ind-extra">
+                          <small>Disp. Frigo</small>
+                          <strong>{{ item.disponibile_frigo_conservato | number }}</strong>
+                        </div>
+                        <div class="indicator ind-extra">
+                          <small>Disp. Seconde</small>
+                          <strong>{{ item.disponibile_seconde | number }}</strong>
+                        </div>
+                      }
                     </div>
                   </div>
                 }
@@ -432,13 +469,36 @@
                       <th>Varietà</th>
                       <th>Clone</th>
                       <th>Portainnesto</th>
-                      <th>Tipologia</th>
                       <th class="num">Prodotto (Q.tà)</th>
                       <th class="num">Ordinato</th>
                       <th class="num">Consegnato</th>
                       <th class="num">Disponibile</th>
                       <th class="num">Giacenza fisica</th>
                       <th class="num">Scoperto</th>
+                      @if (mostraUlterioriDisponibilita()) {
+                        <th class="num th-extra">Disp. Ripiantate</th>
+                        <th class="num th-extra">Disp. Frigoconservate</th>
+                        <th class="num th-extra">Disp. Seconde</th>
+                      }
+                    </tr>
+                    <!-- RIGA DI TOTALE IN ALTO AGGIORNATA SUI FILTRI -->
+                    <tr class="row-totale-top">
+                      <td colspan="3"><strong>TOTALE ({{ disponibilitaFiltrata().length }} combinazioni)</strong></td>
+                      <td class="num font-mono font-bold">{{ kpiDisponibilita().totProdotto | number }}</td>
+                      <td class="num font-mono font-bold">{{ kpiDisponibilita().totOrdinato | number }}</td>
+                      <td class="num font-mono font-bold">{{ kpiDisponibilita().totConsegnato | number }}</td>
+                      <td class="num font-mono font-bold" [class.text-success]="kpiDisponibilita().totDisponibile >= 0" [class.text-danger]="kpiDisponibilita().totDisponibile < 0">
+                        {{ kpiDisponibilita().totDisponibile | number }}
+                      </td>
+                      <td class="num font-mono font-bold">{{ (kpiDisponibilita().totProdotto - kpiDisponibilita().totConsegnato) | number }}</td>
+                      <td class="num font-mono font-bold" [class.text-danger]="kpiDisponibilita().totScoperto > 0">
+                        {{ kpiDisponibilita().totScoperto > 0 ? (kpiDisponibilita().totScoperto | number) : '—' }}
+                      </td>
+                      @if (mostraUlterioriDisponibilita()) {
+                        <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totRipiantato | number }}</td>
+                        <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totFrigo | number }}</td>
+                        <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totSeconde | number }}</td>
+                      }
                     </tr>
                   </thead>
                   <tbody>
@@ -447,7 +507,6 @@
                         <td><strong>{{ item.codice_varieta }}</strong></td>
                         <td>{{ item.codice_clone }}</td>
                         <td>{{ item.codice_portainnesto }}</td>
-                        <td><small>{{ item.tipologia }}</small></td>
                         <td class="num font-mono">{{ item.prodotto_qta | number }}</td>
                         <td class="num font-mono">{{ item.ordinato | number }}</td>
                         <td class="num font-mono">{{ item.consegnato | number }}</td>
@@ -458,6 +517,11 @@
                         <td class="num font-mono font-bold" [class.text-danger]="item.scoperto > 0">
                           {{ item.scoperto > 0 ? (item.scoperto | number) : '—' }}
                         </td>
+                        @if (mostraUlterioriDisponibilita()) {
+                          <td class="num font-mono td-extra">{{ item.disponibile_ripiantato | number }}</td>
+                          <td class="num font-mono td-extra">{{ item.disponibile_frigo_conservato | number }}</td>
+                          <td class="num font-mono td-extra">{{ item.disponibile_seconde | number }}</td>
+                        }
                       </tr>
                     }
                   </tbody>

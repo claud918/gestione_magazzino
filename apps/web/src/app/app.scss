@@ -716,6 +716,23 @@
       letter-spacing: 0.03em;
     }
 
+    tr.row-totale-top {
+      background: #f1f5f9;
+      border-bottom: 2px solid #cbd5e1;
+
+      td {
+        padding: 0.85rem 1rem;
+        font-size: 0.9rem;
+        background: #f1f5f9;
+      }
+    }
+
+    .th-extra,
+    .td-extra {
+      background-color: #f8fafc;
+      color: #1e3a8a;
+    }
+
     tr:hover {
       background-color: #f7fafc;
     }
@@ -864,6 +881,11 @@
       &.ind-alert {
         background: #ffe3e3;
         color: #c92a2a;
+      }
+      &.ind-extra {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
       }
     }
   }

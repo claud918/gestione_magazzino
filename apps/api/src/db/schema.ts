@@ -339,6 +339,8 @@ export const ordineImpieghi = sqliteTable(
       .references(() => clienti.ragioneSociale, { onUpdate: 'cascade', onDelete: 'restrict' }),
     tipologia: text('tipologia').notNull().default('Nuova produzione'),
     progressivoCartellino: text('progressivo_cartellino'),
+    prezzoVendita: real('prezzo_vendita'),
+    indirizzoConsegna: text('indirizzo_consegna'),
   },
   (t) => [
     check('ordine_impieghi_quantita_check', sql`${t.quantita} > 0`),
