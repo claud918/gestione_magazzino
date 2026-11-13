@@ -7,3 +7,4 @@
   - Inserire `INSERT` di record di prova o fittizi all'interno di migrazioni SQL o codice applicativo.
   - Eseguire script di seed (`db:seed`, `seed-and-users.mjs`, ecc.) o comandi di pulizia/sovrascrittura (`db:clean:remote`, ecc.) verso il database reale o remoto.
   - Creare, modificare o eliminare record di produzione per eseguire test manuali, salvo esplicita richiesta dell'utente.
+

@@ -2,6 +2,7 @@ import { Component, computed, HostListener, inject, OnInit, signal } from '@angu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { StickyScrollbarDirective } from './sticky-scrollbar.directive';
 import {
   TABELLE,
   NOMI_TABELLE,
@@ -27,7 +28,7 @@ type SezioneAttiva = 'disponibilita' | 'rese' | 'tabella';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StickyScrollbarDirective],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
