@@ -62,7 +62,18 @@ export class App implements OnInit {
   protected readonly opzioniRiferimento = signal<Record<string, any[]>>({});
   protected readonly ricercaTesto = signal('');
 
-  // Maschera Modale Inserimento/Modifica
+  // Ricerca testuale per filtrare le voci nei campi di selezione (riferimento FK)
+  protected readonly ricercaOpzioniPerCampo = signal<Record<string, string>>({});
+
+  protected impostaRicercaOpzioni(campoNome: string, testo: string): void {
+    const curr = { ...this.ricercaOpzioniPerCampo() };
+    curr[campoNome] = testo;
+    this.ricercaOpzioniPerCampo.set(curr);
+  }
+
+  protected getRicercaOpzioni(campoNome: string): string {
+    return this.ricercaOpzioniPerCampo()[campoNome] || '';
+  }
   protected readonly modalAperto = signal(false);
   protected readonly modalModo = signal<'nuovo' | 'modifica'>('nuovo');
   protected readonly modalValori = signal<Record<string, any>>({});
@@ -557,6 +568,7 @@ export class App implements OnInit {
 
   // --- Modale Form Inserimento / Modifica ---
   protected apriModalNuovo(): void {
+    this.ricercaOpzioniPerCampo.set({});
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
       this.caricaDisponibilita();
     }
@@ -590,6 +602,7 @@ export class App implements OnInit {
   }
 
   protected apriModalModifica(riga: RigaTabella): void {
+    this.ricercaOpzioniPerCampo.set({});
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
       this.caricaDisponibilita();
     }
@@ -716,13 +729,26 @@ export class App implements OnInit {
 
     // Deduplica le opzioni in base al valore della colonna di riferimento (SELECT DISTINCT)
     const visti = new Set<string>();
-    return filtrate.filter((item: any) => {
+    const deduplicate = filtrate.filter((item: any) => {
       const val = item[campo.riferimento!.colonna];
       if (val === null || val === undefined || val === '') return false;
       const chiave = String(val).trim();
       if (visti.has(chiave)) return false;
       visti.add(chiave);
       return true;
+    });
+
+    // Filtra ulteriormente le opzioni mostrate nel dropdown in base al testo di ricerca digitato
+    const query = (this.ricercaOpzioniPerCampo()[campo.nome] || '').trim().toLowerCase();
+    if (!query) {
+      return deduplicate;
+    }
+
+    return deduplicate.filter((item: any) => {
+      const val = String(item[campo.riferimento!.colonna] || '').toLowerCase();
+      // Includi anche l'opzione attualmente già selezionata nel record per non deselezionarla
+      const valAttuale = String(this.modalValori()[campo.nome] || '').toLowerCase();
+      return val.includes(query) || (valAttuale && val === valAttuale);
     });
   }
 

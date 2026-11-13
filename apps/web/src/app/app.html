@@ -313,25 +313,31 @@
           <div class="filter-bar filter-bar-reports">
             <div class="filter-field">
               <label for="dispFiltroProdotto">Prodotto</label>
-              <input
+              <select
                 id="dispFiltroProdotto"
-                type="text"
-                list="prodottiList"
                 class="form-control"
-                placeholder="Digita o seleziona prodotto..."
                 [(ngModel)]="filtroDispProdotto"
-              />
+                (ngModelChange)="caricaDisponibilita()"
+              >
+                <option value="">-- Tutti i prodotti --</option>
+                @for (p of listaTipiProdotto(); track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
             </div>
             <div class="filter-field">
               <label for="dispFiltroCampagna">Campagna</label>
-              <input
+              <select
                 id="dispFiltroCampagna"
-                type="text"
-                list="campagneList"
                 class="form-control"
-                placeholder="AAAA/AA (es. 2026/27)"
                 [(ngModel)]="filtroDispCampagna"
-              />
+                (ngModelChange)="caricaDisponibilita()"
+              >
+                <option value="">-- Tutte le campagne --</option>
+                @for (c of listaCampagneDisponibili(); track c) {
+                  <option [value]="c">{{ c }}</option>
+                }
+              </select>
             </div>
             <div class="filter-input-wrap">
               <label for="dispFiltroRicerca">Cerca (varietà, clone, portainnesto)</label>
@@ -522,25 +528,31 @@
           <div class="filter-bar filter-bar-reports">
             <div class="filter-field">
               <label for="reseFiltroProdotto">Prodotto</label>
-              <input
+              <select
                 id="reseFiltroProdotto"
-                type="text"
-                list="prodottiList"
                 class="form-control"
-                placeholder="Digita o seleziona prodotto..."
                 [(ngModel)]="filtroReseProdotto"
-              />
+                (ngModelChange)="caricaRese()"
+              >
+                <option value="">-- Tutti i prodotti --</option>
+                @for (p of listaTipiProdotto(); track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
             </div>
             <div class="filter-field">
               <label for="reseFiltroCampagna">Campagna</label>
-              <input
+              <select
                 id="reseFiltroCampagna"
-                type="text"
-                list="campagneList"
                 class="form-control"
-                placeholder="AAAA/AA (es. 2026/27)"
                 [(ngModel)]="filtroReseCampagna"
-              />
+                (ngModelChange)="caricaRese()"
+              >
+                <option value="">-- Tutte le campagne --</option>
+                @for (c of listaCampagneDisponibili(); track c) {
+                  <option [value]="c">{{ c }}</option>
+                }
+              </select>
             </div>
             <div class="filter-input-wrap">
               <label for="reseFiltroRicerca">Cerca (varietà, clone, portainnesto)</label>
@@ -855,25 +867,38 @@
                   </select>
                 }
 
-                <!-- RIFERIMENTO FK / MENU A CASCATA CON RICERCA TESTUALE DINAMICA -->
+                <!-- RIFERIMENTO FK / MENU A CASCATA CON SELEZIONE E RICERCA TESTUALE -->
                 @else if (campo.tipo === 'riferimento') {
-                  <input
-                    type="text"
-                    [id]="'form_' + campo.nome"
-                    class="form-control"
-                    [attr.list]="'list_' + campo.nome"
-                    [(ngModel)]="modalValori()[campo.nome]"
-                    [name]="campo.nome"
-                    [disabled]="isCampoDisabilitato(campo)"
-                    (ngModelChange)="onCampoChange(campo)"
-                    placeholder="Digita per cercare o seleziona {{ campo.etichetta }}..."
-                    autocomplete="off"
-                  />
-                  <datalist [id]="'list_' + campo.nome">
-                    @for (item of getOpzioniPerCampo(campo); track $index) {
-                      <option [value]="item[campo.riferimento!.colonna]"></option>
-                    }
-                  </datalist>
+                  <div class="searchable-select-wrap">
+                    <div class="search-input-box mb-1">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm search-filter-box"
+                        [placeholder]="'Filtra opzioni ' + campo.etichetta + '...'"
+                        [ngModel]="getRicercaOpzioni(campo.nome)"
+                        (ngModelChange)="impostaRicercaOpzioni(campo.nome, $event)"
+                        [disabled]="isCampoDisabilitato(campo)"
+                      />
+                      @if (getRicercaOpzioni(campo.nome)) {
+                        <button type="button" class="btn-clear-search" (click)="impostaRicercaOpzioni(campo.nome, '')">✕</button>
+                      }
+                    </div>
+                    <select
+                      [id]="'form_' + campo.nome"
+                      class="form-control"
+                      [(ngModel)]="modalValori()[campo.nome]"
+                      [name]="campo.nome"
+                      [disabled]="isCampoDisabilitato(campo)"
+                      (ngModelChange)="onCampoChange(campo)"
+                    >
+                      <option value="">-- Seleziona {{ campo.etichetta }} --</option>
+                      @for (item of getOpzioniPerCampo(campo); track $index) {
+                        <option [value]="item[campo.riferimento!.colonna]">
+                          {{ item[campo.riferimento!.colonna] }}
+                        </option>
+                      }
+                    </select>
+                  </div>
                 }
 
                 <!-- BOOLEANO -->
@@ -1256,16 +1281,4 @@
       </div>
     </div>
   }
-
-  <!-- Datalist condivise per filtri dinamici -->
-  <datalist id="prodottiList">
-    @for (p of listaTipiProdotto(); track p) {
-      <option [value]="p"></option>
-    }
-  </datalist>
-  <datalist id="campagneList">
-    @for (c of listaCampagneDisponibili(); track c) {
-      <option [value]="c"></option>
-    }
-  </datalist>
 </div>
