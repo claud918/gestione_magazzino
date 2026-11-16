@@ -978,6 +978,17 @@
                 </button>
               </div>
 
+              @if (tabellaSelezionata() === 'ordine_impieghi' && righeSelezionate().length > 0) {
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  (click)="apriModalBolla()"
+                  title="Genera e stampa la bolla di trasporto per gli ordini selezionati"
+                >
+                  🖨️ Stampa Bolla ({{ righeSelezionate().length }})
+                </button>
+              }
+
               @if (utente()?.ruolo === 'admin') {
                 @if (rigaSelezionata()) {
                   <button
@@ -998,7 +1009,21 @@
 
           <!-- Barra informazioni / conteggio -->
           <div class="filter-bar">
-            @if (rigaSelezionata()) {
+            @if (tabellaSelezionata() === 'ordine_impieghi' && righeSelezionate().length > 0) {
+              <div class="selection-bar-info">
+                <span class="badge-tag badge-selection">
+                  {{ righeSelezionate().length }}
+                  {{ righeSelezionate().length === 1 ? 'ordine selezionato' : 'ordini selezionati' }}
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  (click)="deselezionaTutteLeRighe()"
+                >
+                  Deseleziona
+                </button>
+              </div>
+            } @else if (rigaSelezionata()) {
               <span class="badge-tag">1 riga selezionata (clicca per deselezionare)</span>
             }
             <div class="filter-bar-right">
@@ -1028,6 +1053,17 @@
                   <table class="data-table">
                   <thead>
                     <tr>
+                      @if (tabellaSelezionata() === 'ordine_impieghi') {
+                        <th class="th-checkbox" (click)="$event.stopPropagation()">
+                          <input
+                            type="checkbox"
+                            [checked]="tutteLeRigheFiltrateSelezionate()"
+                            (change)="toggleSelezionaTuttiOrdiniVisibili()"
+                            aria-label="Seleziona tutti gli ordini visibili"
+                            title="Seleziona / deseleziona tutti gli ordini visibili"
+                          />
+                        </th>
+                      }
                       @for (campo of campiTabellaVisibili(); track campo.nome) {
                         <th
                           draggable="true"
@@ -1053,7 +1089,17 @@
                   </thead>
                   <tbody>
                     @for (riga of righeFiltrate(); track $index) {
-                      <tr [class.row-selected]="rigaSelezionata() === riga" (click)="selezionaRiga(riga)" style="cursor: pointer;">
+                      <tr [class.row-selected]="isRigaSelezionata(riga)" (click)="selezionaRiga(riga)" style="cursor: pointer;">
+                        @if (tabellaSelezionata() === 'ordine_impieghi') {
+                          <td class="td-checkbox" (click)="$event.stopPropagation()">
+                            <input
+                              type="checkbox"
+                              [checked]="isRigaSelezionata(riga)"
+                              (change)="toggleSelezioneRiga(riga)"
+                              aria-label="Seleziona ordine"
+                            />
+                          </td>
+                        }
                         @for (campo of campiTabellaVisibili(); track campo.nome) {
                           <td [class.num]="campo.tipo === 'valuta' || campo.tipo === 'numero' || campo.tipo === 'intero'">
                             {{ formattaValoreTabella(campo, riga[campo.nome]) }}
@@ -1069,7 +1115,7 @@
                       </tr>
                     } @empty {
                       <tr>
-                        <td [attr.colspan]="campiTabellaVisibili().length + (utente()?.ruolo === 'admin' ? 1 : 0)" class="table-empty-cell">
+                        <td [attr.colspan]="campiTabellaVisibili().length + (utente()?.ruolo === 'admin' ? 1 : 0) + (tabellaSelezionata() === 'ordine_impieghi' ? 1 : 0)" class="table-empty-cell">
                           <span>Nessuna riga corrisponde ai filtri sulle colonne.</span>
                           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="azzeraFiltriEOrdinamentoColonne()">
                             Azzera filtri colonne
@@ -1085,11 +1131,23 @@
               <!-- 2. VISTA SCHEDE -->
               <div class="mobile-cards-container">
                 @for (riga of righeFiltrate(); track $index) {
-                  <div class="mobile-card" [class.row-selected]="rigaSelezionata() === riga" (click)="selezionaRiga(riga)">
+                  <div class="mobile-card" [class.row-selected]="isRigaSelezionata(riga)" (click)="selezionaRiga(riga)">
                     <div class="mobile-card-header">
-                      <span class="mobile-card-title">
-                        {{ riga[defTabella().titoloScheda] || 'Elemento' }}
-                      </span>
+                      <div class="mobile-card-title-wrap">
+                        @if (tabellaSelezionata() === 'ordine_impieghi') {
+                          <input
+                            type="checkbox"
+                            class="mobile-card-checkbox"
+                            [checked]="isRigaSelezionata(riga)"
+                            (click)="$event.stopPropagation()"
+                            (change)="toggleSelezioneRiga(riga)"
+                            aria-label="Seleziona ordine"
+                          />
+                        }
+                        <span class="mobile-card-title">
+                          {{ riga[defTabella().titoloScheda] || 'Elemento' }}
+                        </span>
+                      </div>
                       @if (utente()?.ruolo === 'admin') {
                         <div class="mobile-card-actions" (click)="$event.stopPropagation()">
                           <button class="btn-icon" (click)="duplicaRiga(riga)" title="Duplica riga">📋</button>
@@ -1687,6 +1745,273 @@
             {{ importInCorso() ? 'Importazione in corso...' : 'Conferma Importazione (' + (importRisultato()?.righeValide?.length ?? 0) + ' record)' }}
           </button>
         </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- MODALE ANTEPRIMA E STAMPA BOLLA DI TRASPORTO (DDT) -->
+  <!-- ============================================================== -->
+  @if (bollaModalAperto()) {
+    <div class="modal-backdrop">
+      <div class="modal-dialog modal-lg modal-bolla">
+        <div class="modal-header">
+          <div>
+            <h3>Bolla di Trasporto (D.D.T.)</h3>
+            <small class="text-muted">Anteprima e parametri prima della stampa per {{ bollaRighe().length }} {{ bollaRighe().length === 1 ? 'ordine' : 'ordini' }}</small>
+          </div>
+          <button type="button" class="btn-close" (click)="chiudiModalBolla()" aria-label="Chiudi">✕</button>
+        </div>
+
+        <form (ngSubmit)="stampaBolla()">
+          <div class="modal-body">
+            <!-- Intestazione Cedente (dati fissi) -->
+            <div class="bolla-preview-card">
+              <div class="bolla-card-label">Società Cedente</div>
+              <div class="bolla-cedente-title">{{ datiCedente.ragioneSociale }}</div>
+              <div class="bolla-cedente-line">{{ datiCedente.indirizzo }}</div>
+              <div class="bolla-cedente-line">{{ datiCedente.contattiFiscali }}</div>
+              <div class="bolla-cedente-line">{{ datiCedente.autorizzazioni }}</div>
+            </div>
+
+            <!-- Numero & Data -->
+            <div class="bolla-grid-2">
+              <div class="form-group">
+                <label for="bollaNumero">Numero Documento (DDT)</label>
+                <input
+                  id="bollaNumero"
+                  name="bollaNumero"
+                  type="text"
+                  class="form-control"
+                  [ngModel]="bollaForm().numeroBolla"
+                  (ngModelChange)="aggiornaCampoBolla('numeroBolla', $event)"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="bollaData">Data Documento</label>
+                <input
+                  id="bollaData"
+                  name="bollaData"
+                  type="date"
+                  class="form-control"
+                  [ngModel]="bollaForm().dataBolla"
+                  (ngModelChange)="aggiornaCampoBolla('dataBolla', $event)"
+                  required
+                />
+              </div>
+            </div>
+
+            <!-- Cessionario -->
+            <div class="bolla-grid-2">
+              <div class="form-group">
+                <label for="bollaCessionarioRagione">Società Cessionaria (Ragione Sociale)</label>
+                <input
+                  id="bollaCessionarioRagione"
+                  name="bollaCessionarioRagione"
+                  type="text"
+                  class="form-control"
+                  [ngModel]="bollaForm().cessionarioRagioneSociale"
+                  (ngModelChange)="aggiornaCampoBolla('cessionarioRagioneSociale', $event)"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="bollaCessionarioIndirizzo">Indirizzo Cessionario (da anagrafica)</label>
+                <input
+                  id="bollaCessionarioIndirizzo"
+                  name="bollaCessionarioIndirizzo"
+                  type="text"
+                  class="form-control"
+                  [ngModel]="bollaForm().cessionarioIndirizzo"
+                  (ngModelChange)="aggiornaCampoBolla('cessionarioIndirizzo', $event)"
+                  placeholder="Indirizzo e città del cliente"
+                />
+              </div>
+            </div>
+
+            <!-- Luogo di destinazione -->
+            @if (bollaIndirizziConflitto()) {
+              <div class="alert alert-warning bolla-conflict-alert">
+                <strong>Attenzione:</strong> gli ordini selezionati contengono indirizzi di consegna diversi. Seleziona quello da usare oppure modificalo manualmente qui sotto.
+                <div class="form-group mt-1">
+                  <label for="bollaSelectDestinazione">Scegli indirizzo di consegna</label>
+                  <select
+                    id="bollaSelectDestinazione"
+                    name="bollaSelectDestinazione"
+                    class="form-control"
+                    [ngModel]="bollaForm().luogoDestinazione"
+                    (ngModelChange)="aggiornaCampoBolla('luogoDestinazione', $event)"
+                  >
+                    @for (opz of bollaOpzioniDestinazione(); track $index) {
+                      <option [value]="opz.value">{{ opz.label }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+            }
+
+            <div class="form-group">
+              <label for="bollaLuogoDestinazione">Luogo di Destinazione</label>
+              <input
+                id="bollaLuogoDestinazione"
+                name="bollaLuogoDestinazione"
+                type="text"
+                class="form-control"
+                [ngModel]="bollaForm().luogoDestinazione"
+                (ngModelChange)="aggiornaCampoBolla('luogoDestinazione', $event)"
+                required
+              />
+              <small class="form-help">
+                Coincide con i dati del cessionario salvo compilazione di "Indirizzo di consegna" sugli ordini.
+              </small>
+            </div>
+
+            <!-- Dati trasporto -->
+            <div class="bolla-grid-2">
+              <div class="form-group">
+                <label for="bollaCausale">Causale del trasporto</label>
+                <input
+                  id="bollaCausale"
+                  name="bollaCausale"
+                  type="text"
+                  class="form-control"
+                  [ngModel]="bollaForm().causaleTrasporto"
+                  (ngModelChange)="aggiornaCampoBolla('causaleTrasporto', $event)"
+                />
+              </div>
+              <div class="form-group">
+                <label for="bollaTrasportoACura">Trasporto a cura del</label>
+                <select
+                  id="bollaTrasportoACura"
+                  name="bollaTrasportoACura"
+                  class="form-control"
+                  [ngModel]="bollaForm().trasportoACuraDi"
+                  (ngModelChange)="aggiornaCampoBolla('trasportoACuraDi', $event)"
+                >
+                  <option value="Cedente">Cedente</option>
+                  <option value="Cessionario">Cessionario</option>
+                  <option value="Vettore">Vettore</option>
+                </select>
+              </div>
+            </div>
+
+            @if (bollaForm().trasportoACuraDi === 'Vettore') {
+              <div class="form-group">
+                <label for="bollaVettore">Dati Vettore</label>
+                <input
+                  id="bollaVettore"
+                  name="bollaVettore"
+                  type="text"
+                  class="form-control"
+                  placeholder="Nome o ragione sociale del vettore"
+                  [ngModel]="bollaForm().vettore"
+                  (ngModelChange)="aggiornaCampoBolla('vettore', $event)"
+                />
+              </div>
+            }
+
+            <div class="bolla-grid-3">
+              <div class="form-group">
+                <label for="bollaAspettoBeni">Aspetto esteriore beni</label>
+                <input
+                  id="bollaAspettoBeni"
+                  name="bollaAspettoBeni"
+                  type="text"
+                  class="form-control"
+                  placeholder="Es. Mazzi / Casse"
+                  [ngModel]="bollaForm().aspettoBeni"
+                  (ngModelChange)="aggiornaCampoBolla('aspettoBeni', $event)"
+                />
+              </div>
+              <div class="form-group">
+                <label for="bollaNumeroColli">Numero colli</label>
+                <input
+                  id="bollaNumeroColli"
+                  name="bollaNumeroColli"
+                  type="text"
+                  class="form-control"
+                  placeholder="Es. 12"
+                  [ngModel]="bollaForm().numeroColli"
+                  (ngModelChange)="aggiornaCampoBolla('numeroColli', $event)"
+                />
+              </div>
+              <div class="form-group">
+                <label for="bollaDataOraInizio">Data / Ora inizio trasporto</label>
+                <input
+                  id="bollaDataOraInizio"
+                  name="bollaDataOraInizio"
+                  type="text"
+                  class="form-control"
+                  placeholder="GG-MM-AAAA HH:MM"
+                  [ngModel]="bollaForm().dataOraInizioTrasporto"
+                  (ngModelChange)="aggiornaCampoBolla('dataOraInizioTrasporto', $event)"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="bollaNote">Note aggiuntive (opzionale)</label>
+              <textarea
+                id="bollaNote"
+                name="bollaNote"
+                class="form-control"
+                rows="2"
+                [ngModel]="bollaForm().noteBolla"
+                (ngModelChange)="aggiornaCampoBolla('noteBolla', $event)"
+              ></textarea>
+            </div>
+
+            <!-- Anteprima Articoli -->
+            <div class="preview-table-container">
+              <div class="preview-table-header">
+                <span>Articoli inclusi nella bolla ({{ bollaRighe().length }} {{ bollaRighe().length === 1 ? 'riga' : 'righe' }} &bull; Totale quantità: {{ bollaTotaleQuantita() | number }})</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table small">
+                  <thead>
+                    <tr>
+                      <th>Prodotto</th>
+                      <th>Varietà</th>
+                      <th>Clone</th>
+                      <th>Portainnesto</th>
+                      <th class="num">Quantità</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (r of bollaRighe(); track $index) {
+                      <tr>
+                        <td>{{ r.prodotto }}</td>
+                        <td>{{ r.codice_varieta }}</td>
+                        <td>{{ r.codice_clone }}</td>
+                        <td>{{ r.codice_portainnesto }}</td>
+                        <td class="num font-mono">{{ r.quantita | number }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4"><strong>TOTALE QUANTITÀ</strong></td>
+                      <td class="num font-mono font-bold">{{ bollaTotaleQuantita() | number }}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- Anteprima box firme -->
+            <div class="bolla-firme-grid">
+              <div class="bolla-firma-box">Firma del Cedente</div>
+              <div class="bolla-firma-box">Firma del Conducente / Vettore</div>
+              <div class="bolla-firma-box">Firma del Cessionario / Destinatario</div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="chiudiModalBolla()">Annulla</button>
+            <button type="submit" class="btn btn-primary">🖨️ Stampa Bolla</button>
+          </div>
+        </form>
       </div>
     </div>
   }

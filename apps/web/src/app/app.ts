@@ -27,6 +27,29 @@ import {
 
 type SezioneAttiva = 'disponibilita' | 'rese' | 'tabella';
 
+interface BollaTrasportoForm {
+  numeroBolla: string;
+  dataBolla: string;
+  cessionarioRagioneSociale: string;
+  cessionarioIndirizzo: string;
+  luogoDestinazione: string;
+  causaleTrasporto: string;
+  trasportoACuraDi: 'Cedente' | 'Cessionario' | 'Vettore';
+  vettore: string;
+  aspettoBeni: string;
+  numeroColli: string;
+  dataOraInizioTrasporto: string;
+  noteBolla: string;
+}
+
+interface BollaRigaArticolo {
+  prodotto: string;
+  codice_varieta: string;
+  codice_clone: string;
+  codice_portainnesto: string;
+  quantita: number;
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -84,6 +107,34 @@ export class App implements OnInit {
   protected readonly modalErrori = signal<Record<string, string>>({});
   protected readonly rigaInModifica = signal<RigaTabella | null>(null);
   protected readonly rigaSelezionata = signal<RigaTabella | null>(null);
+  protected readonly righeSelezionate = signal<RigaTabella[]>([]);
+
+  // Bolla di Trasporto (DDT)
+  private static readonly STORAGE_BOLLA_NUM_KEY = 'magazzino_ultimo_numero_bolla_v1';
+  protected readonly datiCedente = {
+    ragioneSociale: 'Azienda agricola Mori Marco',
+    indirizzo: 'Via del fosso Vecchio, 18 - 56121 - Ospedaletto (Pisa)',
+    contattiFiscali: 'Tel. 3493461031 - P.IVA 01567690506 - C.F. MROMRC62B17G702B',
+    autorizzazioni: 'Cod.Ruop 09-3214 - Matricola. 037 TC',
+  };
+  protected readonly bollaModalAperto = signal(false);
+  protected readonly bollaOrdini = signal<RigaTabella[]>([]);
+  protected readonly bollaIndirizziConflitto = signal(false);
+  protected readonly bollaOpzioniDestinazione = signal<{ label: string; value: string }[]>([]);
+  protected readonly bollaForm = signal<BollaTrasportoForm>({
+    numeroBolla: '',
+    dataBolla: '',
+    cessionarioRagioneSociale: '',
+    cessionarioIndirizzo: '',
+    luogoDestinazione: '',
+    causaleTrasporto: 'Vendita',
+    trasportoACuraDi: 'Cedente',
+    vettore: '',
+    aspettoBeni: '',
+    numeroColli: '',
+    dataOraInizioTrasporto: '',
+    noteBolla: '',
+  });
 
   // Conferma Eliminazione
   protected readonly deleteConfirmAperto = signal(false);
@@ -1365,6 +1416,7 @@ export class App implements OnInit {
     this.colonnaFiltroAperta.set(null);
     this.ricercaTesto.set('');
     this.rigaSelezionata.set(null);
+    this.righeSelezionate.set([]);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
@@ -1374,6 +1426,8 @@ export class App implements OnInit {
   // --- CRUD API ---
   protected caricaDatiTabella(nome: NomeTabella): void {
     this.caricamentoDati.set(true);
+    this.rigaSelezionata.set(null);
+    this.righeSelezionate.set([]);
     this.http.get<{ righe: RigaTabella[] }>(`/api/crud/${nome}`).subscribe({
       next: (res) => {
         this.righeTabella.set(res.righe);
@@ -1490,12 +1544,64 @@ export class App implements OnInit {
     this.modalAperto.set(true);
   }
 
+  protected readonly tutteLeRigheFiltrateSelezionate = computed<boolean>(() => {
+    const righe = this.righeFiltrate();
+    if (righe.length === 0) return false;
+    const sel = this.righeSelezionate();
+    return righe.every((r) => sel.includes(r));
+  });
+
+  protected isRigaSelezionata(riga: RigaTabella): boolean {
+    if (this.tabellaSelezionata() === 'ordine_impieghi') {
+      return this.righeSelezionate().includes(riga);
+    }
+    return this.rigaSelezionata() === riga;
+  }
+
   protected selezionaRiga(riga: RigaTabella): void {
+    if (this.tabellaSelezionata() === 'ordine_impieghi') {
+      this.toggleSelezioneRiga(riga);
+      return;
+    }
     if (this.rigaSelezionata() === riga) {
       this.rigaSelezionata.set(null);
+      this.righeSelezionate.set([]);
     } else {
       this.rigaSelezionata.set(riga);
+      this.righeSelezionate.set([riga]);
     }
+  }
+
+  protected toggleSelezioneRiga(riga: RigaTabella, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    const curr = this.righeSelezionate();
+    const nuove = curr.includes(riga) ? curr.filter((r) => r !== riga) : [...curr, riga];
+    this.righeSelezionate.set(nuove);
+    this.rigaSelezionata.set(nuove.length === 1 ? nuove[0] : null);
+  }
+
+  protected toggleSelezionaTuttiOrdiniVisibili(): void {
+    const filtr = this.righeFiltrate();
+    if (filtr.length === 0) return;
+
+    const curr = this.righeSelezionate();
+    let nuove: RigaTabella[];
+    if (this.tutteLeRigheFiltrateSelezionate()) {
+      const filtrSet = new Set(filtr);
+      nuove = curr.filter((r) => !filtrSet.has(r));
+    } else {
+      const aggiunte = filtr.filter((r) => !curr.includes(r));
+      nuove = [...curr, ...aggiunte];
+    }
+    this.righeSelezionate.set(nuove);
+    this.rigaSelezionata.set(nuove.length === 1 ? nuove[0] : null);
+  }
+
+  protected deselezionaTutteLeRighe(): void {
+    this.righeSelezionate.set([]);
+    this.rigaSelezionata.set(null);
   }
 
   protected duplicaRiga(riga: RigaTabella): void {
@@ -1786,15 +1892,20 @@ export class App implements OnInit {
     setTimeout(() => this.messaggioErrore.set(null), 6000);
   }
 
+  protected formattaDataIt(val: unknown): string {
+    if (val === null || val === undefined || val === '') return '';
+    const str = String(val).trim();
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      return `${m[3]}-${m[2]}-${m[1]}`;
+    }
+    return str;
+  }
+
   protected formattaValoreTabella(campo: CampoTabella, val: any): string {
     if (val === null || val === undefined || val === '') return '—';
     if (campo.tipo === 'data') {
-      const str = String(val).trim();
-      const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) {
-        return `${m[3]}-${m[2]}-${m[1]}`;
-      }
-      return str;
+      return this.formattaDataIt(val);
     }
     if (campo.tipo === 'valuta') {
       return Number(val).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -2033,5 +2144,507 @@ export class App implements OnInit {
           this.importErrore.set(msg);
         },
       });
+  }
+
+  // --- Bolla di Trasporto (DDT) ---
+  protected readonly bollaRighe = computed<BollaRigaArticolo[]>(() => {
+    return this.bollaOrdini().map((r) => ({
+      prodotto: String(r['prodotto'] ?? ''),
+      codice_varieta: String(r['codice_varieta'] ?? ''),
+      codice_clone: String(r['codice_clone'] ?? ''),
+      codice_portainnesto: String(r['codice_portainnesto'] ?? ''),
+      quantita: Number(r['quantita']) || 0,
+    }));
+  });
+
+  protected readonly bollaTotaleQuantita = computed<number>(() => {
+    return this.bollaRighe().reduce((acc, r) => acc + r.quantita, 0);
+  });
+
+  private proponiNumeroBolla(): string {
+    const anno = String(new Date().getFullYear());
+    try {
+      if (typeof localStorage === 'undefined') return `1/${anno}`;
+      const raw = localStorage.getItem(App.STORAGE_BOLLA_NUM_KEY);
+      if (!raw) return `1/${anno}`;
+      const m = raw.trim().match(/^(\d+)(?:\/(\d{4}))?$/);
+      if (!m) return `1/${anno}`;
+      if (m[2] && m[2] !== anno) return `1/${anno}`;
+      const prossimo = Number(m[1]) + 1;
+      return m[2] ? `${prossimo}/${m[2]}` : String(prossimo);
+    } catch {
+      return `1/${anno}`;
+    }
+  }
+
+  private salvaUltimoNumeroBolla(numero: string): void {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      const trimmed = numero.trim();
+      if (/^\d+(?:\/\d{4})?$/.test(trimmed)) {
+        localStorage.setItem(App.STORAGE_BOLLA_NUM_KEY, trimmed);
+      }
+    } catch {}
+  }
+
+  protected apriModalBolla(): void {
+    const ordini = this.righeSelezionate();
+    if (ordini.length === 0) return;
+
+    const clientiDistinti = Array.from(
+      new Set(ordini.map((r) => String(r['cliente'] || '').trim()).filter(Boolean)),
+    );
+    if (clientiDistinti.length === 0) {
+      this.mostraErrore('Gli ordini selezionati non hanno un cliente associato.');
+      return;
+    }
+    if (clientiDistinti.length > 1) {
+      this.mostraErrore(
+        `Impossibile generare la bolla: seleziona ordini appartenenti a un solo cliente (${clientiDistinti.join(', ')}).`,
+      );
+      return;
+    }
+
+    const clienteNome = clientiDistinti[0];
+    const listaClienti = this.opzioniRiferimento()['cliente'] || [];
+    if (listaClienti.length > 0) {
+      const clienteObj = listaClienti.find(
+        (c: any) => String(c['ragione_sociale'] || '').trim() === clienteNome,
+      );
+      this.inizializzaEApriModalBolla(ordini, clienteNome, clienteObj);
+      return;
+    }
+
+    this.http.get<{ righe: RigaTabella[] }>('/api/crud/clienti').subscribe({
+      next: (res) => {
+        const clienti = res.righe ?? [];
+        const clienteObj = clienti.find(
+          (c) => String(c['ragione_sociale'] || '').trim() === clienteNome,
+        );
+        this.inizializzaEApriModalBolla(ordini, clienteNome, clienteObj);
+      },
+      error: () => {
+        this.inizializzaEApriModalBolla(ordini, clienteNome, undefined);
+      },
+    });
+  }
+
+  private inizializzaEApriModalBolla(
+    ordini: RigaTabella[],
+    clienteNome: string,
+    clienteObj: RigaTabella | undefined,
+  ): void {
+    const cessionarioIndirizzo = [clienteObj?.['indirizzo'], clienteObj?.['citta']]
+      .map((v) => String(v || '').trim())
+      .filter(Boolean)
+      .join(' - ');
+
+    const destinazioneCessionario = cessionarioIndirizzo
+      ? `${clienteNome} — ${cessionarioIndirizzo}`
+      : clienteNome;
+
+    const indirizziConsegnaDistinti = Array.from(
+      new Set(ordini.map((r) => String(r['indirizzo_consegna'] || '').trim()).filter(Boolean)),
+    );
+
+    let luogoDestinazione = destinazioneCessionario;
+    if (indirizziConsegnaDistinti.length === 1) {
+      luogoDestinazione = indirizziConsegnaDistinti[0];
+      this.bollaIndirizziConflitto.set(false);
+      this.bollaOpzioniDestinazione.set([]);
+    } else if (indirizziConsegnaDistinti.length > 1) {
+      luogoDestinazione = indirizziConsegnaDistinti[0];
+      this.bollaIndirizziConflitto.set(true);
+      this.bollaOpzioniDestinazione.set([
+        ...indirizziConsegnaDistinti.map((addr) => ({ label: addr, value: addr })),
+        {
+          label: `Indirizzo del cessionario (${destinazioneCessionario})`,
+          value: destinazioneCessionario,
+        },
+      ]);
+    } else {
+      this.bollaIndirizziConflitto.set(false);
+      this.bollaOpzioniDestinazione.set([]);
+    }
+
+    const oggiIso = dataOggi();
+    this.bollaOrdini.set([...ordini]);
+    this.bollaForm.set({
+      numeroBolla: this.proponiNumeroBolla(),
+      dataBolla: oggiIso,
+      cessionarioRagioneSociale: clienteNome,
+      cessionarioIndirizzo,
+      luogoDestinazione,
+      causaleTrasporto: 'Vendita',
+      trasportoACuraDi: 'Cedente',
+      vettore: '',
+      aspettoBeni: '',
+      numeroColli: '',
+      dataOraInizioTrasporto: this.formattaDataIt(oggiIso),
+      noteBolla: '',
+    });
+    this.bollaModalAperto.set(true);
+  }
+
+  protected chiudiModalBolla(): void {
+    this.bollaModalAperto.set(false);
+  }
+
+  protected aggiornaCampoBolla<K extends keyof BollaTrasportoForm>(
+    campo: K,
+    valore: BollaTrasportoForm[K],
+  ): void {
+    this.bollaForm.update((prev) => ({ ...prev, [campo]: valore }));
+  }
+
+  private escapeHtml(val: unknown): string {
+    return String(val ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  protected stampaBolla(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    const f = this.bollaForm();
+    const righe = this.bollaRighe();
+    if (righe.length === 0) return;
+
+    this.salvaUltimoNumeroBolla(f.numeroBolla);
+
+    const dataDocIt = this.formattaDataIt(f.dataBolla) || '—';
+    const trasportoLabel =
+      f.trasportoACuraDi === 'Vettore' && f.vettore.trim()
+        ? `Vettore (${f.vettore.trim()})`
+        : f.trasportoACuraDi;
+
+    const righeHtml = righe
+      .map(
+        (r) => `
+          <tr>
+            <td>${this.escapeHtml(r.prodotto)}</td>
+            <td>${this.escapeHtml(r.codice_varieta)}</td>
+            <td>${this.escapeHtml(r.codice_clone)}</td>
+            <td>${this.escapeHtml(r.codice_portainnesto)}</td>
+            <td class="num">${this.escapeHtml(r.quantita.toLocaleString('it-IT'))}</td>
+          </tr>`,
+      )
+      .join('');
+
+    const noteHtml = f.noteBolla.trim()
+      ? `<div class="notes-box"><strong>Note:</strong> ${this.escapeHtml(f.noteBolla.trim()).replace(/\r?\n/g, '<br>')}</div>`
+      : '';
+
+    const html = `<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>Bolla di Trasporto ${this.escapeHtml(f.numeroBolla || '')}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #111827;
+      font-size: 11px;
+      line-height: 1.4;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+    .ddt-page { max-width: 190mm; margin: 0 auto; }
+    .ddt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #1b4332;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+    .ddt-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1b4332;
+      letter-spacing: 0.02em;
+      margin: 0;
+    }
+    .ddt-subtitle {
+      font-size: 10px;
+      color: #4b5563;
+      margin-top: 2px;
+    }
+    .ddt-doc-meta {
+      text-align: right;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 6px 10px;
+      min-width: 155px;
+    }
+    .ddt-doc-meta div { font-size: 11px; }
+    .ddt-doc-meta strong { font-size: 12px; }
+    .parties-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+    .box-full { margin-bottom: 10px; }
+    .box-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #1b4332;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 3px;
+      margin-bottom: 5px;
+    }
+    .box-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .transport-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .transport-cell {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 6px 8px;
+      background: #f8fafc;
+    }
+    .transport-cell .lbl {
+      display: block;
+      font-size: 8.5px;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .transport-cell .val {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #0f172a;
+      word-break: break-word;
+    }
+    table.items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+    table.items-table thead { display: table-header-group; }
+    table.items-table tr { break-inside: avoid; }
+    table.items-table th,
+    table.items-table td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+      text-align: left;
+      font-size: 10.5px;
+    }
+    table.items-table th {
+      background: #1b4332;
+      color: #fff;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 9.5px;
+      letter-spacing: 0.03em;
+    }
+    table.items-table th.num,
+    table.items-table td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    table.items-table tfoot td {
+      background: #f1f5f9;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .notes-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 7px 10px;
+      margin-bottom: 14px;
+      background: #fffbeb;
+      font-size: 10.5px;
+    }
+    .signatures-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+      break-inside: avoid;
+    }
+    .sig-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 7px 10px;
+      height: 68px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .sig-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #475569;
+    }
+    .sig-line {
+      border-top: 1px dashed #94a3b8;
+      padding-top: 3px;
+      font-size: 8.5px;
+      color: #94a3b8;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="ddt-page">
+    <div class="ddt-header">
+      <div>
+        <h1 class="ddt-title">DOCUMENTO DI TRASPORTO (D.D.T.) / BOLLA DI TRASPORTO</h1>
+        <div class="ddt-subtitle">Documento accompagnatorio materiale vivaistico viticolo</div>
+      </div>
+      <div class="ddt-doc-meta">
+        <div>N. Documento: <strong>${this.escapeHtml(f.numeroBolla || '—')}</strong></div>
+        <div>Data: <strong>${this.escapeHtml(dataDocIt)}</strong></div>
+      </div>
+    </div>
+
+    <div class="parties-grid">
+      <div class="box">
+        <div class="box-label">Società Cedente</div>
+        <div class="box-title">${this.escapeHtml(this.datiCedente.ragioneSociale)}</div>
+        <div>${this.escapeHtml(this.datiCedente.indirizzo)}</div>
+        <div>${this.escapeHtml(this.datiCedente.contattiFiscali)}</div>
+        <div>${this.escapeHtml(this.datiCedente.autorizzazioni)}</div>
+      </div>
+
+      <div class="box">
+        <div class="box-label">Società Cessionaria</div>
+        <div class="box-title">${this.escapeHtml(f.cessionarioRagioneSociale || '—')}</div>
+        <div>${this.escapeHtml(f.cessionarioIndirizzo || 'Indirizzo non specificato')}</div>
+      </div>
+    </div>
+
+    <div class="box box-full">
+      <div class="box-label">Luogo di Destinazione</div>
+      <div><strong>${this.escapeHtml(f.luogoDestinazione || '—')}</strong></div>
+    </div>
+
+    <div class="transport-grid">
+      <div class="transport-cell">
+        <span class="lbl">Causale trasporto</span>
+        <span class="val">${this.escapeHtml(f.causaleTrasporto || '—')}</span>
+      </div>
+      <div class="transport-cell">
+        <span class="lbl">Trasporto a cura di</span>
+        <span class="val">${this.escapeHtml(trasportoLabel)}</span>
+      </div>
+      <div class="transport-cell">
+        <span class="lbl">Aspetto esteriore beni</span>
+        <span class="val">${this.escapeHtml(f.aspettoBeni || '—')}</span>
+      </div>
+      <div class="transport-cell">
+        <span class="lbl">Numero colli</span>
+        <span class="val">${this.escapeHtml(f.numeroColli || '—')}</span>
+      </div>
+      <div class="transport-cell">
+        <span class="lbl">Data / Ora inizio</span>
+        <span class="val">${this.escapeHtml(f.dataOraInizioTrasporto || '—')}</span>
+      </div>
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Prodotto</th>
+          <th>Varietà</th>
+          <th>Clone</th>
+          <th>Portainnesto</th>
+          <th class="num">Quantità</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${righeHtml}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4">TOTALE QUANTITÀ (${righe.length} ${righe.length === 1 ? 'riga' : 'righe'})</td>
+          <td class="num">${this.escapeHtml(this.bollaTotaleQuantita().toLocaleString('it-IT'))}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    ${noteHtml}
+
+    <div class="signatures-grid">
+      <div class="sig-box">
+        <span class="sig-label">Firma del Cedente</span>
+        <span class="sig-line">Timbro e firma</span>
+      </div>
+      <div class="sig-box">
+        <span class="sig-label">Firma del Conducente / Vettore</span>
+        <span class="sig-line">Firma per presa in carico</span>
+      </div>
+      <div class="sig-box">
+        <span class="sig-label">Firma del Cessionario / Destinatario</span>
+        <span class="sig-line">Firma per ricevuta</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const printWin = window.open('', '_blank', 'width=960,height=800');
+    if (printWin) {
+      printWin.document.open();
+      printWin.document.write(html);
+      printWin.document.close();
+      printWin.focus();
+      setTimeout(() => {
+        printWin.print();
+      }, 150);
+      return;
+    }
+
+    // Fallback iframe se i popup sono bloccati
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          iframe.remove();
+        }, 1000);
+      }, 150);
+    } else {
+      iframe.remove();
+      this.mostraErrore('Impossibile aprire la finestra di stampa. Verifica il blocco popup.');
+    }
   }
 }
