@@ -784,6 +784,35 @@ export function riferimentoInnestoParlante(r: RigaTabella): string {
   return r['cliente'] ? `${base} - ${r['cliente']}` : base;
 }
 
+const PRODOTTI_SENZA_VARIETA_CLONE = new Set([
+  'pezzoni barbatelloni',
+  'pezzoni standard',
+  'maglioli (qli)',
+  'maglioli(qli)',
+  'maglioli',
+]);
+
+const PRODOTTI_SOLO_PORTAINNESTO_SCHEDA = new Set([
+  'pezzoni standard',
+  'pezzoni barbatelloni',
+  'barbatelle selvatiche',
+  'maglioli (qli)',
+  'maglioli(qli)',
+  'maglioli',
+]);
+
+/** Prodotti per cui varietà e clone non sono editabili e assumono valore predefinito 'NC'. */
+export function isProdottoSenzaVarietaClone(prodotto: unknown): boolean {
+  const norm = String(prodotto ?? '').trim().toLowerCase();
+  return PRODOTTI_SENZA_VARIETA_CLONE.has(norm);
+}
+
+/** Prodotti per cui nelle schede disponibilità va mostrato solo il portainnesto (senza varietà/clone). */
+export function isProdottoSoloPortainnestoInScheda(prodotto: unknown): boolean {
+  const norm = String(prodotto ?? '').trim().toLowerCase();
+  return PRODOTTI_SOLO_PORTAINNESTO_SCHEDA.has(norm);
+}
+
 /**
  * Calcola i campi derivati di una riga (stessa formula usata dai CHECK del database).
  * Usato dall'API prima di salvare e dal frontend per l'anteprima.
@@ -791,7 +820,7 @@ export function riferimentoInnestoParlante(r: RigaTabella): string {
 export function calcolaCampiDerivati(tabella: NomeTabella, valori: RigaTabella): RigaTabella {
   const r = { ...valori };
   const prod = String(r['prodotto'] || '').trim();
-  if (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') {
+  if (isProdottoSenzaVarietaClone(prod)) {
     r['codice_varieta'] = 'NC';
     r['codice_clone'] = 'NC';
   }
@@ -832,12 +861,12 @@ export function validaRiga(
   const valori: RigaTabella = {};
   const errori: ErroreCampo[] = [];
   const prod = String(input['prodotto'] ?? '').trim();
-  const isPezzoni = prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard';
+  const isSenzaVarietaClone = isProdottoSenzaVarietaClone(prod);
   const isMarze = prod === 'Marze';
 
   for (const campo of campiModificabili(def)) {
-    // Gestione regole speciali Pezzoni e Marze: non alimentabili, default 'NC' per evitare il null
-    if (isPezzoni && (campo.nome === 'codice_varieta' || campo.nome === 'codice_clone')) {
+    // Gestione regole speciali Pezzoni/Maglioli e Marze: non alimentabili, default 'NC' per evitare il null
+    if (isSenzaVarietaClone && (campo.nome === 'codice_varieta' || campo.nome === 'codice_clone')) {
       valori[campo.nome] = 'NC';
       continue;
     }

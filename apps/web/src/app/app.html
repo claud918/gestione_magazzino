@@ -526,8 +526,13 @@
                   <div class="disp-card" [class.card-alert]="item.scoperto > 0">
                     <div class="disp-card-header">
                       <div>
-                        <h3 class="disp-title">{{ item.codice_varieta }} (Cl. {{ item.codice_clone }})</h3>
-                        <span class="disp-sub">P.I. {{ item.codice_portainnesto }} &bull; {{ item.prodotto }}</span>
+                        @if (isProdottoSoloPortainnesto(item.prodotto)) {
+                          <h3 class="disp-title">P.I. {{ item.codice_portainnesto }}</h3>
+                          <span class="disp-sub">{{ item.prodotto }}</span>
+                        } @else {
+                          <h3 class="disp-title">{{ item.codice_varieta }} (Cl. {{ item.codice_clone }})</h3>
+                          <span class="disp-sub">P.I. {{ item.codice_portainnesto }} &bull; {{ item.prodotto }}</span>
+                        }
                       </div>
                       <span class="badge-campagna">{{ item.campagna }}</span>
                     </div>

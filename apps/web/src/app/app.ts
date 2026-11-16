@@ -13,6 +13,8 @@ import {
   processaCsvPerTabella,
   generaTemplateCsv,
   TIPOLOGIE_PRODOTTO,
+  isProdottoSenzaVarietaClone,
+  isProdottoSoloPortainnestoInScheda,
   type NomeTabella,
   type DefinizioneTabella,
   type CampoTabella,
@@ -133,8 +135,10 @@ export class App implements OnInit {
   protected readonly listaTipiProdotto = computed<string[]>(() => {
     const set = new Set<string>();
     set.add('Barbatelle innestate');
+    set.add('Barbatelle selvatiche');
     set.add('Pezzoni Barbatelloni');
     set.add('Pezzoni Standard');
+    set.add('Maglioli (qli)');
     set.add('Marze');
     for (const r of this.listaDisponibilita()) {
       if (r.prodotto) set.add(r.prodotto);
@@ -149,6 +153,10 @@ export class App implements OnInit {
     }
     return Array.from(set);
   });
+
+  protected isProdottoSoloPortainnesto(prodotto: unknown): boolean {
+    return isProdottoSoloPortainnestoInScheda(prodotto);
+  }
 
   // Computed: definizione della tabella attiva
   protected readonly defTabella = computed<DefinizioneTabella>(() => {
@@ -1115,8 +1123,9 @@ export class App implements OnInit {
     const fProdotto = this.filtroReseProdotto().trim();
 
     const filtrate = righe.filter((r) => {
-      // Requisito: nel report rese si mostri solo i record che hanno una produzione (prodotto_qta <> 0)
+      // Requisito: nel report rese si mostri solo i record che hanno una produzione (prodotto_qta <> 0) e tipologia = Nuova produzione
       if (!r.prodotto_qta || r.prodotto_qta === 0) return false;
+      if (r.tipologia !== 'Nuova produzione') return false;
       if (fCampagna && r.campagna !== fCampagna) return false;
       if (fProdotto && r.prodotto !== fProdotto) return false;
       if (q) {
@@ -1426,6 +1435,17 @@ export class App implements OnInit {
       });
   }
 
+  private applicaRegoleProdotto(val: Record<string, any>): void {
+    const prod = String(val['prodotto'] || '').trim();
+    if (isProdottoSenzaVarietaClone(prod)) {
+      val['codice_varieta'] = 'NC';
+      val['codice_clone'] = 'NC';
+    }
+    if (prod === 'Marze') {
+      val['codice_portainnesto'] = 'NC';
+    }
+  }
+
   // --- Modale Form Inserimento / Modifica ---
   protected apriModalNuovo(): void {
     this.ricercaOpzioniPerCampo.set({});
@@ -1448,14 +1468,7 @@ export class App implements OnInit {
         val[c.nome] = '';
       }
     }
-    const prod = String(val['prodotto'] || '').trim();
-    if (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') {
-      val['codice_varieta'] = 'NC';
-      val['codice_clone'] = 'NC';
-    }
-    if (prod === 'Marze') {
-      val['codice_portainnesto'] = 'NC';
-    }
+    this.applicaRegoleProdotto(val);
     this.modalValori.set(val);
     this.modalErrori.set({});
     this.modalModo.set('nuovo');
@@ -1469,6 +1482,7 @@ export class App implements OnInit {
       this.caricaDisponibilita();
     }
     const val: Record<string, any> = { ...riga };
+    this.applicaRegoleProdotto(val);
     this.modalValori.set(val);
     this.modalErrori.set({});
     this.modalModo.set('modifica');
@@ -1524,16 +1538,9 @@ export class App implements OnInit {
   protected onCampoChange(campo: CampoTabella): void {
     const val = this.modalValori();
 
-    // Regole speciali Pezzoni e Marze
+    // Regole speciali Pezzoni/Maglioli e Marze
     if (campo.nome === 'prodotto') {
-      const prod = String(val['prodotto'] || '').trim();
-      if (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') {
-        val['codice_varieta'] = 'NC';
-        val['codice_clone'] = 'NC';
-      }
-      if (prod === 'Marze') {
-        val['codice_portainnesto'] = 'NC';
-      }
+      this.applicaRegoleProdotto(val);
     }
 
     // Se il campo referenziato ha un'istruzione di auto-compilazione (es. Ordine -> Innesto)
@@ -1549,14 +1556,7 @@ export class App implements OnInit {
           }
         }
         // Riapplica regole speciali se il prodotto è stato compilato dall'innesto
-        const prod = String(val['prodotto'] || '').trim();
-        if (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') {
-          val['codice_varieta'] = 'NC';
-          val['codice_clone'] = 'NC';
-        }
-        if (prod === 'Marze') {
-          val['codice_portainnesto'] = 'NC';
-        }
+        this.applicaRegoleProdotto(val);
         this.modalValori.set({ ...val });
       }
     }
@@ -1618,9 +1618,9 @@ export class App implements OnInit {
     const val = this.modalValori();
     const prod = String(val['prodotto'] || '').trim();
 
-    // Pezzoni: varietà e clone non devono essere alimentati
+    // Pezzoni e Maglioli: varietà e clone non devono essere alimentati
     if (
-      (prod === 'Pezzoni Barbatelloni' || prod === 'Pezzoni Standard') &&
+      isProdottoSenzaVarietaClone(prod) &&
       (campo.nome === 'codice_varieta' || campo.nome === 'codice_clone')
     ) {
       return true;
