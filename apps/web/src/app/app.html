@@ -946,7 +946,7 @@
             <div>
               <div class="header-breadcrumb">Magazzino & Ordini</div>
               <h2>Archivio bolle</h2>
-              <p class="subtitle">Documenti di Trasporto (D.D.T.) emessi e salvati con storico righe e ristampa immediata</p>
+              <p class="subtitle">Documenti di Trasporto (D.D.T.) emessi e salvati con storico righe e download immediato</p>
             </div>
             <div class="header-actions">
               <button
@@ -1083,9 +1083,9 @@
                             type="button"
                             class="btn btn-xs btn-outline-primary"
                             (click)="ristampaBollaDaArchivio(b)"
-                            title="Ristampa Documento di Trasporto (DDT)"
+                            title="Scarica / visualizza Documento di Trasporto (PDF)"
                           >
-                            🖨️ Ristampa
+                            📄 Scarica
                           </button>
                           <button
                             type="button"
@@ -2331,7 +2331,7 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="chiudiDettagliBolla()">Chiudi</button>
           <button type="button" class="btn btn-primary" (click)="ristampaBollaDaArchivio(d)">
-            🖨️ Ristampa Documento
+            📄 Scarica Documento
           </button>
         </div>
       </div>
