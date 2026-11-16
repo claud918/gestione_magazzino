@@ -154,6 +154,14 @@
             <span class="icon">🏢</span>
             <span>Clienti</span>
           </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'bolle'"
+            (click)="selezionaSezione('bolle')"
+          >
+            <span class="icon">📦</span>
+            <span>Archivio bolle</span>
+          </button>
         </div>
 
         <div class="sidebar-section">
@@ -931,6 +939,183 @@
         }
 
         <!-- ============================================================== -->
+        <!-- SEZIONE: ARCHIVIO BOLLE DI TRASPORTO -->
+        <!-- ============================================================== -->
+        @if (sezioneAttiva() === 'bolle') {
+          <div class="content-header">
+            <div>
+              <div class="header-breadcrumb">Magazzino & Ordini</div>
+              <h2>Archivio bolle</h2>
+              <p class="subtitle">Documenti di Trasporto (D.D.T.) emessi e salvati con storico righe e ristampa immediata</p>
+            </div>
+            <div class="header-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="caricaBolle()"
+                title="Ricarica elenco bolle dal server"
+              >
+                🔄 Aggiorna
+              </button>
+            </div>
+          </div>
+
+          <!-- Filtri e barra di ricerca bolle -->
+          <div class="filter-bar">
+            <div class="filter-controls">
+              <div class="form-group inline">
+                <label for="filtro-anno-bolle">Anno:</label>
+                <select
+                  id="filtro-anno-bolle"
+                  class="form-control"
+                  [ngModel]="filtroAnnoBolle()"
+                  (ngModelChange)="filtroAnnoBolle.set($event)"
+                >
+                  <option value="TUTTI">Tutti gli anni</option>
+                  @for (anno of anniDisponibiliBolle(); track anno) {
+                    <option [value]="anno">{{ anno }}</option>
+                  }
+                </select>
+              </div>
+
+              @if (clientiDisponibiliBolle().length > 0) {
+                <div class="form-group inline">
+                  <label for="filtro-cliente-bolle">Cliente:</label>
+                  <select
+                    id="filtro-cliente-bolle"
+                    class="form-control"
+                    [ngModel]="filtroClienteBolle()"
+                    (ngModelChange)="filtroClienteBolle.set($event)"
+                  >
+                    <option value="TUTTI">Tutti i clienti</option>
+                    @for (cli of clientiDisponibiliBolle(); track cli) {
+                      <option [value]="cli">{{ cli }}</option>
+                    }
+                  </select>
+                </div>
+              }
+
+              <div class="form-group inline search-group">
+                <label for="filtro-testo-bolle">Cerca:</label>
+                <input
+                  id="filtro-testo-bolle"
+                  type="text"
+                  class="form-control search-input"
+                  placeholder="N. bolla, cliente, destinazione, vettore..."
+                  [ngModel]="filtroTestoBolle()"
+                  (ngModelChange)="filtroTestoBolle.set($event)"
+                />
+              </div>
+
+              @if (filtroAnnoBolle() !== 'TUTTI' || filtroClienteBolle() !== 'TUTTI' || filtroTestoBolle().trim() !== '') {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-link"
+                  (click)="filtroAnnoBolle.set('TUTTI'); filtroClienteBolle.set('TUTTI'); filtroTestoBolle.set('')"
+                >
+                  Azzera filtri
+                </button>
+              }
+            </div>
+
+            <div class="filter-count">
+              <span>{{ bolleFiltrate().length }} {{ bolleFiltrate().length === 1 ? 'bolla' : 'bolle' }}</span>
+            </div>
+          </div>
+
+          <!-- Stato caricamento o errore -->
+          @if (caricamentoBolle()) {
+            <div class="loading-state">
+              <span class="spinner"></span> Caricamento archivio bolle...
+            </div>
+          } @else if (erroreBolle()) {
+            <div class="error-banner">
+              {{ erroreBolle() }}
+              <button class="btn btn-sm btn-secondary" (click)="caricaBolle()">Riprova</button>
+            </div>
+          } @else if (bolleFiltrate().length === 0) {
+            <div class="empty-state">
+              <span class="empty-icon">📦</span>
+              <h3>Nessuna bolla trovata</h3>
+              <p>
+                Non ci sono bolle corrispondenti ai filtri impostati, oppure non è ancora stata generata alcuna bolla.
+                Puoi emettere una nuova bolla selezionando gli ordini del cliente nella sezione <strong>Ordini / Impieghi</strong>.
+              </p>
+            </div>
+          } @else {
+            <div class="table-container">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 110px;">N. Bolla</th>
+                      <th style="width: 100px;">Data</th>
+                      <th>Cliente</th>
+                      <th>Luogo Destinazione</th>
+                      <th style="width: 130px;">Trasporto</th>
+                      <th class="num" style="width: 90px;">Colli</th>
+                      <th class="num" style="width: 90px;">Righe</th>
+                      <th class="num" style="width: 120px;">Totale Q.tà</th>
+                      <th class="actions-header" style="width: 180px;">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (b of bolleFiltrate(); track b.id) {
+                      <tr>
+                        <td>
+                          <span class="badge badge-bolla">{{ b.numeroBolla }}</span>
+                        </td>
+                        <td>{{ formattaDataIt(b.dataBolla) }}</td>
+                        <td><strong>{{ b.cliente }}</strong></td>
+                        <td>
+                          <div class="text-truncate" [title]="b.luogoDestinazione">{{ b.luogoDestinazione }}</div>
+                        </td>
+                        <td>
+                          <span class="text-muted small">
+                            {{ b.trasportoACuraDi }}{{ b.vettore ? ' (' + b.vettore + ')' : '' }}
+                          </span>
+                        </td>
+                        <td class="num">{{ b.numeroColli || '—' }}</td>
+                        <td class="num">{{ b.numeroRighe }}</td>
+                        <td class="num font-bold">{{ b.totaleQuantita | number }}</td>
+                        <td class="actions-cell">
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-primary"
+                            (click)="ristampaBollaDaArchivio(b)"
+                            title="Ristampa Documento di Trasporto (DDT)"
+                          >
+                            🖨️ Ristampa
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-secondary"
+                            (click)="apriDettagliBolla(b)"
+                            title="Visualizza dettagli e righe merce"
+                          >
+                            👁️ Dettagli
+                          </button>
+                          @if (utente()?.ruolo === 'admin') {
+                            <button
+                              type="button"
+                              class="btn btn-xs btn-outline-danger"
+                              (click)="eliminaBolla(b)"
+                              title="Elimina bolla dall'archivio"
+                            >
+                              🗑️
+                            </button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- ============================================================== -->
         <!-- SEZIONE 2: GESTIONE CRUD DELLE 12 TABELLE -->
         <!-- ============================================================== -->
         @if (sezioneAttiva() === 'tabella') {
@@ -985,7 +1170,7 @@
                   (click)="apriModalBolla()"
                   title="Genera e stampa la bolla di trasporto per gli ordini selezionati"
                 >
-                  🖨️ Stampa Bolla ({{ righeSelezionate().length }})
+                  📄 Genera bolla ({{ righeSelezionate().length }})
                 </button>
               }
 
@@ -2019,7 +2204,6 @@
 
             <!-- Anteprima box firme -->
             <div class="bolla-firme-grid">
-              <div class="bolla-firma-box">Firma del Cedente</div>
               <div class="bolla-firma-box">Firma del Conducente / Vettore</div>
               <div class="bolla-firma-box">Firma del Cessionario / Destinatario</div>
             </div>
@@ -2027,9 +2211,129 @@
 
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" (click)="chiudiModalBolla()">Annulla</button>
-            <button type="submit" class="btn btn-primary">🖨️ Stampa Bolla</button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              [disabled]="salvataggioBollaInCorso()"
+              title="Salva automaticamente nell'archivio ed emette la bolla di trasporto"
+            >
+              @if (salvataggioBollaInCorso()) {
+                ⏳ Salvataggio...
+              } @else {
+                📄 Genera bolla
+              }
+            </button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  <!-- Modale Dettagli Bolla Archivio -->
+  @if (bollaDettaglioSelezionata(); as d) {
+    <div class="modal-backdrop" (click)="chiudiDettagliBolla()">
+      <div class="modal modal-lg" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <h3>Dettagli Bolla N. {{ d.numeroBolla }}</h3>
+            <span class="modal-subtitle">Emessa il {{ formattaDataIt(d.dataBolla) }} per {{ d.cliente }}</span>
+          </div>
+          <button class="btn-close" (click)="chiudiDettagliBolla()" aria-label="Chiudi">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="bolla-meta-grid">
+            <div class="meta-item">
+              <span class="lbl">Cliente:</span>
+              <span class="val font-bold">{{ d.cliente }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="lbl">Destinazione:</span>
+              <span class="val">{{ d.luogoDestinazione }}</span>
+            </div>
+            @if (d.cessionarioIndirizzo) {
+              <div class="meta-item">
+                <span class="lbl">Indirizzo cliente:</span>
+                <span class="val">{{ d.cessionarioIndirizzo }}</span>
+              </div>
+            }
+            <div class="meta-item">
+              <span class="lbl">Causale:</span>
+              <span class="val">{{ d.causaleTrasporto }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="lbl">Trasporto a cura di:</span>
+              <span class="val">{{ d.trasportoACuraDi }}{{ d.vettore ? ' (' + d.vettore + ')' : '' }}</span>
+            </div>
+            @if (d.aspettoBeni) {
+              <div class="meta-item">
+                <span class="lbl">Aspetto beni:</span>
+                <span class="val">{{ d.aspettoBeni }}</span>
+              </div>
+            }
+            @if (d.numeroColli) {
+              <div class="meta-item">
+                <span class="lbl">Colli:</span>
+                <span class="val">{{ d.numeroColli }}</span>
+              </div>
+            }
+            @if (d.dataOraInizioTrasporto) {
+              <div class="meta-item">
+                <span class="lbl">Data/ora inizio:</span>
+                <span class="val">{{ d.dataOraInizioTrasporto }}</span>
+              </div>
+            }
+          </div>
+
+          @if (d.note) {
+            <div class="notes-box" style="margin-top: 0.5rem;">
+              <strong>Note:</strong> {{ d.note }}
+            </div>
+          }
+
+          <div class="preview-table-container" style="margin-top: 0.75rem;">
+            <div class="preview-table-header">
+              <span>Merci incluse ({{ d.righe.length }} {{ d.righe.length === 1 ? 'riga' : 'righe' }} &bull; Totale: {{ d.totaleQuantita | number }})</span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table small">
+                <thead>
+                  <tr>
+                    <th>Prodotto</th>
+                    <th>Varietà</th>
+                    <th>Clone</th>
+                    <th>Portainnesto</th>
+                    <th class="num">Quantità</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of d.righe; track $index) {
+                    <tr>
+                      <td>{{ r.prodotto }}</td>
+                      <td>{{ r.codiceVarieta }}</td>
+                      <td>{{ r.codiceClone }}</td>
+                      <td>{{ r.codicePortainnesto }}</td>
+                      <td class="num font-mono">{{ r.quantita | number }}</td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="4"><strong>TOTALE QUANTITÀ</strong></td>
+                    <td class="num font-mono font-bold">{{ d.totaleQuantita | number }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="chiudiDettagliBolla()">Chiudi</button>
+          <button type="button" class="btn btn-primary" (click)="ristampaBollaDaArchivio(d)">
+            🖨️ Ristampa Documento
+          </button>
+        </div>
       </div>
     </div>
   }

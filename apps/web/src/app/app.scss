@@ -2573,7 +2573,7 @@ tr.row-selection-disabled {
 
   .bolla-firme-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
 
     @media (max-width: 640px) {
@@ -2591,5 +2591,59 @@ tr.row-selection-disabled {
       color: #64748b;
       background: #f8fafc;
     }
+  }
+
+  .badge-bolla {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .bolla-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+      gap: 0.4rem;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      font-size: 0.84rem;
+
+      .lbl {
+        color: #64748b;
+        font-weight: 600;
+        min-width: 110px;
+        flex-shrink: 0;
+      }
+
+      .val {
+        color: #0f172a;
+        word-break: break-word;
+      }
+    }
+  }
+
+  .text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 280px;
   }
 }

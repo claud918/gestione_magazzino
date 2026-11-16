@@ -5,6 +5,7 @@ import { authRoutes } from './routes/auth';
 import { crudRoutes } from './routes/crud';
 import { disponibilitaRoutes } from './routes/disponibilita';
 import { reseRoutes } from './routes/rese';
+import { bolleRoutes } from './routes/bolle';
 import { backupRoutes, esportaSnapshotDatabase } from './routes/backup';
 
 export interface Env {
@@ -36,6 +37,7 @@ app.route('/auth', authRoutes);
 app.route('/crud', crudRoutes);
 app.route('/disponibilita', disponibilitaRoutes);
 app.route('/rese', reseRoutes);
+app.route('/bolle', bolleRoutes);
 app.route('/backup', backupRoutes);
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404));

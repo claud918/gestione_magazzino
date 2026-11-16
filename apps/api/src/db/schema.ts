@@ -355,3 +355,55 @@ export const ordineImpieghi = sqliteTable(
     index('ordine_impieghi_cliente_idx').on(t.cliente),
   ],
 );
+
+export const bolleTrasporto = sqliteTable(
+  'bolle_trasporto',
+  {
+    id: uuid(),
+    numeroBolla: text('numero_bolla').notNull(),
+    anno: integer('anno').notNull(),
+    progressivo: integer('progressivo').notNull(),
+    dataBolla: text('data_bolla').notNull(),
+    cliente: text('cliente')
+      .notNull()
+      .references(() => clienti.ragioneSociale, { onUpdate: 'cascade', onDelete: 'restrict' }),
+    cessionarioIndirizzo: text('cessionario_indirizzo'),
+    luogoDestinazione: text('luogo_destinazione').notNull(),
+    causaleTrasporto: text('causale_trasporto').notNull().default('Vendita'),
+    trasportoACuraDi: text('trasporto_a_cura_di').notNull().default('Cedente'),
+    vettore: text('vettore'),
+    aspettoBeni: text('aspetto_beni'),
+    numeroColli: text('numero_colli'),
+    dataOraInizioTrasporto: text('data_ora_inizio_trasporto'),
+    note: text('note'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => [
+    uniqueIndex('bolle_trasporto_numero_uq').on(t.numeroBolla),
+    index('bolle_trasporto_anno_prog_idx').on(t.anno, t.progressivo),
+    index('bolle_trasporto_cliente_idx').on(t.cliente),
+  ],
+);
+
+export const bolleRighe = sqliteTable(
+  'bolle_righe',
+  {
+    id: uuid(),
+    bollaId: text('bolla_id')
+      .notNull()
+      .references(() => bolleTrasporto.id, { onDelete: 'cascade' }),
+    ordineId: text('ordine_id')
+      .references(() => ordineImpieghi.id, { onDelete: 'set null' }),
+    prodotto: text('prodotto').notNull(),
+    codiceVarieta: text('codice_varieta').notNull(),
+    codiceClone: text('codice_clone').notNull(),
+    codicePortainnesto: text('codice_portainnesto').notNull(),
+    quantita: integer('quantita').notNull(),
+  },
+  (t) => [
+    index('bolle_righe_bolla_idx').on(t.bollaId),
+    index('bolle_righe_ordine_idx').on(t.ordineId),
+  ],
+);

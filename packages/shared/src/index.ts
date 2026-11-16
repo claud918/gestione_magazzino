@@ -101,3 +101,70 @@ export interface ErroreApi {
   error: string;
   errori?: { campo: string; messaggio: string }[];
 }
+
+// --- Archivio Bolle di Trasporto ---
+
+export interface BollaRigaItem {
+  id?: string;
+  bollaId?: string;
+  ordineId?: string | null;
+  prodotto: string;
+  codiceVarieta: string;
+  codiceClone: string;
+  codicePortainnesto: string;
+  quantita: number;
+}
+
+export interface BollaTrasportoSommario {
+  id: string;
+  numeroBolla: string;
+  anno: number;
+  progressivo: number;
+  dataBolla: string;
+  cliente: string;
+  cessionarioIndirizzo?: string | null;
+  luogoDestinazione: string;
+  causaleTrasporto: string;
+  trasportoACuraDi: string;
+  vettore?: string | null;
+  aspettoBeni?: string | null;
+  numeroColli?: string | null;
+  dataOraInizioTrasporto?: string | null;
+  note?: string | null;
+  createdAt: string;
+  totaleQuantita: number;
+  numeroRighe: number;
+}
+
+export interface BollaTrasportoDettaglio extends BollaTrasportoSommario {
+  righe: BollaRigaItem[];
+}
+
+export interface SalvaBollaPayload {
+  numeroBolla?: string;
+  dataBolla: string;
+  cliente: string;
+  cessionarioIndirizzo?: string;
+  luogoDestinazione: string;
+  causaleTrasporto?: string;
+  trasportoACuraDi?: string;
+  vettore?: string;
+  aspettoBeni?: string;
+  numeroColli?: string;
+  dataOraInizioTrasporto?: string;
+  note?: string;
+  righe: Array<{
+    ordineId?: string | null;
+    prodotto: string;
+    codiceVarieta: string;
+    codiceClone: string;
+    codicePortainnesto: string;
+    quantita: number;
+  }>;
+}
+
+export interface ProssimoNumeroBollaResponse {
+  anno: number;
+  progressivo: number;
+  numeroBolla: string;
+}

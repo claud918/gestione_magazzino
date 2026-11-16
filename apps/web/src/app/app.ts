@@ -23,9 +23,14 @@ import {
   type RigaResa,
   type UtenteProfilo,
   type RisultatoParsingCsv,
+  type BollaTrasportoSommario,
+  type BollaTrasportoDettaglio,
+  type BollaRigaItem,
+  type SalvaBollaPayload,
+  type ProssimoNumeroBollaResponse,
 } from '@magazzino/shared';
 
-type SezioneAttiva = 'disponibilita' | 'rese' | 'tabella';
+type SezioneAttiva = 'disponibilita' | 'rese' | 'bolle' | 'tabella';
 
 interface BollaTrasportoForm {
   numeroBolla: string;
@@ -43,6 +48,7 @@ interface BollaTrasportoForm {
 }
 
 interface BollaRigaArticolo {
+  ordine_id?: string | null;
   prodotto: string;
   codice_varieta: string;
   codice_clone: string;
@@ -135,6 +141,17 @@ export class App implements OnInit {
     dataOraInizioTrasporto: '',
     noteBolla: '',
   });
+
+  // Stato Archivio Bolle
+  protected readonly bolleArchivio = signal<BollaTrasportoSommario[]>([]);
+  protected readonly caricamentoBolle = signal(false);
+  protected readonly erroreBolle = signal<string | null>(null);
+  protected readonly filtroTestoBolle = signal('');
+  protected readonly filtroAnnoBolle = signal<string>('TUTTI');
+  protected readonly filtroClienteBolle = signal<string>('TUTTI');
+  protected readonly bollaDettaglioSelezionata = signal<BollaTrasportoDettaglio | null>(null);
+  protected readonly caricamentoDettaglioBolla = signal(false);
+  protected readonly salvataggioBollaInCorso = signal(false);
 
   // Conferma Eliminazione
   protected readonly deleteConfirmAperto = signal(false);
@@ -361,7 +378,56 @@ export class App implements OnInit {
     const sez = this.sezioneAttiva();
     if (sez === 'disponibilita') return '__disp';
     if (sez === 'rese') return '__rese';
+    if (sez === 'bolle') return '__bolle';
     return this.tabellaSelezionata();
+  });
+
+  // Computed per Archivio Bolle
+  protected readonly anniDisponibiliBolle = computed<number[]>(() => {
+    const set = new Set<number>();
+    for (const b of this.bolleArchivio()) {
+      if (b.anno) set.add(b.anno);
+    }
+    const annoCorrente = new Date().getFullYear();
+    set.add(annoCorrente);
+    return Array.from(set).sort((a, b) => b - a);
+  });
+
+  protected readonly clientiDisponibiliBolle = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const b of this.bolleArchivio()) {
+      if (b.cliente?.trim()) set.add(b.cliente.trim());
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+  });
+
+  protected readonly bolleFiltrate = computed<BollaTrasportoSommario[]>(() => {
+    const list = this.bolleArchivio();
+    const anno = this.filtroAnnoBolle();
+    const cliente = this.filtroClienteBolle();
+    const q = this.filtroTestoBolle().trim().toLowerCase();
+
+    return list.filter((b) => {
+      if (anno !== 'TUTTI' && String(b.anno) !== anno) return false;
+      if (cliente !== 'TUTTI' && b.cliente !== cliente) return false;
+      if (q) {
+        const haystack = [
+          b.numeroBolla,
+          b.cliente,
+          b.luogoDestinazione,
+          b.cessionarioIndirizzo,
+          b.vettore,
+          b.causaleTrasporto,
+          b.dataBolla,
+          b.note,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
   });
 
   // Computed: elenco base predefinito dei campi configurabili per la vista o tabella attiva
@@ -1386,6 +1452,8 @@ export class App implements OnInit {
       this.caricaDisponibilita();
     } else if (sez === 'rese') {
       this.caricaRese();
+    } else if (sez === 'bolle') {
+      this.caricaBolle();
     } else {
       this.caricaDatiTabella(this.tabellaSelezionata());
     }
@@ -2185,9 +2253,10 @@ export class App implements OnInit {
       });
   }
 
-  // --- Bolla di Trasporto (DDT) ---
+  // --- Bolla di Trasporto (DDT) & Archivio Bolle ---
   protected readonly bollaRighe = computed<BollaRigaArticolo[]>(() => {
     return this.bollaOrdini().map((r) => ({
+      ordine_id: String(r['id'] ?? ''),
       prodotto: String(r['prodotto'] ?? ''),
       codice_varieta: String(r['codice_varieta'] ?? ''),
       codice_clone: String(r['codice_clone'] ?? ''),
@@ -2224,6 +2293,79 @@ export class App implements OnInit {
         localStorage.setItem(App.STORAGE_BOLLA_NUM_KEY, trimmed);
       }
     } catch {}
+  }
+
+  // --- Archivio Bolle di Trasporto (chiamate API e logica) ---
+
+  protected caricaBolle(): void {
+    this.caricamentoBolle.set(true);
+    this.erroreBolle.set(null);
+    this.http.get<{ bolle: BollaTrasportoSommario[] }>('/api/bolle').subscribe({
+      next: (res) => {
+        this.bolleArchivio.set(res.bolle || []);
+        this.caricamentoBolle.set(false);
+      },
+      error: (err) => {
+        this.caricamentoBolle.set(false);
+        this.erroreBolle.set(err.error?.error || 'Errore nel caricamento delle bolle');
+      },
+    });
+  }
+
+  protected apriDettagliBolla(b: BollaTrasportoSommario): void {
+    this.caricamentoDettaglioBolla.set(true);
+    this.http.get<{ bolla: BollaTrasportoDettaglio }>(`/api/bolle/${b.id}`).subscribe({
+      next: (res) => {
+        this.bollaDettaglioSelezionata.set(res.bolla);
+        this.caricamentoDettaglioBolla.set(false);
+      },
+      error: (err) => {
+        this.caricamentoDettaglioBolla.set(false);
+        this.mostraErrore(err.error?.error || 'Errore nel recupero della bolla');
+      },
+    });
+  }
+
+  protected chiudiDettagliBolla(): void {
+    this.bollaDettaglioSelezionata.set(null);
+  }
+
+  protected ristampaBollaDaArchivio(b: BollaTrasportoSommario | BollaTrasportoDettaglio): void {
+    if ('righe' in b && Array.isArray((b as BollaTrasportoDettaglio).righe)) {
+      this.eseguiStampaBollaDaDettaglio(b as BollaTrasportoDettaglio);
+      return;
+    }
+
+    this.http.get<{ bolla: BollaTrasportoDettaglio }>(`/api/bolle/${b.id}`).subscribe({
+      next: (res) => {
+        this.eseguiStampaBollaDaDettaglio(res.bolla);
+      },
+      error: (err) => {
+        this.mostraErrore(err.error?.error || 'Impossibile recuperare la bolla per la ristampa');
+      },
+    });
+  }
+
+  protected eliminaBolla(b: BollaTrasportoSommario): void {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(
+        `Sei sicuro di voler eliminare la bolla N. ${b.numeroBolla}? L'operazione non può essere annullata.`,
+      );
+      if (!ok) return;
+    }
+
+    this.http.delete(`/api/bolle/${b.id}`).subscribe({
+      next: () => {
+        this.bolleArchivio.update((list) => list.filter((item) => item.id !== b.id));
+        if (this.bollaDettaglioSelezionata()?.id === b.id) {
+          this.bollaDettaglioSelezionata.set(null);
+        }
+        this.mostraOk(`Bolla N. ${b.numeroBolla} eliminata con successo.`);
+      },
+      error: (err) => {
+        this.mostraErrore(err.error?.error || "Errore durante l'eliminazione della bolla");
+      },
+    });
   }
 
   protected apriModalBolla(): void {
@@ -2307,6 +2449,7 @@ export class App implements OnInit {
     }
 
     const oggiIso = dataOggi();
+    const annoCorrente = new Date().getFullYear();
     this.bollaOrdini.set([...ordini]);
     this.bollaForm.set({
       numeroBolla: this.proponiNumeroBolla(),
@@ -2323,6 +2466,18 @@ export class App implements OnInit {
       noteBolla: '',
     });
     this.bollaModalAperto.set(true);
+
+    // Chiedi all'API il numero reale aggiornato dal database
+    this.http
+      .get<ProssimoNumeroBollaResponse>(`/api/bolle/prossimo-numero?anno=${annoCorrente}`)
+      .subscribe({
+        next: (res) => {
+          if (res?.numeroBolla) {
+            this.aggiornaCampoBolla('numeroBolla', res.numeroBolla);
+          }
+        },
+        error: () => {},
+      });
   }
 
   protected chiudiModalBolla(): void {
@@ -2345,19 +2500,134 @@ export class App implements OnInit {
       .replace(/'/g, '&#39;');
   }
 
-  protected stampaBolla(): void {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  protected salvaEStampaBolla(): void {
+    const f = this.bollaForm();
+    const righe = this.bollaRighe();
+    if (righe.length === 0) return;
+
+    this.salvataggioBollaInCorso.set(true);
+
+    const payload: SalvaBollaPayload = {
+      numeroBolla: f.numeroBolla.trim(),
+      dataBolla: f.dataBolla,
+      cliente: f.cessionarioRagioneSociale,
+      cessionarioIndirizzo: f.cessionarioIndirizzo,
+      luogoDestinazione: f.luogoDestinazione,
+      causaleTrasporto: f.causaleTrasporto,
+      trasportoACuraDi: f.trasportoACuraDi,
+      vettore: f.vettore,
+      aspettoBeni: f.aspettoBeni,
+      numeroColli: f.numeroColli,
+      dataOraInizioTrasporto: f.dataOraInizioTrasporto,
+      note: f.noteBolla,
+      righe: righe.map((r) => ({
+        ordineId: r.ordine_id || null,
+        prodotto: r.prodotto,
+        codiceVarieta: r.codice_varieta,
+        codiceClone: r.codice_clone,
+        codicePortainnesto: r.codice_portainnesto,
+        quantita: r.quantita,
+      })),
+    };
+
+    this.http.post<{ bolla: BollaTrasportoDettaglio }>('/api/bolle', payload).subscribe({
+      next: (res) => {
+        this.salvataggioBollaInCorso.set(false);
+        const salvata = res.bolla;
+        this.salvaUltimoNumeroBolla(salvata.numeroBolla);
+
+        // Aggiungi all'elenco locale
+        this.bolleArchivio.update((prev) => [
+          {
+            id: salvata.id,
+            numeroBolla: salvata.numeroBolla,
+            anno: salvata.anno,
+            progressivo: salvata.progressivo,
+            dataBolla: salvata.dataBolla,
+            cliente: salvata.cliente,
+            cessionarioIndirizzo: salvata.cessionarioIndirizzo,
+            luogoDestinazione: salvata.luogoDestinazione,
+            causaleTrasporto: salvata.causaleTrasporto,
+            trasportoACuraDi: salvata.trasportoACuraDi,
+            vettore: salvata.vettore,
+            aspettoBeni: salvata.aspettoBeni,
+            numeroColli: salvata.numeroColli,
+            dataOraInizioTrasporto: salvata.dataOraInizioTrasporto,
+            note: salvata.note,
+            createdAt: salvata.createdAt,
+            totaleQuantita: salvata.totaleQuantita,
+            numeroRighe: salvata.numeroRighe,
+          },
+          ...prev.filter((item) => item.id !== salvata.id),
+        ]);
+
+        this.chiudiModalBolla();
+        this.deselezionaTutteLeRighe();
+        this.mostraOk(`Bolla N. ${salvata.numeroBolla} salvata nell'Archivio bolle.`);
+
+        // Avvia la stampa
+        this.eseguiStampaBollaDaDettaglio(salvata);
+      },
+      error: (err) => {
+        this.salvataggioBollaInCorso.set(false);
+        this.mostraErrore(err.error?.error || 'Errore durante il salvataggio della bolla nel database.');
+      },
+    });
+  }
+
+  protected stampaBollaSenzaSalvare(): void {
     const f = this.bollaForm();
     const righe = this.bollaRighe();
     if (righe.length === 0) return;
 
     this.salvaUltimoNumeroBolla(f.numeroBolla);
+    this.eseguiStampaHtml(this.generaHtmlBolla(f, righe));
+    this.chiudiModalBolla();
+  }
 
+  /**
+   * Metodo di fallback compatibile
+   */
+  protected stampaBolla(): void {
+    this.salvaEStampaBolla();
+  }
+
+  private eseguiStampaBollaDaDettaglio(d: BollaTrasportoDettaglio): void {
+    const f: BollaTrasportoForm = {
+      numeroBolla: d.numeroBolla,
+      dataBolla: d.dataBolla,
+      cessionarioRagioneSociale: d.cliente,
+      cessionarioIndirizzo: d.cessionarioIndirizzo || '',
+      luogoDestinazione: d.luogoDestinazione,
+      causaleTrasporto: d.causaleTrasporto,
+      trasportoACuraDi: (d.trasportoACuraDi as any) || 'Cedente',
+      vettore: d.vettore || '',
+      aspettoBeni: d.aspettoBeni || '',
+      numeroColli: d.numeroColli || '',
+      dataOraInizioTrasporto: d.dataOraInizioTrasporto || '',
+      noteBolla: d.note || '',
+    };
+
+    const righe: BollaRigaArticolo[] = (d.righe || []).map((r) => ({
+      ordine_id: r.ordineId || null,
+      prodotto: r.prodotto,
+      codice_varieta: r.codiceVarieta,
+      codice_clone: r.codiceClone,
+      codice_portainnesto: r.codicePortainnesto,
+      quantita: r.quantita,
+    }));
+
+    this.eseguiStampaHtml(this.generaHtmlBolla(f, righe));
+  }
+
+  private generaHtmlBolla(f: BollaTrasportoForm, righe: BollaRigaArticolo[]): string {
     const dataDocIt = this.formattaDataIt(f.dataBolla) || '—';
     const trasportoLabel =
       f.trasportoACuraDi === 'Vettore' && f.vettore.trim()
         ? `Vettore (${f.vettore.trim()})`
         : f.trasportoACuraDi;
+
+    const totaleQta = righe.reduce((acc, r) => acc + (Number(r.quantita) || 0), 0);
 
     const righeHtml = righe
       .map(
@@ -2367,7 +2637,7 @@ export class App implements OnInit {
             <td>${this.escapeHtml(r.codice_varieta)}</td>
             <td>${this.escapeHtml(r.codice_clone)}</td>
             <td>${this.escapeHtml(r.codice_portainnesto)}</td>
-            <td class="num">${this.escapeHtml(r.quantita.toLocaleString('it-IT'))}</td>
+            <td class="num">${this.escapeHtml(Number(r.quantita).toLocaleString('it-IT'))}</td>
           </tr>`,
       )
       .join('');
@@ -2376,7 +2646,7 @@ export class App implements OnInit {
       ? `<div class="notes-box"><strong>Note:</strong> ${this.escapeHtml(f.noteBolla.trim()).replace(/\r?\n/g, '<br>')}</div>`
       : '';
 
-    const html = `<!doctype html>
+    return `<!doctype html>
 <html lang="it">
 <head>
   <meta charset="utf-8">
@@ -2521,8 +2791,8 @@ export class App implements OnInit {
     }
     .signatures-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
       margin-top: 16px;
       break-inside: avoid;
     }
@@ -2554,7 +2824,7 @@ export class App implements OnInit {
   <div class="ddt-page">
     <div class="ddt-header">
       <div>
-        <h1 class="ddt-title">DOCUMENTO DI TRASPORTO (D.D.T.) / BOLLA DI TRASPORTO</h1>
+        <h1 class="ddt-title">DOCUMENTO DI TRASPORTO (D.P.R. 472 del 14/8/1996 - D.P.R. 696 del 21/12/1996)</h1>
         <div class="ddt-subtitle">Documento accompagnatorio materiale vivaistico viticolo</div>
       </div>
       <div class="ddt-doc-meta">
@@ -2623,7 +2893,7 @@ export class App implements OnInit {
       <tfoot>
         <tr>
           <td colspan="4">TOTALE QUANTITÀ (${righe.length} ${righe.length === 1 ? 'riga' : 'righe'})</td>
-          <td class="num">${this.escapeHtml(this.bollaTotaleQuantita().toLocaleString('it-IT'))}</td>
+          <td class="num">${this.escapeHtml(totaleQta.toLocaleString('it-IT'))}</td>
         </tr>
       </tfoot>
     </table>
@@ -2631,10 +2901,6 @@ export class App implements OnInit {
     ${noteHtml}
 
     <div class="signatures-grid">
-      <div class="sig-box">
-        <span class="sig-label">Firma del Cedente</span>
-        <span class="sig-line">Timbro e firma</span>
-      </div>
       <div class="sig-box">
         <span class="sig-label">Firma del Conducente / Vettore</span>
         <span class="sig-line">Firma per presa in carico</span>
@@ -2647,6 +2913,10 @@ export class App implements OnInit {
   </div>
 </body>
 </html>`;
+  }
+
+  private eseguiStampaHtml(html: string): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
     const printWin = window.open('', '_blank', 'width=960,height=800');
     if (printWin) {
@@ -2660,7 +2930,7 @@ export class App implements OnInit {
       return;
     }
 
-    // Fallback iframe se i popup sono bloccati
+    // Fallback iframe se popup bloccati
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
