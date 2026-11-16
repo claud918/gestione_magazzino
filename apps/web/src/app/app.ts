@@ -1789,9 +1789,12 @@ export class App implements OnInit {
       }
     }
 
-    // In modifica, le chiavi primarie testuali (se non uuid) non si modificano tranne il soprannome in anagrafica_personale che deve essere editabile
+    // In modifica, le chiavi primarie testuali (se non uuid) non si modificano tranne il soprannome in anagrafica_personale e ragione_sociale in clienti che devono essere editabili
     if (this.modalModo() === 'modifica' && this.defTabella().chiave.includes(campo.nome)) {
-      if (this.defTabella().nome === 'anagrafica_personale' && campo.nome === 'soprannome') {
+      if (
+        (this.defTabella().nome === 'anagrafica_personale' && campo.nome === 'soprannome') ||
+        (this.defTabella().nome === 'clienti' && campo.nome === 'ragione_sociale')
+      ) {
         return false;
       }
       return true;
