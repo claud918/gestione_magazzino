@@ -2453,8 +2453,26 @@ tr.row-selected {
       accent-color: #2d6a4f;
       cursor: pointer;
       vertical-align: middle;
+
+      &:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
     }
   }
+}
+
+tr.row-selection-disabled {
+  background-color: #f8fafc !important;
+
+  td:not(.actions-col) {
+    opacity: 0.48;
+  }
+}
+
+.mobile-card.row-selection-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .mobile-card-title-wrap {
@@ -2470,6 +2488,11 @@ tr.row-selected {
     accent-color: #2d6a4f;
     cursor: pointer;
     flex-shrink: 0;
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
   }
 }
 

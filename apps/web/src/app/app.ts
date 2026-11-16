@@ -1544,12 +1544,41 @@ export class App implements OnInit {
     this.modalAperto.set(true);
   }
 
-  protected readonly tutteLeRigheFiltrateSelezionate = computed<boolean>(() => {
+  protected readonly clienteOrdiniSelezionati = computed<string | null>(() => {
+    const sel = this.righeSelezionate();
+    if (this.tabellaSelezionata() !== 'ordine_impieghi' || sel.length === 0) return null;
+    return String(sel[0]['cliente'] || '').trim() || null;
+  });
+
+  protected readonly puoSelezionareTuttiOrdiniVisibili = computed<boolean>(() => {
+    if (this.tabellaSelezionata() !== 'ordine_impieghi') return false;
     const righe = this.righeFiltrate();
+    if (righe.length === 0) return false;
+    const clienteSel = this.clienteOrdiniSelezionati();
+    if (clienteSel) {
+      return righe.some((r) => String(r['cliente'] || '').trim() === clienteSel);
+    }
+    const clientiDistinti = new Set(righe.map((r) => String(r['cliente'] || '').trim()));
+    return clientiDistinti.size <= 1;
+  });
+
+  protected readonly tutteLeRigheFiltrateSelezionate = computed<boolean>(() => {
+    if (!this.puoSelezionareTuttiOrdiniVisibili()) return false;
+    const clienteSel = this.clienteOrdiniSelezionati();
+    const righe = clienteSel
+      ? this.righeFiltrate().filter((r) => String(r['cliente'] || '').trim() === clienteSel)
+      : this.righeFiltrate();
     if (righe.length === 0) return false;
     const sel = this.righeSelezionate();
     return righe.every((r) => sel.includes(r));
   });
+
+  protected isRigaDisabilitataSelezione(riga: RigaTabella): boolean {
+    if (this.tabellaSelezionata() !== 'ordine_impieghi') return false;
+    const clienteSel = this.clienteOrdiniSelezionati();
+    if (!clienteSel) return false;
+    return String(riga['cliente'] || '').trim() !== clienteSel;
+  }
 
   protected isRigaSelezionata(riga: RigaTabella): boolean {
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
@@ -1576,6 +1605,9 @@ export class App implements OnInit {
     if (event) {
       event.stopPropagation();
     }
+    if (this.isRigaDisabilitataSelezione(riga)) {
+      return;
+    }
     const curr = this.righeSelezionate();
     const nuove = curr.includes(riga) ? curr.filter((r) => r !== riga) : [...curr, riga];
     this.righeSelezionate.set(nuove);
@@ -1583,16 +1615,20 @@ export class App implements OnInit {
   }
 
   protected toggleSelezionaTuttiOrdiniVisibili(): void {
-    const filtr = this.righeFiltrate();
-    if (filtr.length === 0) return;
+    if (!this.puoSelezionareTuttiOrdiniVisibili()) return;
+    const clienteSel = this.clienteOrdiniSelezionati();
+    const targetRighe = clienteSel
+      ? this.righeFiltrate().filter((r) => String(r['cliente'] || '').trim() === clienteSel)
+      : this.righeFiltrate();
+    if (targetRighe.length === 0) return;
 
     const curr = this.righeSelezionate();
     let nuove: RigaTabella[];
     if (this.tutteLeRigheFiltrateSelezionate()) {
-      const filtrSet = new Set(filtr);
-      nuove = curr.filter((r) => !filtrSet.has(r));
+      const targetSet = new Set(targetRighe);
+      nuove = curr.filter((r) => !targetSet.has(r));
     } else {
-      const aggiunte = filtr.filter((r) => !curr.includes(r));
+      const aggiunte = targetRighe.filter((r) => !curr.includes(r));
       nuove = [...curr, ...aggiunte];
     }
     this.righeSelezionate.set(nuove);

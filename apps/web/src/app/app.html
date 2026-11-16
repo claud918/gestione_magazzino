@@ -1014,6 +1014,9 @@
                 <span class="badge-tag badge-selection">
                   {{ righeSelezionate().length }}
                   {{ righeSelezionate().length === 1 ? 'ordine selezionato' : 'ordini selezionati' }}
+                  @if (clienteOrdiniSelezionati(); as cli) {
+                    &bull; {{ cli }}
+                  }
                 </span>
                 <button
                   type="button"
@@ -1058,9 +1061,10 @@
                           <input
                             type="checkbox"
                             [checked]="tutteLeRigheFiltrateSelezionate()"
+                            [disabled]="!puoSelezionareTuttiOrdiniVisibili()"
                             (change)="toggleSelezionaTuttiOrdiniVisibili()"
-                            aria-label="Seleziona tutti gli ordini visibili"
-                            title="Seleziona / deseleziona tutti gli ordini visibili"
+                            [attr.aria-label]="puoSelezionareTuttiOrdiniVisibili() ? 'Seleziona tutti gli ordini visibili' : 'Seleziona prima un ordine o filtra per un solo cliente'"
+                            [title]="puoSelezionareTuttiOrdiniVisibili() ? 'Seleziona / deseleziona tutti gli ordini visibili' : 'Seleziona prima un ordine o filtra per un solo cliente'"
                           />
                         </th>
                       }
@@ -1089,13 +1093,20 @@
                   </thead>
                   <tbody>
                     @for (riga of righeFiltrate(); track $index) {
-                      <tr [class.row-selected]="isRigaSelezionata(riga)" (click)="selezionaRiga(riga)" style="cursor: pointer;">
+                      <tr
+                        [class.row-selected]="isRigaSelezionata(riga)"
+                        [class.row-selection-disabled]="isRigaDisabilitataSelezione(riga)"
+                        (click)="selezionaRiga(riga)"
+                        [style.cursor]="isRigaDisabilitataSelezione(riga) ? 'not-allowed' : 'pointer'"
+                      >
                         @if (tabellaSelezionata() === 'ordine_impieghi') {
                           <td class="td-checkbox" (click)="$event.stopPropagation()">
                             <input
                               type="checkbox"
                               [checked]="isRigaSelezionata(riga)"
+                              [disabled]="isRigaDisabilitataSelezione(riga)"
                               (change)="toggleSelezioneRiga(riga)"
+                              [title]="isRigaDisabilitataSelezione(riga) ? 'Puoi selezionare solo ordini dello stesso cliente' : 'Seleziona ordine'"
                               aria-label="Seleziona ordine"
                             />
                           </td>
@@ -1131,7 +1142,12 @@
               <!-- 2. VISTA SCHEDE -->
               <div class="mobile-cards-container">
                 @for (riga of righeFiltrate(); track $index) {
-                  <div class="mobile-card" [class.row-selected]="isRigaSelezionata(riga)" (click)="selezionaRiga(riga)">
+                  <div
+                    class="mobile-card"
+                    [class.row-selected]="isRigaSelezionata(riga)"
+                    [class.row-selection-disabled]="isRigaDisabilitataSelezione(riga)"
+                    (click)="selezionaRiga(riga)"
+                  >
                     <div class="mobile-card-header">
                       <div class="mobile-card-title-wrap">
                         @if (tabellaSelezionata() === 'ordine_impieghi') {
@@ -1139,8 +1155,10 @@
                             type="checkbox"
                             class="mobile-card-checkbox"
                             [checked]="isRigaSelezionata(riga)"
+                            [disabled]="isRigaDisabilitataSelezione(riga)"
                             (click)="$event.stopPropagation()"
                             (change)="toggleSelezioneRiga(riga)"
+                            [title]="isRigaDisabilitataSelezione(riga) ? 'Puoi selezionare solo ordini dello stesso cliente' : 'Seleziona ordine'"
                             aria-label="Seleziona ordine"
                           />
                         }
