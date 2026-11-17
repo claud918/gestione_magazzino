@@ -2289,7 +2289,9 @@
                 />
                 <datalist id="lista-clienti-bolla">
                   @for (c of listaClientiAnagrafica(); track c.ragioneSociale) {
-                    <option [value]="c.ragioneSociale">{{ c.citta ? '(' + c.citta + ')' : '' }}</option>
+                    <option [value]="c.ragioneSociale">
+                      {{ c.citta ? '(' + c.citta + ')' : '' }}{{ c.referente ? ' - Ref: ' + c.referente : '' }}
+                    </option>
                   }
                 </datalist>
               </div>
@@ -2635,7 +2637,7 @@
                 <datalist id="lista-clienti-fattura">
                   @for (c of listaClientiAnagrafica(); track c.ragioneSociale) {
                     <option [value]="c.ragioneSociale">
-                      {{ c.citta ? '(' + c.citta + ')' : '' }}{{ c.partitaIva ? ' - P.IVA: ' + c.partitaIva : '' }}
+                      {{ c.citta ? '(' + c.citta + ')' : '' }}{{ c.referente ? ' - Ref: ' + c.referente : '' }}{{ c.partitaIva ? ' - P.IVA: ' + c.partitaIva : '' }}
                     </option>
                   }
                 </datalist>

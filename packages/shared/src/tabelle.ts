@@ -707,11 +707,13 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
     titoloScheda: 'ragione_sociale',
     campi: [
       { nome: 'ragione_sociale', etichetta: 'Ragione sociale', tipo: 'testo', obbligatorio: true },
+      { nome: 'referente', etichetta: 'Referente', tipo: 'testo', inScheda: true },
       { nome: 'partita_iva', etichetta: 'Partita IVA', tipo: 'testo' },
       { nome: 'codice_fiscale', etichetta: 'Codice fiscale', tipo: 'testo' },
       { nome: 'citta', etichetta: 'Città', tipo: 'testo', inScheda: true },
       { nome: 'indirizzo', etichetta: 'Indirizzo', tipo: 'testo' },
       { nome: 'numero_telefono', etichetta: 'Telefono', tipo: 'testo', inScheda: true },
+      { nome: 'note', etichetta: 'Note', tipo: 'testo', inScheda: true },
     ],
   },
 

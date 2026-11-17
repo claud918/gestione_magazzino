@@ -2494,10 +2494,12 @@ export class App implements OnInit {
 
   protected readonly listaClientiAnagrafica = signal<{
     ragioneSociale: string;
+    referente?: string;
     indirizzo: string;
     citta: string;
     partitaIva: string;
     codiceFiscale: string;
+    note?: string;
   }[]>([]);
 
   protected caricaListaClienti(): void {
@@ -2507,10 +2509,12 @@ export class App implements OnInit {
         const list = (res.righe ?? [])
           .map((c) => ({
             ragioneSociale: String(c['ragione_sociale'] || '').trim(),
+            referente: String(c['referente'] || '').trim(),
             indirizzo: String(c['indirizzo'] || '').trim(),
             citta: String(c['citta'] || '').trim(),
             partitaIva: String(c['partita_iva'] || '').trim(),
             codiceFiscale: String(c['codice_fiscale'] || '').trim(),
+            note: String(c['note'] || '').trim(),
           }))
           .filter((c) => c.ragioneSociale);
         this.listaClientiAnagrafica.set(list);
@@ -2891,14 +2895,26 @@ export class App implements OnInit {
 <html lang="it">
 <head>
   <meta charset="utf-8">
-  <title>Bolla di Trasporto ${this.escapeHtml(f.numeroBolla || '')}</title>
+  <title></title>
   <style>
-    @page { size: A4 portrait; margin: 12mm; }
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+    @media print {
+      @page {
+        margin: 0;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+    }
     * { box-sizing: border-box; }
     html, body {
-      height: 100%;
       margin: 0;
       padding: 0;
+      background: #fff;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -2906,13 +2922,18 @@ export class App implements OnInit {
       font-size: 11px;
       line-height: 1.4;
       background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .ddt-page {
-      max-width: 190mm;
-      min-height: 268mm;
+      width: 100%;
+      min-height: 297mm;
+      padding: 12mm 14mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
     }
     .ddt-main {
       flex: 1 0 auto;
@@ -3151,6 +3172,36 @@ export class App implements OnInit {
   private eseguiStampaHtml(html: string): void {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
+    // Stampa tramite iframe invisibile: evita l'apertura di popup con URL "about:blank"
+    // e, unito a @page { margin: 0 }, garantisce che non vengano stampate intestazioni e piè di pagina del browser.
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch {}
+        setTimeout(() => {
+          iframe.remove();
+        }, 2000);
+      }, 250);
+      return;
+    }
+
+    // Fallback con popup se l'iframe non è utilizzabile
     const printWin = window.open('', '_blank', 'width=960,height=800');
     if (printWin) {
       printWin.document.open();
@@ -3159,34 +3210,7 @@ export class App implements OnInit {
       printWin.focus();
       setTimeout(() => {
         printWin.print();
-      }, 150);
-      return;
-    }
-
-    // Fallback iframe se popup bloccati
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(html);
-      doc.close();
-      setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => {
-          iframe.remove();
-        }, 1000);
-      }, 150);
-    } else {
-      iframe.remove();
-      this.mostraErrore('Impossibile aprire la finestra di stampa. Verifica il blocco popup.');
+      }, 250);
     }
   }
 
@@ -3699,7 +3723,7 @@ export class App implements OnInit {
     let righeTableHtml = '';
     if (righe.length > 0) {
       const rowsHtml = righe
-        .map((r, i) => {
+        .map((r) => {
           const varClone =
             r.codice_varieta && r.codice_varieta !== 'NC'
               ? `${r.codice_varieta}${r.codice_clone && r.codice_clone !== 'NC' ? ` (Cl. ${r.codice_clone})` : ''}`
@@ -3707,12 +3731,11 @@ export class App implements OnInit {
           const pi = r.codice_portainnesto && r.codice_portainnesto !== 'NC' ? `P.I. ${r.codice_portainnesto}` : '';
           const desc = [r.prodotto, varClone, pi].filter(Boolean).join(' - ');
           return `<tr>
-            <td style="text-align: center; width: 35px;">${i + 1}</td>
             <td><strong>${this.escapeHtml(desc)}</strong></td>
-            <td style="text-align: right; width: 85px;">${r.quantita.toLocaleString('it-IT')}</td>
-            <td style="text-align: right; width: 100px;">${this.formattaValuta(r.prezzo_unitario)}</td>
+            <td style="text-align: right; width: 90px;">${r.quantita.toLocaleString('it-IT')}</td>
+            <td style="text-align: right; width: 105px;">${this.formattaValuta(r.prezzo_unitario)}</td>
             <td style="text-align: center; width: 70px;">${r.aliquota_iva ?? 10}%</td>
-            <td style="text-align: right; width: 110px; font-weight: 700;">${this.formattaValuta(r.importo)}</td>
+            <td style="text-align: right; width: 115px; font-weight: 700;">${this.formattaValuta(r.importo)}</td>
           </tr>`;
         })
         .join('');
@@ -3721,12 +3744,11 @@ export class App implements OnInit {
         <table class="invoice-table">
           <thead>
             <tr>
-              <th style="text-align: center; width: 35px;">N.</th>
               <th>Descrizione merce / beni</th>
-              <th style="text-align: right; width: 85px;">Quantità</th>
-              <th style="text-align: right; width: 100px;">Prezzo unit.</th>
+              <th style="text-align: right; width: 90px;">Quantità</th>
+              <th style="text-align: right; width: 105px;">Prezzo unit.</th>
               <th style="text-align: center; width: 70px;">IVA %</th>
-              <th style="text-align: right; width: 110px;">Importo netto</th>
+              <th style="text-align: right; width: 115px;">Importo netto</th>
             </tr>
           </thead>
           <tbody>
@@ -3740,14 +3762,26 @@ export class App implements OnInit {
 <html lang="it">
 <head>
   <meta charset="utf-8">
-  <title>Fattura ${this.escapeHtml(f.numeroFattura || '')}</title>
+  <title></title>
   <style>
-    @page { size: A4 portrait; margin: 12mm; }
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+    @media print {
+      @page {
+        margin: 0;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+    }
     * { box-sizing: border-box; }
     html, body {
-      height: 100%;
       margin: 0;
       padding: 0;
+      background: #fff;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -3755,13 +3789,17 @@ export class App implements OnInit {
       font-size: 11px;
       line-height: 1.4;
       background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .fattura-page {
-      max-width: 190mm;
-      min-height: 268mm;
+      width: 100%;
+      min-height: 297mm;
+      padding: 12mm 14mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
+      box-sizing: border-box;
     }
     .fattura-main {
       flex: 1 0 auto;
@@ -4019,17 +4057,6 @@ export class App implements OnInit {
             <span>${this.formattaValuta(f.totaleFattura)}</span>
           </div>
         </div>
-      </div>
-    </div>
-
-    <div class="signatures-grid">
-      <div class="sig-box">
-        <span class="sig-label">Firma Emittente</span>
-        <span class="sig-line">Azienda Agricola Mori Marco</span>
-      </div>
-      <div class="sig-box">
-        <span class="sig-label">Firma per Accettazione Cessionario</span>
-        <span class="sig-line">Firma del Cliente</span>
       </div>
     </div>
   </div>

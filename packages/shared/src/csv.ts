@@ -388,6 +388,7 @@ export function generaTemplateCsv(def: DefinizioneTabella): string {
     note: 'Esempio importazione',
     // Clienti
     ragione_sociale: 'Azienda Agricola Rossi Srl',
+    referente: 'Mario Rossi',
     partita_iva: '01234567890',
     codice_fiscale: 'RSSMRA80A01H501Z',
     citta: 'Conegliano',

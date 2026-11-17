@@ -203,11 +203,13 @@ export const anagraficaPortainnesto = sqliteTable('anagrafica_portainnesto', {
 
 export const clienti = sqliteTable('clienti', {
   ragioneSociale: text('ragione_sociale').primaryKey(),
+  referente: text('referente'),
   partitaIva: text('partita_iva'),
   codiceFiscale: text('codice_fiscale'),
   citta: text('citta'),
   indirizzo: text('indirizzo'),
   numeroTelefono: text('numero_telefono'),
+  note: text('note'),
 });
 
 export const tipiProdotto = sqliteTable('tipi_prodotto', {
