@@ -2699,14 +2699,15 @@
             @if (fatturaRighe().length > 0) {
               <div class="form-group">
                 <label><strong>Righe merce (da ordini selezionati)</strong></label>
-                <div class="table-responsive" style="max-height: 220px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 4px;">
+                <div class="table-responsive" style="max-height: 260px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 4px;">
                   <table class="data-table" style="margin: 0;">
                     <thead>
                       <tr>
                         <th>Articolo</th>
-                        <th class="num" style="width: 100px;">Q.tà</th>
-                        <th class="num" style="width: 120px;">Prezzo unit. (€)</th>
-                        <th class="num" style="width: 120px;">Importo netto (€)</th>
+                        <th class="num" style="width: 95px;">Q.tà</th>
+                        <th class="num" style="width: 110px;">Prezzo unit. (€)</th>
+                        <th class="num" style="width: 85px;">IVA %</th>
+                        <th class="num" style="width: 115px;">Importo netto (€)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2726,6 +2727,8 @@
                           <td class="num">
                             <input
                               type="number"
+                              name="riga_qta_{{ $index }}"
+                              [ngModelOptions]="{standalone: true}"
                               class="form-control text-right"
                               style="width: 80px; padding: 2px 6px; font-size: 12px; display: inline-block;"
                               [ngModel]="r.quantita"
@@ -2737,11 +2740,27 @@
                             <input
                               type="number"
                               step="0.01"
+                              name="riga_prezzo_{{ $index }}"
+                              [ngModelOptions]="{standalone: true}"
                               class="form-control text-right"
                               style="width: 95px; padding: 2px 6px; font-size: 12px; display: inline-block;"
                               [ngModel]="r.prezzo_unitario"
                               (ngModelChange)="aggiornaPrezzoRigaFattura($index, $event)"
                               min="0"
+                            />
+                          </td>
+                          <td class="num">
+                            <input
+                              type="number"
+                              step="0.5"
+                              name="riga_iva_{{ $index }}"
+                              [ngModelOptions]="{standalone: true}"
+                              class="form-control text-center"
+                              style="width: 65px; padding: 2px 6px; font-size: 12px; display: inline-block;"
+                              [ngModel]="r.aliquota_iva ?? 10"
+                              (ngModelChange)="aggiornaAliquotaIvaRigaFattura($index, $event)"
+                              min="0"
+                              max="100"
                             />
                           </td>
                           <td class="num">
@@ -2795,22 +2814,29 @@
                   <span class="text-muted small" style="display: block; font-weight: 600;">Totale Merce</span>
                   <span style="font-size: 15px; font-weight: 700;">{{ formattaValuta(fatturaForm().totaleMerce) }}</span>
                 </div>
-                <div>
-                  <label for="fatturaAliquotaIva" class="text-muted small" style="display: block; font-weight: 600; margin-bottom: 2px;">Aliquota I.V.A. (%)</label>
-                  <input
-                    id="fatturaAliquotaIva"
-                    name="fatturaAliquotaIva"
-                    type="number"
-                    step="0.5"
-                    class="form-control"
-                    style="width: 85px; padding: 2px 6px; font-size: 13px; font-weight: 700;"
-                    [ngModel]="fatturaForm().aliquotaIva"
-                    (ngModelChange)="aggiornaCampoFattura('aliquotaIva', $event)"
-                    min="0"
-                    max="100"
-                    required
-                  />
-                </div>
+                @if (fatturaRighe().length === 0) {
+                  <div>
+                    <label for="fatturaAliquotaIva" class="text-muted small" style="display: block; font-weight: 600; margin-bottom: 2px;">Aliquota I.V.A. (%)</label>
+                    <input
+                      id="fatturaAliquotaIva"
+                      name="fatturaAliquotaIva"
+                      type="number"
+                      step="0.5"
+                      class="form-control"
+                      style="width: 85px; padding: 2px 6px; font-size: 13px; font-weight: 700;"
+                      [ngModel]="fatturaForm().aliquotaIva"
+                      (ngModelChange)="aggiornaCampoFattura('aliquotaIva', $event)"
+                      min="0"
+                      max="100"
+                      required
+                    />
+                  </div>
+                } @else {
+                  <div>
+                    <span class="text-muted small" style="display: block; font-weight: 600;">IVA applicata</span>
+                    <span style="font-size: 12px; color: #475569; font-weight: 600;">Per componente (modificabile nella colonna IVA %)</span>
+                  </div>
+                }
                 <div>
                   <span class="text-muted small" style="display: block; font-weight: 600;">Totale I.V.A.</span>
                   <span style="font-size: 15px; font-weight: 700;">{{ formattaValuta(fatturaForm().totaleIva) }}</span>
