@@ -28,9 +28,16 @@ import {
   type BollaRigaItem,
   type SalvaBollaPayload,
   type ProssimoNumeroBollaResponse,
+  type FatturaSommario,
+  type FatturaDettaglio,
+  type FatturaRigaItem,
+  type SalvaFatturaPayload,
+  type ProssimoNumeroFatturaResponse,
+  MODALITA_PAGAMENTO_PREDEFINITA,
+  ALIQUOTA_IVA_PREDEFINITA,
 } from '@magazzino/shared';
 
-type SezioneAttiva = 'disponibilita' | 'rese' | 'bolle' | 'tabella';
+type SezioneAttiva = 'disponibilita' | 'rese' | 'bolle' | 'fatture' | 'tabella';
 
 interface BollaTrasportoForm {
   numeroBolla: string;
@@ -55,6 +62,33 @@ interface BollaRigaArticolo {
   codice_clone: string;
   codice_portainnesto: string;
   quantita: number;
+}
+
+interface FatturaForm {
+  numeroFattura: string;
+  dataFattura: string;
+  cliente: string;
+  partitaIva: string;
+  codiceFiscale: string;
+  cessionarioIndirizzo: string;
+  modalitaPagamento: string;
+  aliquotaIva: number;
+  totaleMerce: number;
+  totaleIva: number;
+  totaleFattura: number;
+  noteFattura: string;
+  corpoLibero: string;
+}
+
+interface FatturaRigaForm {
+  ordine_id?: string | null;
+  prodotto: string;
+  codice_varieta: string;
+  codice_clone: string;
+  codice_portainnesto: string;
+  quantita: number;
+  prezzo_unitario: number;
+  importo: number;
 }
 
 @Component({
@@ -154,6 +188,38 @@ export class App implements OnInit {
   protected readonly bollaDettaglioSelezionata = signal<BollaTrasportoDettaglio | null>(null);
   protected readonly caricamentoDettaglioBolla = signal(false);
   protected readonly salvataggioBollaInCorso = signal(false);
+
+  // Fattura di Vendita
+  private static readonly STORAGE_FATTURA_NUM_KEY = 'magazzino_ultimo_numero_fattura_v1';
+  protected readonly fatturaModalAperto = signal(false);
+  protected readonly fatturaOrdini = signal<RigaTabella[]>([]);
+  protected readonly fatturaRighe = signal<FatturaRigaForm[]>([]);
+  protected readonly fatturaForm = signal<FatturaForm>({
+    numeroFattura: '',
+    dataFattura: '',
+    cliente: '',
+    partitaIva: '',
+    codiceFiscale: '',
+    cessionarioIndirizzo: '',
+    modalitaPagamento: MODALITA_PAGAMENTO_PREDEFINITA,
+    aliquotaIva: ALIQUOTA_IVA_PREDEFINITA,
+    totaleMerce: 0,
+    totaleIva: 0,
+    totaleFattura: 0,
+    noteFattura: '',
+    corpoLibero: '',
+  });
+
+  // Stato Archivio Fatture
+  protected readonly fattureArchivio = signal<FatturaSommario[]>([]);
+  protected readonly caricamentoFatture = signal(false);
+  protected readonly erroreFatture = signal<string | null>(null);
+  protected readonly filtroTestoFatture = signal('');
+  protected readonly filtroAnnoFatture = signal<string>('TUTTI');
+  protected readonly filtroClienteFatture = signal<string>('TUTTI');
+  protected readonly fatturaDettaglioSelezionata = signal<FatturaDettaglio | null>(null);
+  protected readonly caricamentoDettaglioFattura = signal(false);
+  protected readonly salvataggioFatturaInCorso = signal(false);
 
   // Conferma Eliminazione
   protected readonly deleteConfirmAperto = signal(false);
@@ -381,6 +447,7 @@ export class App implements OnInit {
     if (sez === 'disponibilita') return '__disp';
     if (sez === 'rese') return '__rese';
     if (sez === 'bolle') return '__bolle';
+    if (sez === 'fatture') return '__fatture';
     return this.tabellaSelezionata();
   });
 
@@ -422,6 +489,54 @@ export class App implements OnInit {
           b.causaleTrasporto,
           b.dataBolla,
           b.note,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  });
+
+  // Computed per Archivio Fatture
+  protected readonly anniDisponibiliFatture = computed<number[]>(() => {
+    const set = new Set<number>();
+    for (const f of this.fattureArchivio()) {
+      if (f.anno) set.add(f.anno);
+    }
+    const annoCorrente = new Date().getFullYear();
+    set.add(annoCorrente);
+    return Array.from(set).sort((a, b) => b - a);
+  });
+
+  protected readonly clientiDisponibiliFatture = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const f of this.fattureArchivio()) {
+      if (f.cliente?.trim()) set.add(f.cliente.trim());
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+  });
+
+  protected readonly fattureFiltrate = computed<FatturaSommario[]>(() => {
+    const list = this.fattureArchivio();
+    const anno = this.filtroAnnoFatture();
+    const cliente = this.filtroClienteFatture();
+    const q = this.filtroTestoFatture().trim().toLowerCase();
+
+    return list.filter((f) => {
+      if (anno !== 'TUTTI' && String(f.anno) !== anno) return false;
+      if (cliente !== 'TUTTI' && f.cliente !== cliente) return false;
+      if (q) {
+        const haystack = [
+          f.numeroFattura,
+          f.cliente,
+          f.partitaIva,
+          f.codiceFiscale,
+          f.cessionarioIndirizzo,
+          f.modalitaPagamento,
+          f.dataFattura,
+          f.note,
         ]
           .filter(Boolean)
           .join(' ')
@@ -1456,6 +1571,8 @@ export class App implements OnInit {
       this.caricaRese();
     } else if (sez === 'bolle') {
       this.caricaBolle();
+    } else if (sez === 'fatture') {
+      this.caricaFatture();
     } else {
       this.caricaDatiTabella(this.tabellaSelezionata());
     }
@@ -1473,6 +1590,10 @@ export class App implements OnInit {
       this.caricaDisponibilita();
     } else if (sez === 'rese') {
       this.caricaRese();
+    } else if (sez === 'bolle') {
+      this.caricaBolle();
+    } else if (sez === 'fatture') {
+      this.caricaFatture();
     } else {
       this.caricaDatiTabella(this.tabellaSelezionata());
     }
@@ -2370,7 +2491,13 @@ export class App implements OnInit {
     });
   }
 
-  protected readonly listaClientiAnagrafica = signal<{ ragioneSociale: string; indirizzo: string; citta: string }[]>([]);
+  protected readonly listaClientiAnagrafica = signal<{
+    ragioneSociale: string;
+    indirizzo: string;
+    citta: string;
+    partitaIva: string;
+    codiceFiscale: string;
+  }[]>([]);
 
   protected caricaListaClienti(): void {
     if (this.listaClientiAnagrafica().length > 0) return;
@@ -2381,6 +2508,8 @@ export class App implements OnInit {
             ragioneSociale: String(c['ragione_sociale'] || '').trim(),
             indirizzo: String(c['indirizzo'] || '').trim(),
             citta: String(c['citta'] || '').trim(),
+            partitaIva: String(c['partita_iva'] || '').trim(),
+            codiceFiscale: String(c['codice_fiscale'] || '').trim(),
           }))
           .filter((c) => c.ragioneSociale);
         this.listaClientiAnagrafica.set(list);
@@ -3058,5 +3187,823 @@ export class App implements OnInit {
       iframe.remove();
       this.mostraErrore('Impossibile aprire la finestra di stampa. Verifica il blocco popup.');
     }
+  }
+
+  // ==========================================================================
+  // GESTIONE ARCHIVIO E GENERAZIONE FATTURE DI VENDITA
+  // ==========================================================================
+
+  protected caricaFatture(): void {
+    this.caricamentoFatture.set(true);
+    this.erroreFatture.set(null);
+    this.http.get<{ fatture: FatturaSommario[] }>('/api/fatture').subscribe({
+      next: (res) => {
+        this.fattureArchivio.set(res.fatture || []);
+        this.caricamentoFatture.set(false);
+      },
+      error: (err) => {
+        this.caricamentoFatture.set(false);
+        this.erroreFatture.set(err.error?.error || 'Errore nel caricamento delle fatture');
+      },
+    });
+  }
+
+  protected apriDettagliFattura(f: FatturaSommario): void {
+    this.caricamentoDettaglioFattura.set(true);
+    this.http.get<{ fattura: FatturaDettaglio }>(`/api/fatture/${f.id}`).subscribe({
+      next: (res) => {
+        this.fatturaDettaglioSelezionata.set(res.fattura);
+        this.caricamentoDettaglioFattura.set(false);
+      },
+      error: (err) => {
+        this.caricamentoDettaglioFattura.set(false);
+        this.mostraErrore(err.error?.error || 'Errore nel recupero della fattura');
+      },
+    });
+  }
+
+  protected chiudiDettagliFattura(): void {
+    this.fatturaDettaglioSelezionata.set(null);
+  }
+
+  protected ristampaFatturaDaArchivio(f: FatturaSommario | FatturaDettaglio): void {
+    if ('righe' in f && Array.isArray((f as FatturaDettaglio).righe)) {
+      this.eseguiStampaFatturaDaDettaglio(f as FatturaDettaglio);
+      return;
+    }
+
+    this.http.get<{ fattura: FatturaDettaglio }>(`/api/fatture/${f.id}`).subscribe({
+      next: (res) => {
+        this.eseguiStampaFatturaDaDettaglio(res.fattura);
+      },
+      error: (err) => {
+        this.mostraErrore(err.error?.error || 'Impossibile recuperare la fattura per la ristampa');
+      },
+    });
+  }
+
+  protected eliminaFattura(f: FatturaSommario): void {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(
+        `Sei sicuro di voler eliminare la fattura N. ${f.numeroFattura}? L'operazione non può essere annullata.`,
+      );
+      if (!ok) return;
+    }
+
+    this.http.delete(`/api/fatture/${f.id}`).subscribe({
+      next: () => {
+        this.fattureArchivio.update((list) => list.filter((item) => item.id !== f.id));
+        if (this.fatturaDettaglioSelezionata()?.id === f.id) {
+          this.fatturaDettaglioSelezionata.set(null);
+        }
+        this.mostraOk(`Fattura N. ${f.numeroFattura} eliminata con successo.`);
+      },
+      error: (err) => {
+        this.mostraErrore(err.error?.error || "Errore durante l'eliminazione della fattura");
+      },
+    });
+  }
+
+  private proponiNumeroFattura(): string {
+    const anno = new Date().getFullYear();
+    try {
+      const raw = localStorage.getItem(App.STORAGE_FATTURA_NUM_KEY);
+      if (raw) {
+        const parts = raw.split('/');
+        const n = parseInt(parts[0], 10);
+        const y = parts[1] ? parseInt(parts[1], 10) : anno;
+        if (!isNaN(n) && y === anno) {
+          return `${n + 1}/${anno}`;
+        }
+      }
+    } catch {}
+    return `1/${anno}`;
+  }
+
+  private salvaUltimoNumeroFattura(num: string): void {
+    try {
+      const trimmed = (num || '').trim();
+      if (/^\d+(?:\/\d{4})?$/.test(trimmed)) {
+        localStorage.setItem(App.STORAGE_FATTURA_NUM_KEY, trimmed);
+      }
+    } catch {}
+  }
+
+  protected apriModalNuovaFatturaLibera(): void {
+    this.caricaListaClienti();
+    const oggiIso = dataOggi();
+    const annoCorrente = new Date().getFullYear();
+    this.fatturaOrdini.set([]);
+    this.fatturaRighe.set([]);
+
+    this.fatturaForm.set({
+      numeroFattura: this.proponiNumeroFattura(),
+      dataFattura: oggiIso,
+      cliente: '',
+      partitaIva: '',
+      codiceFiscale: '',
+      cessionarioIndirizzo: '',
+      modalitaPagamento: MODALITA_PAGAMENTO_PREDEFINITA,
+      aliquotaIva: ALIQUOTA_IVA_PREDEFINITA,
+      totaleMerce: 0,
+      totaleIva: 0,
+      totaleFattura: 0,
+      noteFattura: '',
+      corpoLibero: '',
+    });
+    this.fatturaModalAperto.set(true);
+
+    this.http
+      .get<ProssimoNumeroFatturaResponse>(`/api/fatture/prossimo-numero?anno=${annoCorrente}`)
+      .subscribe({
+        next: (res) => {
+          if (res?.numeroFattura) {
+            this.aggiornaCampoFattura('numeroFattura', res.numeroFattura);
+          }
+        },
+        error: () => {},
+      });
+  }
+
+  protected apriModalFattura(): void {
+    this.caricaListaClienti();
+    const ordini = this.righeSelezionate();
+    if (ordini.length === 0) return;
+
+    const clientiDistinti = Array.from(
+      new Set(ordini.map((r) => String(r['cliente'] || '').trim()).filter(Boolean)),
+    );
+    if (clientiDistinti.length === 0) {
+      this.mostraErrore('Gli ordini selezionati non hanno un cliente associato.');
+      return;
+    }
+    if (clientiDistinti.length > 1) {
+      this.mostraErrore(
+        `Impossibile generare la fattura: seleziona ordini appartenenti a un solo cliente (${clientiDistinti.join(', ')}).`,
+      );
+      return;
+    }
+
+    const clienteNome = clientiDistinti[0];
+    const clienteTrovato = this.listaClientiAnagrafica().find(
+      (c) => c.ragioneSociale.toLowerCase() === clienteNome.toLowerCase(),
+    );
+    if (clienteTrovato) {
+      this.inizializzaEApriModalFattura(ordini, clienteNome, clienteTrovato);
+      return;
+    }
+
+    this.http.get<{ righe: RigaTabella[] }>('/api/crud/clienti').subscribe({
+      next: (res) => {
+        const clienti = res.righe ?? [];
+        const cObj = clienti.find(
+          (c) => String(c['ragione_sociale'] || '').trim() === clienteNome,
+        );
+        const mappedObj = cObj
+          ? {
+              ragioneSociale: String(cObj['ragione_sociale'] || '').trim(),
+              indirizzo: String(cObj['indirizzo'] || '').trim(),
+              citta: String(cObj['citta'] || '').trim(),
+              partitaIva: String(cObj['partita_iva'] || '').trim(),
+              codiceFiscale: String(cObj['codice_fiscale'] || '').trim(),
+            }
+          : undefined;
+        this.inizializzaEApriModalFattura(ordini, clienteNome, mappedObj);
+      },
+      error: () => {
+        this.inizializzaEApriModalFattura(ordini, clienteNome, undefined);
+      },
+    });
+  }
+
+  private inizializzaEApriModalFattura(
+    ordini: RigaTabella[],
+    clienteNome: string,
+    clienteObj?: {
+      ragioneSociale: string;
+      indirizzo: string;
+      citta: string;
+      partitaIva: string;
+      codiceFiscale: string;
+    },
+  ): void {
+    this.caricaListaClienti();
+    const cessionarioIndirizzo = [clienteObj?.indirizzo, clienteObj?.citta]
+      .map((v) => String(v || '').trim())
+      .filter(Boolean)
+      .join(' - ');
+
+    const partitaIva = clienteObj?.partitaIva || '';
+    const codiceFiscale = clienteObj?.codiceFiscale || '';
+
+    const oggiIso = dataOggi();
+    const annoCorrente = new Date().getFullYear();
+    this.fatturaOrdini.set([...ordini]);
+
+    // Costruisci le righe fattura dagli ordini selezionati
+    const righe: FatturaRigaForm[] = ordini.map((r) => {
+      const qta = Number(r['quantita']) || 0;
+      const prezzoUnitario = Number(r['prezzo_vendita']) || 0;
+      const importo = Math.round(qta * prezzoUnitario * 100) / 100;
+      return {
+        ordine_id: r['id'] ? String(r['id']) : null,
+        prodotto: String(r['prodotto'] || '').trim(),
+        codice_varieta: String(r['codice_varieta'] || '').trim(),
+        codice_clone: String(r['codice_clone'] || '').trim(),
+        codice_portainnesto: String(r['codice_portainnesto'] || '').trim(),
+        quantita: qta,
+        prezzo_unitario: prezzoUnitario,
+        importo,
+      };
+    });
+
+    this.fatturaRighe.set(righe);
+
+    const totaleMerce = Math.round(righe.reduce((acc, r) => acc + r.importo, 0) * 100) / 100;
+    const aliquotaIva = ALIQUOTA_IVA_PREDEFINITA;
+    const totaleIva = Math.round(totaleMerce * (aliquotaIva / 100) * 100) / 100;
+    const totaleFattura = Math.round((totaleMerce + totaleIva) * 100) / 100;
+
+    this.fatturaForm.set({
+      numeroFattura: this.proponiNumeroFattura(),
+      dataFattura: oggiIso,
+      cliente: clienteNome,
+      partitaIva,
+      codiceFiscale,
+      cessionarioIndirizzo,
+      modalitaPagamento: MODALITA_PAGAMENTO_PREDEFINITA,
+      aliquotaIva,
+      totaleMerce,
+      totaleIva,
+      totaleFattura,
+      noteFattura: '',
+      corpoLibero: '',
+    });
+    this.fatturaModalAperto.set(true);
+
+    this.http
+      .get<ProssimoNumeroFatturaResponse>(`/api/fatture/prossimo-numero?anno=${annoCorrente}`)
+      .subscribe({
+        next: (res) => {
+          if (res?.numeroFattura) {
+            this.aggiornaCampoFattura('numeroFattura', res.numeroFattura);
+          }
+        },
+        error: () => {},
+      });
+  }
+
+  protected chiudiModalFattura(): void {
+    this.fatturaModalAperto.set(false);
+  }
+
+  protected aggiornaCampoFattura<K extends keyof FatturaForm>(
+    campo: K,
+    valore: FatturaForm[K],
+  ): void {
+    this.fatturaForm.update((prev) => ({ ...prev, [campo]: valore }));
+    if (campo === 'aliquotaIva' || campo === 'totaleMerce') {
+      this.ricalcolaTotaliFattura();
+    }
+  }
+
+  protected selezionaClienteFattura(nome: string): void {
+    this.aggiornaCampoFattura('cliente', nome);
+    const trovato = this.listaClientiAnagrafica().find(
+      (c) => c.ragioneSociale.toLowerCase() === nome.trim().toLowerCase(),
+    );
+    if (trovato) {
+      const ind = [trovato.indirizzo, trovato.citta].filter(Boolean).join(' - ');
+      this.aggiornaCampoFattura('cessionarioIndirizzo', ind);
+      this.aggiornaCampoFattura('partitaIva', trovato.partitaIva || '');
+      this.aggiornaCampoFattura('codiceFiscale', trovato.codiceFiscale || '');
+    }
+  }
+
+  protected aggiornaPrezzoRigaFattura(index: number, prezzoUnitario: number): void {
+    const list = [...this.fatturaRighe()];
+    if (index >= 0 && index < list.length) {
+      const r = list[index];
+      const p = Math.max(0, Number(prezzoUnitario) || 0);
+      const imp = Math.round(r.quantita * p * 100) / 100;
+      list[index] = { ...r, prezzo_unitario: p, importo: imp };
+      this.fatturaRighe.set(list);
+      this.ricalcolaTotaliFattura();
+    }
+  }
+
+  protected aggiornaQuantitaRigaFattura(index: number, quantita: number): void {
+    const list = [...this.fatturaRighe()];
+    if (index >= 0 && index < list.length) {
+      const r = list[index];
+      const q = Math.max(0, parseInt(String(quantita), 10) || 0);
+      const imp = Math.round(q * r.prezzo_unitario * 100) / 100;
+      list[index] = { ...r, quantita: q, importo: imp };
+      this.fatturaRighe.set(list);
+      this.ricalcolaTotaliFattura();
+    }
+  }
+
+  protected ricalcolaTotaliFattura(): void {
+    const righe = this.fatturaRighe();
+    const f = this.fatturaForm();
+    let totaleMerce = 0;
+    if (righe.length > 0) {
+      totaleMerce = Math.round(righe.reduce((acc, r) => acc + r.importo, 0) * 100) / 100;
+    } else {
+      totaleMerce = Math.max(0, Number(f.totaleMerce) || 0);
+    }
+    const aliquota = Number.isFinite(Number(f.aliquotaIva)) ? Number(f.aliquotaIva) : 10;
+    const totaleIva = Math.round(totaleMerce * (aliquota / 100) * 100) / 100;
+    const totaleFattura = Math.round((totaleMerce + totaleIva) * 100) / 100;
+
+    this.fatturaForm.update((prev) => ({
+      ...prev,
+      totaleMerce,
+      totaleIva,
+      totaleFattura,
+    }));
+  }
+
+  protected formattaValuta(val: number | null | undefined): string {
+    const n = Number(val) || 0;
+    return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
+
+  protected salvaEStampaFattura(): void {
+    const f = this.fatturaForm();
+    const righe = this.fatturaRighe();
+    const corpoLibero = (f.corpoLibero || '').trim();
+    if (!corpoLibero && righe.length === 0) {
+      this.mostraErrore('Specificare una descrizione dei beni o almeno una riga merce.');
+      return;
+    }
+
+    this.salvataggioFatturaInCorso.set(true);
+
+    const payload: SalvaFatturaPayload = {
+      numeroFattura: f.numeroFattura.trim(),
+      dataFattura: f.dataFattura,
+      cliente: f.cliente.trim(),
+      partitaIva: f.partitaIva.trim(),
+      codiceFiscale: f.codiceFiscale.trim(),
+      cessionarioIndirizzo: f.cessionarioIndirizzo.trim(),
+      modalitaPagamento: f.modalitaPagamento.trim(),
+      aliquotaIva: f.aliquotaIva,
+      totaleMerce: f.totaleMerce,
+      totaleIva: f.totaleIva,
+      totaleFattura: f.totaleFattura,
+      note: f.noteFattura.trim(),
+      corpoLibero,
+      righe: righe.map((r) => ({
+        ordineId: r.ordine_id || null,
+        prodotto: r.prodotto,
+        codiceVarieta: r.codice_varieta,
+        codiceClone: r.codice_clone,
+        codicePortainnesto: r.codice_portainnesto,
+        quantita: r.quantita,
+        prezzoUnitario: r.prezzo_unitario,
+        importo: r.importo,
+      })),
+    };
+
+    this.http.post<{ fattura: FatturaDettaglio }>('/api/fatture', payload).subscribe({
+      next: (res) => {
+        this.salvataggioFatturaInCorso.set(false);
+        const salvata = res.fattura;
+        this.salvaUltimoNumeroFattura(salvata.numeroFattura);
+
+        this.fattureArchivio.update((prev) => [
+          {
+            id: salvata.id,
+            numeroFattura: salvata.numeroFattura,
+            anno: salvata.anno,
+            progressivo: salvata.progressivo,
+            dataFattura: salvata.dataFattura,
+            cliente: salvata.cliente,
+            partitaIva: salvata.partitaIva,
+            codiceFiscale: salvata.codiceFiscale,
+            cessionarioIndirizzo: salvata.cessionarioIndirizzo,
+            modalitaPagamento: salvata.modalitaPagamento,
+            aliquotaIva: salvata.aliquotaIva,
+            totaleMerce: salvata.totaleMerce,
+            totaleIva: salvata.totaleIva,
+            totaleFattura: salvata.totaleFattura,
+            note: salvata.note,
+            corpoLibero: salvata.corpoLibero,
+            createdAt: salvata.createdAt,
+            totaleQuantita: salvata.totaleQuantita,
+            numeroRighe: salvata.numeroRighe,
+          },
+          ...prev.filter((item) => item.id !== salvata.id),
+        ]);
+
+        this.chiudiModalFattura();
+        this.deselezionaTutteLeRighe();
+        this.mostraOk(`Fattura N. ${salvata.numeroFattura} salvata nell'Archivio fatture.`);
+
+        // Avvia la stampa
+        this.eseguiStampaFatturaDaDettaglio(salvata);
+      },
+      error: (err) => {
+        this.salvataggioFatturaInCorso.set(false);
+        this.mostraErrore(err.error?.error || 'Errore durante il salvataggio della fattura.');
+      },
+    });
+  }
+
+  protected stampaFatturaSenzaSalvare(): void {
+    const f = this.fatturaForm();
+    const righe = this.fatturaRighe();
+    const corpoLibero = (f.corpoLibero || '').trim();
+    if (!corpoLibero && righe.length === 0) return;
+
+    this.salvaUltimoNumeroFattura(f.numeroFattura);
+    this.eseguiStampaHtml(this.generaHtmlFattura(f, righe));
+    this.chiudiModalFattura();
+  }
+
+  protected stampaFattura(): void {
+    this.salvaEStampaFattura();
+  }
+
+  private eseguiStampaFatturaDaDettaglio(d: FatturaDettaglio): void {
+    const righe: FatturaRigaForm[] = (d.righe || []).map((r) => ({
+      ordine_id: r.ordineId || null,
+      prodotto: r.prodotto,
+      codice_varieta: r.codiceVarieta,
+      codice_clone: r.codiceClone,
+      codice_portainnesto: r.codicePortainnesto,
+      quantita: r.quantita,
+      prezzo_unitario: r.prezzoUnitario,
+      importo: r.importo,
+    }));
+
+    const f: FatturaForm = {
+      numeroFattura: d.numeroFattura,
+      dataFattura: d.dataFattura,
+      cliente: d.cliente,
+      partitaIva: d.partitaIva || '',
+      codiceFiscale: d.codiceFiscale || '',
+      cessionarioIndirizzo: d.cessionarioIndirizzo || '',
+      modalitaPagamento: d.modalitaPagamento || MODALITA_PAGAMENTO_PREDEFINITA,
+      aliquotaIva: d.aliquotaIva ?? ALIQUOTA_IVA_PREDEFINITA,
+      totaleMerce: d.totaleMerce,
+      totaleIva: d.totaleIva,
+      totaleFattura: d.totaleFattura,
+      noteFattura: d.note || '',
+      corpoLibero: d.corpoLibero || '',
+    };
+
+    this.eseguiStampaHtml(this.generaHtmlFattura(f, righe));
+  }
+
+  private generaHtmlFattura(f: FatturaForm, righe: FatturaRigaForm[]): string {
+    const dataDocIt = this.formattaDataIt(f.dataFattura) || '—';
+    const corpoLiberoTrim = (f.corpoLibero || '').trim();
+    const corpoHtml = corpoLiberoTrim
+      ? `<div class="corpo-libero-box">${this.escapeHtml(corpoLiberoTrim).replace(/\r?\n/g, '<br>')}</div>`
+      : '';
+
+    const noteHtml = f.noteFattura.trim()
+      ? `<div class="notes-box"><strong>Note:</strong> ${this.escapeHtml(f.noteFattura.trim()).replace(/\r?\n/g, '<br>')}</div>`
+      : '';
+
+    let righeTableHtml = '';
+    if (righe.length > 0) {
+      const rowsHtml = righe
+        .map((r, i) => {
+          const varClone =
+            r.codice_varieta && r.codice_varieta !== 'NC'
+              ? `${r.codice_varieta}${r.codice_clone && r.codice_clone !== 'NC' ? ` (Cl. ${r.codice_clone})` : ''}`
+              : '';
+          const pi = r.codice_portainnesto && r.codice_portainnesto !== 'NC' ? `P.I. ${r.codice_portainnesto}` : '';
+          const desc = [r.prodotto, varClone, pi].filter(Boolean).join(' - ');
+          return `<tr>
+            <td style="text-align: center; width: 35px;">${i + 1}</td>
+            <td><strong>${this.escapeHtml(desc)}</strong></td>
+            <td style="text-align: right; width: 85px;">${r.quantita.toLocaleString('it-IT')}</td>
+            <td style="text-align: right; width: 100px;">${this.formattaValuta(r.prezzo_unitario)}</td>
+            <td style="text-align: right; width: 110px; font-weight: 700;">${this.formattaValuta(r.importo)}</td>
+          </tr>`;
+        })
+        .join('');
+
+      righeTableHtml = `
+        <table class="invoice-table">
+          <thead>
+            <tr>
+              <th style="text-align: center; width: 35px;">N.</th>
+              <th>Descrizione merce / beni</th>
+              <th style="text-align: right; width: 85px;">Quantità</th>
+              <th style="text-align: right; width: 100px;">Prezzo unit.</th>
+              <th style="text-align: right; width: 110px;">Importo netto</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      `;
+    }
+
+    return `<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>Fattura ${this.escapeHtml(f.numeroFattura || '')}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm; }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #111827;
+      font-size: 11px;
+      line-height: 1.4;
+      background: #fff;
+    }
+    .fattura-page {
+      max-width: 190mm;
+      min-height: 268mm;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .fattura-main {
+      flex: 1 0 auto;
+    }
+    .fattura-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #1b4332;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+    .fattura-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #1b4332;
+      letter-spacing: 0.02em;
+      margin: 0;
+    }
+    .fattura-subtitle {
+      font-size: 10px;
+      color: #4b5563;
+      margin-top: 2px;
+    }
+    .fattura-doc-meta {
+      text-align: right;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 6px 12px;
+      min-width: 175px;
+    }
+    .fattura-doc-meta div { font-size: 11.5px; margin-bottom: 2px; }
+    .fattura-doc-meta strong { font-size: 13px; color: #1b4332; }
+    .parties-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 9px 12px;
+      background: #fff;
+    }
+    .box-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #1b4332;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 3px;
+      margin-bottom: 6px;
+    }
+    .box-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 3px;
+      color: #0f172a;
+    }
+    .box-fiscal {
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed #e2e8f0;
+      font-size: 10.5px;
+      color: #334155;
+    }
+    .payment-box {
+      border: 1px solid #cbd5e1;
+      background: #f0fdf4;
+      border-left: 4px solid #16a34a;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+    }
+    .payment-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #166534;
+      margin-bottom: 3px;
+      display: block;
+    }
+    .payment-value {
+      font-size: 11px;
+      font-weight: 600;
+      color: #14532d;
+    }
+    .invoice-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+    }
+    .invoice-table th {
+      background: #f1f5f9;
+      color: #1e293b;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 7px 8px;
+      border: 1px solid #cbd5e1;
+    }
+    .invoice-table td {
+      padding: 7px 8px;
+      border: 1px solid #e2e8f0;
+      font-size: 11px;
+    }
+    .invoice-table tr:nth-child(even) td {
+      background: #fafafa;
+    }
+    .corpo-libero-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 9px 12px;
+      margin-bottom: 14px;
+      background: #fff;
+      font-size: 11.5px;
+      line-height: 1.6;
+    }
+    .notes-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 7px 10px;
+      margin-bottom: 12px;
+      background: #fffbeb;
+      font-size: 10.5px;
+    }
+    .totals-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 16px;
+    }
+    .totals-box {
+      width: 260px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #f8fafc;
+      overflow: hidden;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 12px;
+      font-size: 11px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .totals-row.grand-total {
+      background: #1b4332;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      border-bottom: none;
+      padding: 8px 12px;
+    }
+    .signatures-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: auto;
+      padding-top: 14px;
+      break-inside: avoid;
+    }
+    .sig-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 7px 10px;
+      height: 64px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #fff;
+    }
+    .sig-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #475569;
+    }
+    .sig-line {
+      border-top: 1px dashed #94a3b8;
+      padding-top: 3px;
+      font-size: 8.5px;
+      color: #94a3b8;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="fattura-page">
+    <div class="fattura-main">
+      <div class="fattura-header">
+        <div>
+          <h1 class="fattura-title">FATTURA DI VENDITA</h1>
+          <div class="fattura-subtitle">Documento fiscale vendita materiale vivaistico viticolo</div>
+        </div>
+        <div class="fattura-doc-meta">
+          <div>N. Fattura: <strong>${this.escapeHtml(f.numeroFattura || '—')}</strong></div>
+          <div>Data: <strong>${this.escapeHtml(dataDocIt)}</strong></div>
+        </div>
+      </div>
+
+      <div class="parties-grid">
+        <div class="box">
+          <div class="box-label">Cedente / Prestatore</div>
+          <div class="box-title">${this.escapeHtml(this.datiCedente.ragioneSociale)}</div>
+          <div>${this.escapeHtml(this.datiCedente.indirizzo)}</div>
+          <div class="box-fiscal">${this.escapeHtml(this.datiCedente.contattiFiscali)}</div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${this.escapeHtml(this.datiCedente.autorizzazioni)}</div>
+        </div>
+
+        <div class="box">
+          <div class="box-label">Cessionario / Committente</div>
+          <div class="box-title">${this.escapeHtml(f.cliente || '—')}</div>
+          <div>${this.escapeHtml(f.cessionarioIndirizzo || 'Indirizzo non specificato')}</div>
+          <div class="box-fiscal">
+            ${f.partitaIva ? `<div><strong>P.IVA:</strong> ${this.escapeHtml(f.partitaIva)}</div>` : ''}
+            ${f.codiceFiscale ? `<div><strong>C.F.:</strong> ${this.escapeHtml(f.codiceFiscale)}</div>` : ''}
+            ${!f.partitaIva && !f.codiceFiscale ? '<div class="text-muted">P.IVA / C.F. non specificati</div>' : ''}
+          </div>
+        </div>
+      </div>
+
+      <div class="payment-box">
+        <span class="payment-label">Modalità di Pagamento</span>
+        <div class="payment-value">${this.escapeHtml(f.modalitaPagamento)}</div>
+      </div>
+
+      ${righeTableHtml}
+
+      ${corpoHtml}
+
+      ${noteHtml}
+
+      <div class="totals-container">
+        <div class="totals-box">
+          <div class="totals-row">
+            <span>Totale Merce (Imponibile):</span>
+            <strong>${this.formattaValuta(f.totaleMerce)}</strong>
+          </div>
+          <div class="totals-row">
+            <span>Aliquota I.V.A.:</span>
+            <span>${f.aliquotaIva}%</span>
+          </div>
+          <div class="totals-row">
+            <span>Totale I.V.A.:</span>
+            <strong>${this.formattaValuta(f.totaleIva)}</strong>
+          </div>
+          <div class="totals-row grand-total">
+            <span>TOTALE FATTURA:</span>
+            <span>${this.formattaValuta(f.totaleFattura)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="signatures-grid">
+      <div class="sig-box">
+        <span class="sig-label">Firma Emittente</span>
+        <span class="sig-line">Azienda Agricola Mori Marco</span>
+      </div>
+      <div class="sig-box">
+        <span class="sig-label">Firma per Accettazione Cessionario</span>
+        <span class="sig-line">Firma del Cliente</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
   }
 }

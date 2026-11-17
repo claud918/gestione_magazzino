@@ -162,6 +162,14 @@
             <span class="icon">📦</span>
             <span>Archivio bolle</span>
           </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'fatture'"
+            (click)="selezionaSezione('fatture')"
+          >
+            <span class="icon">🧾</span>
+            <span>Archivio fatture</span>
+          </button>
         </div>
 
         <div class="sidebar-section">
@@ -1129,6 +1137,196 @@
         }
 
         <!-- ============================================================== -->
+        <!-- SEZIONE: ARCHIVIO FATTURE DI VENDITA -->
+        <!-- ============================================================== -->
+        @if (sezioneAttiva() === 'fatture') {
+          <div class="content-header">
+            <div>
+              <div class="header-breadcrumb">Magazzino & Ordini</div>
+              <h2>Archivio fatture</h2>
+              <p class="subtitle">Fatture di vendita emesse con dettaglio prezzi, calcolo I.V.A., totale e download immediato</p>
+            </div>
+            <div class="header-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-primary"
+                (click)="apriModalNuovaFatturaLibera()"
+                title="Crea una nuova fattura manuale o per altri materiali"
+              >
+                + Nuova fattura
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="caricaFatture()"
+                title="Ricarica elenco fatture dal server"
+              >
+                🔄 Aggiorna
+              </button>
+            </div>
+          </div>
+
+          <!-- Filtri e barra di ricerca fatture -->
+          <div class="filter-bar">
+            <div class="filter-controls">
+              <div class="form-group inline">
+                <label for="filtro-anno-fatture">Anno:</label>
+                <select
+                  id="filtro-anno-fatture"
+                  class="form-control"
+                  [ngModel]="filtroAnnoFatture()"
+                  (ngModelChange)="filtroAnnoFatture.set($event)"
+                >
+                  <option value="TUTTI">Tutti gli anni</option>
+                  @for (anno of anniDisponibiliFatture(); track anno) {
+                    <option [value]="anno">{{ anno }}</option>
+                  }
+                </select>
+              </div>
+
+              @if (clientiDisponibiliFatture().length > 0) {
+                <div class="form-group inline">
+                  <label for="filtro-cliente-fatture">Cliente:</label>
+                  <select
+                    id="filtro-cliente-fatture"
+                    class="form-control"
+                    [ngModel]="filtroClienteFatture()"
+                    (ngModelChange)="filtroClienteFatture.set($event)"
+                  >
+                    <option value="TUTTI">Tutti i clienti</option>
+                    @for (cli of clientiDisponibiliFatture(); track cli) {
+                      <option [value]="cli">{{ cli }}</option>
+                    }
+                  </select>
+                </div>
+              }
+
+              <div class="form-group inline search-group">
+                <label for="filtro-testo-fatture">Cerca:</label>
+                <input
+                  id="filtro-testo-fatture"
+                  type="text"
+                  class="form-control search-input"
+                  placeholder="N. fattura, cliente, P.IVA..."
+                  [ngModel]="filtroTestoFatture()"
+                  (ngModelChange)="filtroTestoFatture.set($event)"
+                />
+              </div>
+
+              @if (filtroAnnoFatture() !== 'TUTTI' || filtroClienteFatture() !== 'TUTTI' || filtroTestoFatture().trim() !== '') {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-link"
+                  (click)="filtroAnnoFatture.set('TUTTI'); filtroClienteFatture.set('TUTTI'); filtroTestoFatture.set('')"
+                >
+                  Azzera filtri
+                </button>
+              }
+            </div>
+
+            <div class="filter-count">
+              <span>{{ fattureFiltrate().length }} {{ fattureFiltrate().length === 1 ? 'fattura' : 'fatture' }}</span>
+            </div>
+          </div>
+
+          <!-- Stato caricamento o errore -->
+          @if (caricamentoFatture()) {
+            <div class="loading-state">
+              <span class="spinner"></span> Caricamento archivio fatture...
+            </div>
+          } @else if (erroreFatture()) {
+            <div class="error-banner">
+              {{ erroreFatture() }}
+              <button class="btn btn-sm btn-secondary" (click)="caricaFatture()">Riprova</button>
+            </div>
+          } @else if (fattureFiltrate().length === 0) {
+            <div class="empty-state">
+              <span class="empty-icon">🧾</span>
+              <h3>Nessuna fattura trovata</h3>
+              <p>
+                Non ci sono fatture corrispondenti ai filtri impostati, oppure non è ancora stata emessa alcuna fattura.
+                Puoi emettere una nuova fattura cliccando sul pulsante <strong>+ Nuova fattura</strong> oppure selezionando gli ordini del cliente nella sezione <strong>Ordini / Impieghi</strong>.
+              </p>
+              <button
+                type="button"
+                class="btn btn-primary"
+                (click)="apriModalNuovaFatturaLibera()"
+              >
+                + Nuova fattura
+              </button>
+            </div>
+          } @else {
+            <div class="table-container">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 105px;">N. Fattura</th>
+                      <th style="width: 95px;">Data</th>
+                      <th>Cliente</th>
+                      <th style="width: 130px;">P.IVA / C.F.</th>
+                      <th class="num" style="width: 120px;">Totale Merce</th>
+                      <th style="text-align: center; width: 75px;">IVA %</th>
+                      <th class="num" style="width: 110px;">Totale IVA</th>
+                      <th class="num" style="width: 125px;">Tot. Fattura</th>
+                      <th class="actions-header" style="width: 180px;">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (f of fattureFiltrate(); track f.id) {
+                      <tr>
+                        <td>
+                          <span class="badge badge-bolla">{{ f.numeroFattura }}</span>
+                        </td>
+                        <td>{{ formattaDataIt(f.dataFattura) }}</td>
+                        <td><strong>{{ f.cliente }}</strong></td>
+                        <td>
+                          <span class="text-muted small">{{ f.partitaIva || f.codiceFiscale || '—' }}</span>
+                        </td>
+                        <td class="num">{{ formattaValuta(f.totaleMerce) }}</td>
+                        <td style="text-align: center;">{{ f.aliquotaIva }}%</td>
+                        <td class="num">{{ formattaValuta(f.totaleIva) }}</td>
+                        <td class="num">
+                          <strong style="color: #1b4332;">{{ formattaValuta(f.totaleFattura) }}</strong>
+                        </td>
+                        <td class="actions-cell">
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-primary"
+                            (click)="ristampaFatturaDaArchivio(f)"
+                            title="Scarica / visualizza Fattura (PDF)"
+                          >
+                            📄 Scarica
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-secondary"
+                            (click)="apriDettagliFattura(f)"
+                            title="Visualizza dettagli fattura e prezzi"
+                          >
+                            👁️ Dettagli
+                          </button>
+                          @if (utente()?.ruolo === 'admin') {
+                            <button
+                              type="button"
+                              class="btn btn-xs btn-outline-danger"
+                              (click)="eliminaFattura(f)"
+                              title="Elimina fattura dall'archivio"
+                            >
+                              🗑️
+                            </button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- ============================================================== -->
         <!-- SEZIONE 2: GESTIONE CRUD DELLE 12 TABELLE -->
         <!-- ============================================================== -->
         @if (sezioneAttiva() === 'tabella') {
@@ -1184,6 +1382,14 @@
                   title="Genera e stampa la bolla di trasporto per gli ordini selezionati"
                 >
                   📄 Genera bolla ({{ righeSelezionate().length }})
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  (click)="apriModalFattura()"
+                  title="Genera e stampa la fattura di vendita per gli ordini selezionati"
+                >
+                  🧾 Genera fattura ({{ righeSelezionate().length }})
                 </button>
               }
 
@@ -2303,6 +2509,434 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="chiudiDettagliBolla()">Chiudi</button>
           <button type="button" class="btn btn-primary" (click)="ristampaBollaDaArchivio(d)">
+            📄 Scarica Documento
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- MODALE: COMPILAZIONE E GENERAZIONE FATTURA DI VENDITA -->
+  <!-- ============================================================== -->
+  @if (fatturaModalAperto()) {
+    <div class="modal-backdrop">
+      <div class="modal-dialog modal-lg modal-bolla">
+        <div class="modal-header">
+          <div>
+            <h3>Fattura di Vendita</h3>
+            <small class="text-muted">Compila o modifica i parametri prima della generazione del documento</small>
+          </div>
+          <button type="button" class="btn-close" (click)="chiudiModalFattura()" aria-label="Chiudi">✕</button>
+        </div>
+
+        <form (ngSubmit)="stampaFattura()">
+          <div class="modal-body">
+            <!-- Intestazione Cedente (dati fissi) -->
+            <div class="bolla-preview-card">
+              <div class="bolla-card-label">Cedente / Prestatore</div>
+              <div class="bolla-cedente-title">{{ datiCedente.ragioneSociale }}</div>
+              <div class="bolla-cedente-line">{{ datiCedente.indirizzo }}</div>
+              <div class="bolla-cedente-line">{{ datiCedente.contattiFiscali }}</div>
+              <div class="bolla-cedente-line">{{ datiCedente.autorizzazioni }}</div>
+            </div>
+
+            <!-- Numero & Data Fattura -->
+            <div class="bolla-grid-2">
+              <div class="form-group">
+                <label for="fatturaNumero">Numero Fattura</label>
+                <input
+                  id="fatturaNumero"
+                  name="fatturaNumero"
+                  type="text"
+                  class="form-control"
+                  [ngModel]="fatturaForm().numeroFattura"
+                  (ngModelChange)="aggiornaCampoFattura('numeroFattura', $event)"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="fatturaData">Data Fattura</label>
+                <input
+                  id="fatturaData"
+                  name="fatturaData"
+                  type="date"
+                  class="form-control"
+                  [ngModel]="fatturaForm().dataFattura"
+                  (ngModelChange)="aggiornaCampoFattura('dataFattura', $event)"
+                  required
+                />
+              </div>
+            </div>
+
+            <!-- Cessionario e Dati Fiscali -->
+            <div class="bolla-grid-2">
+              <div class="form-group">
+                <label for="fatturaCliente">Cessionario / Committente (Cliente)</label>
+                <input
+                  id="fatturaCliente"
+                  name="fatturaCliente"
+                  type="text"
+                  list="lista-clienti-fattura"
+                  class="form-control"
+                  placeholder="Seleziona o digita il cliente"
+                  [ngModel]="fatturaForm().cliente"
+                  (ngModelChange)="selezionaClienteFattura($event)"
+                  required
+                />
+                <datalist id="lista-clienti-fattura">
+                  @for (c of listaClientiAnagrafica(); track c.ragioneSociale) {
+                    <option [value]="c.ragioneSociale">
+                      {{ c.citta ? '(' + c.citta + ')' : '' }}{{ c.partitaIva ? ' - P.IVA: ' + c.partitaIva : '' }}
+                    </option>
+                  }
+                </datalist>
+              </div>
+              <div class="form-group">
+                <label for="fatturaCessionarioIndirizzo">Indirizzo Cessionario</label>
+                <input
+                  id="fatturaCessionarioIndirizzo"
+                  name="fatturaCessionarioIndirizzo"
+                  type="text"
+                  class="form-control"
+                  [ngModel]="fatturaForm().cessionarioIndirizzo"
+                  (ngModelChange)="aggiornaCampoFattura('cessionarioIndirizzo', $event)"
+                  placeholder="Indirizzo e città del cliente"
+                />
+              </div>
+            </div>
+
+            <div class="bolla-grid-2">
+              <div class="form-group">
+                <label for="fatturaPartitaIva">Partita I.V.A. Cliente</label>
+                <input
+                  id="fatturaPartitaIva"
+                  name="fatturaPartitaIva"
+                  type="text"
+                  class="form-control"
+                  placeholder="Partita IVA cliente (da anagrafica)"
+                  [ngModel]="fatturaForm().partitaIva"
+                  (ngModelChange)="aggiornaCampoFattura('partitaIva', $event)"
+                />
+              </div>
+              <div class="form-group">
+                <label for="fatturaCodiceFiscale">Codice Fiscale Cliente (opzionale)</label>
+                <input
+                  id="fatturaCodiceFiscale"
+                  name="fatturaCodiceFiscale"
+                  type="text"
+                  class="form-control"
+                  placeholder="Codice Fiscale cliente"
+                  [ngModel]="fatturaForm().codiceFiscale"
+                  (ngModelChange)="aggiornaCampoFattura('codiceFiscale', $event)"
+                />
+              </div>
+            </div>
+
+            <!-- Modalità di Pagamento -->
+            <div class="form-group">
+              <label for="fatturaModalitaPagamento"><strong>Modalità di Pagamento</strong></label>
+              <textarea
+                id="fatturaModalitaPagamento"
+                name="fatturaModalitaPagamento"
+                class="form-control"
+                rows="2"
+                [ngModel]="fatturaForm().modalitaPagamento"
+                (ngModelChange)="aggiornaCampoFattura('modalitaPagamento', $event)"
+                required
+              ></textarea>
+            </div>
+
+            <!-- Righe Articoli con Prezzi (se generata da ordini) -->
+            @if (fatturaRighe().length > 0) {
+              <div class="form-group">
+                <label><strong>Righe merce (da ordini selezionati)</strong></label>
+                <div class="table-responsive" style="max-height: 220px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 4px;">
+                  <table class="data-table" style="margin: 0;">
+                    <thead>
+                      <tr>
+                        <th>Articolo</th>
+                        <th class="num" style="width: 100px;">Q.tà</th>
+                        <th class="num" style="width: 120px;">Prezzo unit. (€)</th>
+                        <th class="num" style="width: 120px;">Importo netto (€)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (r of fatturaRighe(); track $index) {
+                        <tr>
+                          <td>
+                            <strong>{{ r.prodotto }}</strong>
+                            @if (r.codice_varieta && r.codice_varieta !== 'NC') {
+                              <span class="text-muted small">
+                                — {{ r.codice_varieta }}{{ r.codice_clone && r.codice_clone !== 'NC' ? ' (' + r.codice_clone + ')' : '' }}
+                              </span>
+                            }
+                            @if (r.codice_portainnesto && r.codice_portainnesto !== 'NC') {
+                              <span class="text-muted small"> — P.I. {{ r.codice_portainnesto }}</span>
+                            }
+                          </td>
+                          <td class="num">
+                            <input
+                              type="number"
+                              class="form-control text-right"
+                              style="width: 80px; padding: 2px 6px; font-size: 12px; display: inline-block;"
+                              [ngModel]="r.quantita"
+                              (ngModelChange)="aggiornaQuantitaRigaFattura($index, $event)"
+                              min="0"
+                            />
+                          </td>
+                          <td class="num">
+                            <input
+                              type="number"
+                              step="0.01"
+                              class="form-control text-right"
+                              style="width: 95px; padding: 2px 6px; font-size: 12px; display: inline-block;"
+                              [ngModel]="r.prezzo_unitario"
+                              (ngModelChange)="aggiornaPrezzoRigaFattura($index, $event)"
+                              min="0"
+                            />
+                          </td>
+                          <td class="num">
+                            <strong>{{ formattaValuta(r.importo) }}</strong>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            }
+
+            <!-- Descrizione libera o note corpo merce -->
+            <div class="form-group">
+              <label for="fatturaCorpoLibero"><strong>Descrizione beni / Note aggiuntive corpo fattura</strong></label>
+              <textarea
+                id="fatturaCorpoLibero"
+                name="fatturaCorpoLibero"
+                class="form-control font-mono"
+                rows="3"
+                placeholder="Inserisci eventuale testo descrittivo libero della merce o servizi"
+                [ngModel]="fatturaForm().corpoLibero"
+                (ngModelChange)="aggiornaCampoFattura('corpoLibero', $event)"
+              ></textarea>
+            </div>
+
+            <!-- Se fattura libera senza righe: imponibile totale merce modificabile -->
+            @if (fatturaRighe().length === 0) {
+              <div class="form-group">
+                <label for="fatturaTotaleMerceLibero"><strong>Totale Merce (Imponibile €)</strong></label>
+                <input
+                  id="fatturaTotaleMerceLibero"
+                  name="fatturaTotaleMerceLibero"
+                  type="number"
+                  step="0.01"
+                  class="form-control"
+                  style="max-width: 200px;"
+                  [ngModel]="fatturaForm().totaleMerce"
+                  (ngModelChange)="aggiornaCampoFattura('totaleMerce', $event)"
+                  min="0"
+                  required
+                />
+              </div>
+            }
+
+            <!-- Riquadro Totali Economici e I.V.A. -->
+            <div class="totals-panel" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px 16px; margin-bottom: 1rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; align-items: center;">
+                <div>
+                  <span class="text-muted small" style="display: block; font-weight: 600;">Totale Merce</span>
+                  <span style="font-size: 15px; font-weight: 700;">{{ formattaValuta(fatturaForm().totaleMerce) }}</span>
+                </div>
+                <div>
+                  <label for="fatturaAliquotaIva" class="text-muted small" style="display: block; font-weight: 600; margin-bottom: 2px;">Aliquota I.V.A. (%)</label>
+                  <input
+                    id="fatturaAliquotaIva"
+                    name="fatturaAliquotaIva"
+                    type="number"
+                    step="0.5"
+                    class="form-control"
+                    style="width: 85px; padding: 2px 6px; font-size: 13px; font-weight: 700;"
+                    [ngModel]="fatturaForm().aliquotaIva"
+                    (ngModelChange)="aggiornaCampoFattura('aliquotaIva', $event)"
+                    min="0"
+                    max="100"
+                    required
+                  />
+                </div>
+                <div>
+                  <span class="text-muted small" style="display: block; font-weight: 600;">Totale I.V.A.</span>
+                  <span style="font-size: 15px; font-weight: 700;">{{ formattaValuta(fatturaForm().totaleIva) }}</span>
+                </div>
+                <div style="background: #1b4332; color: #fff; padding: 8px 12px; border-radius: 4px; text-align: right;">
+                  <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; opacity: 0.9;">Totale Fattura</span>
+                  <span style="font-size: 17px; font-weight: 800;">{{ formattaValuta(fatturaForm().totaleFattura) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Note aggiuntive -->
+            <div class="form-group">
+              <label for="fatturaNote">Note aggiuntive a piè pagina (opzionale)</label>
+              <textarea
+                id="fatturaNote"
+                name="fatturaNote"
+                class="form-control"
+                rows="2"
+                [ngModel]="fatturaForm().noteFattura"
+                (ngModelChange)="aggiornaCampoFattura('noteFattura', $event)"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="chiudiModalFattura()">
+              Annulla
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              (click)="stampaFatturaSenzaSalvare()"
+              title="Genera e stampa il PDF senza registrarlo nell'archivio"
+            >
+              🖨️ Stampa senza salvare
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              [disabled]="salvataggioFatturaInCorso()"
+              title="Salva la fattura nell'archivio ed esegui la stampa/download PDF"
+            >
+              @if (salvataggioFatturaInCorso()) {
+                <span class="spinner-small"></span> Salvataggio in corso...
+              } @else {
+                💾 Salva ed emetti fattura
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- MODALE: DETTAGLI FATTURA ARCHIVIATA -->
+  <!-- ============================================================== -->
+  @if (fatturaDettaglioSelezionata(); as d) {
+    <div class="modal-backdrop" (click)="chiudiDettagliFattura()">
+      <div class="modal modal-lg" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <h3>Dettagli Fattura N. {{ d.numeroFattura }}</h3>
+            <small class="text-muted">Emessa il {{ formattaDataIt(d.dataFattura) }} — Cliente: {{ d.cliente }}</small>
+          </div>
+          <button type="button" class="btn-close" (click)="chiudiDettagliFattura()" aria-label="Chiudi">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="detail-grid">
+            <div class="meta-item">
+              <span class="lbl">Cliente:</span>
+              <span class="val">{{ d.cliente }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="lbl">P.IVA / C.F.:</span>
+              <span class="val">{{ d.partitaIva || d.codiceFiscale || '—' }}</span>
+            </div>
+            @if (d.cessionarioIndirizzo) {
+              <div class="meta-item">
+                <span class="lbl">Indirizzo:</span>
+                <span class="val">{{ d.cessionarioIndirizzo }}</span>
+              </div>
+            }
+            <div class="meta-item" style="grid-column: 1 / -1;">
+              <span class="lbl">Modalità di Pagamento:</span>
+              <span class="val">{{ d.modalitaPagamento }}</span>
+            </div>
+          </div>
+
+          @if (d.righe && d.righe.length > 0) {
+            <div class="preview-table-container" style="margin-top: 0.75rem;">
+              <div class="preview-table-header">
+                <span>Righe merce e importi</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table" style="margin: 0;">
+                  <thead>
+                    <tr>
+                      <th>Articolo</th>
+                      <th class="num" style="width: 90px;">Q.tà</th>
+                      <th class="num" style="width: 110px;">Prezzo unit.</th>
+                      <th class="num" style="width: 120px;">Importo netto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (r of d.righe; track r.id || $index) {
+                      <tr>
+                        <td>
+                          <strong>{{ r.prodotto }}</strong>
+                          @if (r.codiceVarieta && r.codiceVarieta !== 'NC') {
+                            <span class="text-muted small">
+                              — {{ r.codiceVarieta }}{{ r.codiceClone && r.codiceClone !== 'NC' ? ' (' + r.codiceClone + ')' : '' }}
+                            </span>
+                          }
+                          @if (r.codicePortainnesto && r.codicePortainnesto !== 'NC') {
+                            <span class="text-muted small"> — P.I. {{ r.codicePortainnesto }}</span>
+                          }
+                        </td>
+                        <td class="num">{{ r.quantita.toLocaleString('it-IT') }}</td>
+                        <td class="num">{{ formattaValuta(r.prezzoUnitario) }}</td>
+                        <td class="num">
+                          <strong>{{ formattaValuta(r.importo) }}</strong>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          @if (d.corpoLibero) {
+            <div class="preview-table-container" style="margin-top: 0.75rem;">
+              <div class="preview-table-header">
+                <span>Descrizione beni / Note corpo fattura</span>
+              </div>
+              <div style="padding: 10px 12px; background: #fff; font-size: 13px; line-height: 1.5; white-space: pre-wrap; border: 1px solid #cbd5e1; border-radius: 4px;">{{ d.corpoLibero }}</div>
+            </div>
+          }
+
+          <!-- Totali Economici -->
+          <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+            <div style="width: 280px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; overflow: hidden;">
+              <div style="display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
+                <span>Totale Merce:</span>
+                <strong>{{ formattaValuta(d.totaleMerce) }}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
+                <span>Aliquota I.V.A.:</span>
+                <span>{{ d.aliquotaIva }}%</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
+                <span>Totale I.V.A.:</span>
+                <strong>{{ formattaValuta(d.totaleIva) }}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: #1b4332; color: #fff; font-weight: 800; font-size: 14px;">
+                <span>TOTALE FATTURA:</span>
+                <span>{{ formattaValuta(d.totaleFattura) }}</span>
+              </div>
+            </div>
+          </div>
+
+          @if (d.note) {
+            <div class="notes-box" style="margin-top: 0.75rem;">
+              <strong>Note:</strong> {{ d.note }}
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="chiudiDettagliFattura()">Chiudi</button>
+          <button type="button" class="btn btn-primary" (click)="ristampaFatturaDaArchivio(d)">
             📄 Scarica Documento
           </button>
         </div>

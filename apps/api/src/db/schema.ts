@@ -408,3 +408,62 @@ export const bolleRighe = sqliteTable(
     index('bolle_righe_ordine_idx').on(t.ordineId),
   ],
 );
+
+export const fatture = sqliteTable(
+  'fatture',
+  {
+    id: uuid(),
+    numeroFattura: text('numero_fattura').notNull(),
+    anno: integer('anno').notNull(),
+    progressivo: integer('progressivo').notNull(),
+    dataFattura: text('data_fattura').notNull(),
+    cliente: text('cliente')
+      .notNull()
+      .references(() => clienti.ragioneSociale, { onUpdate: 'cascade', onDelete: 'restrict' }),
+    partitaIva: text('partita_iva'),
+    codiceFiscale: text('codice_fiscale'),
+    cessionarioIndirizzo: text('cessionario_indirizzo'),
+    modalitaPagamento: text('modalita_pagamento')
+      .notNull()
+      .default(
+        "bonifico bancario 60 gg f.m. - banca d'appoggio BANCA INTESA  ag Cascina PI iban  IT30Q0306970951100000004529",
+      ),
+    aliquotaIva: real('aliquota_iva').notNull().default(10),
+    totaleMerce: real('totale_merce').notNull().default(0),
+    totaleIva: real('totale_iva').notNull().default(0),
+    totaleFattura: real('totale_fattura').notNull().default(0),
+    note: text('note'),
+    corpoLibero: text('corpo_libero'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => [
+    uniqueIndex('fatture_numero_uq').on(t.numeroFattura),
+    index('fatture_anno_prog_idx').on(t.anno, t.progressivo),
+    index('fatture_cliente_idx').on(t.cliente),
+  ],
+);
+
+export const fattureRighe = sqliteTable(
+  'fatture_righe',
+  {
+    id: uuid(),
+    fatturaId: text('fattura_id')
+      .notNull()
+      .references(() => fatture.id, { onDelete: 'cascade' }),
+    ordineId: text('ordine_id')
+      .references(() => ordineImpieghi.id, { onDelete: 'set null' }),
+    prodotto: text('prodotto').notNull(),
+    codiceVarieta: text('codice_varieta').notNull(),
+    codiceClone: text('codice_clone').notNull(),
+    codicePortainnesto: text('codice_portainnesto').notNull(),
+    quantita: integer('quantita').notNull(),
+    prezzoUnitario: real('prezzo_unitario').notNull().default(0),
+    importo: real('importo').notNull().default(0),
+  },
+  (t) => [
+    index('fatture_righe_fattura_idx').on(t.fatturaId),
+    index('fatture_righe_ordine_idx').on(t.ordineId),
+  ],
+);

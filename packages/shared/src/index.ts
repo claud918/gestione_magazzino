@@ -170,3 +170,81 @@ export interface ProssimoNumeroBollaResponse {
   progressivo: number;
   numeroBolla: string;
 }
+
+// --- Archivio Fatture di Vendita ---
+
+export const MODALITA_PAGAMENTO_PREDEFINITA =
+  "bonifico bancario 60 gg f.m. - banca d'appoggio BANCA INTESA  ag Cascina PI iban  IT30Q0306970951100000004529";
+export const ALIQUOTA_IVA_PREDEFINITA = 10;
+
+export interface FatturaRigaItem {
+  id?: string;
+  fatturaId?: string;
+  ordineId?: string | null;
+  prodotto: string;
+  codiceVarieta: string;
+  codiceClone: string;
+  codicePortainnesto: string;
+  quantita: number;
+  prezzoUnitario: number;
+  importo: number;
+}
+
+export interface FatturaSommario {
+  id: string;
+  numeroFattura: string;
+  anno: number;
+  progressivo: number;
+  dataFattura: string;
+  cliente: string;
+  partitaIva?: string | null;
+  codiceFiscale?: string | null;
+  cessionarioIndirizzo?: string | null;
+  modalitaPagamento: string;
+  aliquotaIva: number;
+  totaleMerce: number;
+  totaleIva: number;
+  totaleFattura: number;
+  note?: string | null;
+  corpoLibero?: string | null;
+  createdAt: string;
+  totaleQuantita: number;
+  numeroRighe: number;
+}
+
+export interface FatturaDettaglio extends FatturaSommario {
+  righe: FatturaRigaItem[];
+}
+
+export interface SalvaFatturaPayload {
+  numeroFattura?: string;
+  dataFattura: string;
+  cliente: string;
+  partitaIva?: string;
+  codiceFiscale?: string;
+  cessionarioIndirizzo?: string;
+  modalitaPagamento?: string;
+  aliquotaIva?: number;
+  totaleMerce?: number;
+  totaleIva?: number;
+  totaleFattura?: number;
+  note?: string;
+  corpoLibero?: string;
+  righe?: Array<{
+    ordineId?: string | null;
+    prodotto: string;
+    codiceVarieta: string;
+    codiceClone: string;
+    codicePortainnesto: string;
+    quantita: number;
+    prezzoUnitario: number;
+    importo: number;
+  }>;
+}
+
+export interface ProssimoNumeroFatturaResponse {
+  anno: number;
+  progressivo: number;
+  numeroFattura: string;
+}
+
