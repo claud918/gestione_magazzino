@@ -1115,6 +1115,18 @@
       }
     }
 
+    tr.row-totale-bottom {
+      background: #f1f5f9;
+      border-top: 2px solid #cbd5e1;
+      font-weight: 700;
+
+      td {
+        padding: 0.85rem 1rem;
+        font-size: 0.9rem;
+        background: #f1f5f9;
+      }
+    }
+
     .th-extra,
     .td-extra {
       background-color: #f8fafc;

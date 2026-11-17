@@ -460,6 +460,7 @@ export const fattureRighe = sqliteTable(
     codicePortainnesto: text('codice_portainnesto').notNull(),
     quantita: integer('quantita').notNull(),
     prezzoUnitario: real('prezzo_unitario').notNull().default(0),
+    aliquotaIva: real('aliquota_iva').notNull().default(10),
     importo: real('importo').notNull().default(0),
   },
   (t) => [

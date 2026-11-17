@@ -187,6 +187,7 @@ export interface FatturaRigaItem {
   codicePortainnesto: string;
   quantita: number;
   prezzoUnitario: number;
+  aliquotaIva?: number;
   importo: number;
 }
 
@@ -238,6 +239,7 @@ export interface SalvaFatturaPayload {
     codicePortainnesto: string;
     quantita: number;
     prezzoUnitario: number;
+    aliquotaIva?: number;
     importo: number;
   }>;
 }

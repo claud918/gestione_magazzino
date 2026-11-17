@@ -88,6 +88,7 @@ interface FatturaRigaForm {
   codice_portainnesto: string;
   quantita: number;
   prezzo_unitario: number;
+  aliquota_iva: number;
   importo: number;
 }
 
@@ -3402,8 +3403,14 @@ export class App implements OnInit {
 
     // Costruisci le righe fattura dagli ordini selezionati
     const righe: FatturaRigaForm[] = ordini.map((r) => {
-      const qta = Number(r['quantita']) || 0;
-      const prezzoUnitario = Number(r['prezzo_vendita']) || 0;
+      const qta = Math.max(0, parseInt(String(r['quantita']), 10) || 0);
+      const prezzoVenditaRaw = r['prezzo_vendita'];
+      const prezzoUnitario =
+        typeof prezzoVenditaRaw === 'number'
+          ? Math.round(prezzoVenditaRaw * 100) / 100
+          : prezzoVenditaRaw
+            ? Math.round(parseFloat(String(prezzoVenditaRaw).replace(',', '.')) * 100) / 100
+            : 0;
       const importo = Math.round(qta * prezzoUnitario * 100) / 100;
       return {
         ordine_id: r['id'] ? String(r['id']) : null,
@@ -3413,6 +3420,7 @@ export class App implements OnInit {
         codice_portainnesto: String(r['codice_portainnesto'] || '').trim(),
         quantita: qta,
         prezzo_unitario: prezzoUnitario,
+        aliquota_iva: ALIQUOTA_IVA_PREDEFINITA,
         importo,
       };
     });
@@ -3420,8 +3428,9 @@ export class App implements OnInit {
     this.fatturaRighe.set(righe);
 
     const totaleMerce = Math.round(righe.reduce((acc, r) => acc + r.importo, 0) * 100) / 100;
-    const aliquotaIva = ALIQUOTA_IVA_PREDEFINITA;
-    const totaleIva = Math.round(totaleMerce * (aliquotaIva / 100) * 100) / 100;
+    const totaleIva = Math.round(
+      righe.reduce((acc, r) => acc + (r.importo * ((r.aliquota_iva ?? 10) / 100)), 0) * 100,
+    ) / 100;
     const totaleFattura = Math.round((totaleMerce + totaleIva) * 100) / 100;
 
     this.fatturaForm.set({
@@ -3432,7 +3441,7 @@ export class App implements OnInit {
       codiceFiscale,
       cessionarioIndirizzo,
       modalitaPagamento: MODALITA_PAGAMENTO_PREDEFINITA,
-      aliquotaIva,
+      aliquotaIva: ALIQUOTA_IVA_PREDEFINITA,
       totaleMerce,
       totaleIva,
       totaleFattura,
@@ -3480,11 +3489,12 @@ export class App implements OnInit {
     }
   }
 
-  protected aggiornaPrezzoRigaFattura(index: number, prezzoUnitario: number): void {
+  protected aggiornaPrezzoRigaFattura(index: number, valore: any): void {
     const list = [...this.fatturaRighe()];
     if (index >= 0 && index < list.length) {
       const r = list[index];
-      const p = Math.max(0, Number(prezzoUnitario) || 0);
+      const parsed = typeof valore === 'string' ? parseFloat(valore.replace(',', '.')) : Number(valore);
+      const p = isNaN(parsed) || parsed < 0 ? 0 : Math.round(parsed * 100) / 100;
       const imp = Math.round(r.quantita * p * 100) / 100;
       list[index] = { ...r, prezzo_unitario: p, importo: imp };
       this.fatturaRighe.set(list);
@@ -3492,13 +3502,24 @@ export class App implements OnInit {
     }
   }
 
-  protected aggiornaQuantitaRigaFattura(index: number, quantita: number): void {
+  protected aggiornaQuantitaRigaFattura(index: number, valore: any): void {
     const list = [...this.fatturaRighe()];
     if (index >= 0 && index < list.length) {
       const r = list[index];
-      const q = Math.max(0, parseInt(String(quantita), 10) || 0);
+      const q = Math.max(0, parseInt(String(valore), 10) || 0);
       const imp = Math.round(q * r.prezzo_unitario * 100) / 100;
       list[index] = { ...r, quantita: q, importo: imp };
+      this.fatturaRighe.set(list);
+      this.ricalcolaTotaliFattura();
+    }
+  }
+
+  protected aggiornaAliquotaIvaRigaFattura(index: number, valore: any): void {
+    const list = [...this.fatturaRighe()];
+    if (index >= 0 && index < list.length) {
+      const r = list[index];
+      const a = Math.max(0, Math.min(100, Number(valore) || 0));
+      list[index] = { ...r, aliquota_iva: a };
       this.fatturaRighe.set(list);
       this.ricalcolaTotaliFattura();
     }
@@ -3508,13 +3529,17 @@ export class App implements OnInit {
     const righe = this.fatturaRighe();
     const f = this.fatturaForm();
     let totaleMerce = 0;
+    let totaleIva = 0;
     if (righe.length > 0) {
       totaleMerce = Math.round(righe.reduce((acc, r) => acc + r.importo, 0) * 100) / 100;
+      totaleIva = Math.round(
+        righe.reduce((acc, r) => acc + (r.importo * ((r.aliquota_iva ?? 10) / 100)), 0) * 100,
+      ) / 100;
     } else {
       totaleMerce = Math.max(0, Number(f.totaleMerce) || 0);
+      const aliquota = Number.isFinite(Number(f.aliquotaIva)) ? Number(f.aliquotaIva) : 10;
+      totaleIva = Math.round(totaleMerce * (aliquota / 100) * 100) / 100;
     }
-    const aliquota = Number.isFinite(Number(f.aliquotaIva)) ? Number(f.aliquotaIva) : 10;
-    const totaleIva = Math.round(totaleMerce * (aliquota / 100) * 100) / 100;
     const totaleFattura = Math.round((totaleMerce + totaleIva) * 100) / 100;
 
     this.fatturaForm.update((prev) => ({
@@ -3563,6 +3588,7 @@ export class App implements OnInit {
         codicePortainnesto: r.codice_portainnesto,
         quantita: r.quantita,
         prezzoUnitario: r.prezzo_unitario,
+        aliquotaIva: r.aliquota_iva ?? ALIQUOTA_IVA_PREDEFINITA,
         importo: r.importo,
       })),
     };
@@ -3636,6 +3662,7 @@ export class App implements OnInit {
       codice_portainnesto: r.codicePortainnesto,
       quantita: r.quantita,
       prezzo_unitario: r.prezzoUnitario,
+      aliquota_iva: r.aliquotaIva ?? ALIQUOTA_IVA_PREDEFINITA,
       importo: r.importo,
     }));
 
@@ -3684,6 +3711,7 @@ export class App implements OnInit {
             <td><strong>${this.escapeHtml(desc)}</strong></td>
             <td style="text-align: right; width: 85px;">${r.quantita.toLocaleString('it-IT')}</td>
             <td style="text-align: right; width: 100px;">${this.formattaValuta(r.prezzo_unitario)}</td>
+            <td style="text-align: center; width: 70px;">${r.aliquota_iva ?? 10}%</td>
             <td style="text-align: right; width: 110px; font-weight: 700;">${this.formattaValuta(r.importo)}</td>
           </tr>`;
         })
@@ -3697,6 +3725,7 @@ export class App implements OnInit {
               <th>Descrizione merce / beni</th>
               <th style="text-align: right; width: 85px;">Quantità</th>
               <th style="text-align: right; width: 100px;">Prezzo unit.</th>
+              <th style="text-align: center; width: 70px;">IVA %</th>
               <th style="text-align: right; width: 110px;">Importo netto</th>
             </tr>
           </thead>
@@ -3976,10 +4005,11 @@ export class App implements OnInit {
             <span>Totale Merce (Imponibile):</span>
             <strong>${this.formattaValuta(f.totaleMerce)}</strong>
           </div>
+          ${righe.length > 0 ? '' : `
           <div class="totals-row">
             <span>Aliquota I.V.A.:</span>
             <span>${f.aliquotaIva}%</span>
-          </div>
+          </div>`}
           <div class="totals-row">
             <span>Totale I.V.A.:</span>
             <strong>${this.formattaValuta(f.totaleIva)}</strong>

@@ -147,6 +147,7 @@ fattureRoutes.get('/:id', async (c) => {
       codice_portainnesto AS codicePortainnesto,
       quantita,
       prezzo_unitario AS prezzoUnitario,
+      COALESCE(aliquota_iva, 10) AS aliquotaIva,
       importo
     FROM fatture_righe
     WHERE fattura_id = ?
@@ -248,6 +249,7 @@ fattureRoutes.post('/', requireAdmin, async (c) => {
 
   // Calcolo o recupero totali
   let totaleMerce = 0;
+  let totaleIvaCalcolato = 0;
   const righeSalvate: FatturaRigaItem[] = [];
 
   for (const r of righe) {
@@ -255,7 +257,11 @@ fattureRoutes.post('/', requireAdmin, async (c) => {
     const quantita = Math.max(0, parseInt(String(r.quantita), 10) || 0);
     const prezzoUnitario = Math.max(0, Number(r.prezzoUnitario) || 0);
     const importo = Math.round(quantita * prezzoUnitario * 100) / 100;
+    const rigaAliquota = Number.isFinite(Number(r.aliquotaIva)) ? Number(r.aliquotaIva) : 10;
+    const rigaIva = Math.round(importo * (rigaAliquota / 100) * 100) / 100;
+
     totaleMerce += importo;
+    totaleIvaCalcolato += rigaIva;
 
     righeSalvate.push({
       id: rigaId,
@@ -267,6 +273,7 @@ fattureRoutes.post('/', requireAdmin, async (c) => {
       codicePortainnesto: String(r.codicePortainnesto || '').trim(),
       quantita,
       prezzoUnitario,
+      aliquotaIva: rigaAliquota,
       importo,
     });
   }
@@ -279,7 +286,9 @@ fattureRoutes.post('/', requireAdmin, async (c) => {
   }
 
   const aliquotaVal = Number.isFinite(Number(aliquotaIva)) ? Number(aliquotaIva) : 10;
-  const totaleIva = Math.round((totaleMerce * (aliquotaVal / 100)) * 100) / 100;
+  const totaleIva = righeSalvate.length > 0
+    ? Math.round(totaleIvaCalcolato * 100) / 100
+    : Math.round((totaleMerce * (aliquotaVal / 100)) * 100) / 100;
   const totaleFattura = Math.round((totaleMerce + totaleIva) * 100) / 100;
 
   // Inserimento testata fattura
@@ -334,8 +343,9 @@ fattureRoutes.post('/', requireAdmin, async (c) => {
       codice_portainnesto,
       quantita,
       prezzo_unitario,
+      aliquota_iva,
       importo
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const batchStmts = [headerStmt];
@@ -351,6 +361,7 @@ fattureRoutes.post('/', requireAdmin, async (c) => {
         r.codicePortainnesto,
         r.quantita,
         r.prezzoUnitario,
+        r.aliquotaIva ?? 10,
         r.importo,
       ),
     );

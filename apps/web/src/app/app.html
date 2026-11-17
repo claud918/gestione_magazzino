@@ -726,6 +726,54 @@
                       </tr>
                     }
                   </tbody>
+                  <tfoot>
+                    <tr class="row-totale-bottom">
+                      @for (col of campiTabellaVisibili(); track col.nome; let isFirst = $first) {
+                        @switch (col.nome) {
+                          @case ('codice_varieta') {
+                            <td>@if (isFirst) { <strong>TOTALE ({{ disponibilitaFiltrata().length }})</strong> }</td>
+                          }
+                          @case ('codice_clone') {
+                            <td>@if (isFirst) { <strong>TOTALE ({{ disponibilitaFiltrata().length }})</strong> }</td>
+                          }
+                          @case ('codice_portainnesto') {
+                            <td>@if (isFirst) { <strong>TOTALE ({{ disponibilitaFiltrata().length }})</strong> }</td>
+                          }
+                          @case ('prodotto_qta') {
+                            <td class="num font-mono font-bold">{{ kpiDisponibilita().totProdotto | number }}</td>
+                          }
+                          @case ('ordinato') {
+                            <td class="num font-mono font-bold">{{ kpiDisponibilita().totOrdinato | number }}</td>
+                          }
+                          @case ('consegnato') {
+                            <td class="num font-mono font-bold">{{ kpiDisponibilita().totConsegnato | number }}</td>
+                          }
+                          @case ('disponibile') {
+                            <td class="num font-mono font-bold" [class.text-success]="kpiDisponibilita().totDisponibile >= 0" [class.text-danger]="kpiDisponibilita().totDisponibile < 0">
+                              {{ kpiDisponibilita().totDisponibile | number }}
+                            </td>
+                          }
+                          @case ('giacenza_fisica') {
+                            <td class="num font-mono font-bold">{{ (kpiDisponibilita().totProdotto - kpiDisponibilita().totConsegnato) | number }}</td>
+                          }
+                          @case ('scoperto') {
+                            <td class="num font-mono font-bold" [class.text-danger]="kpiDisponibilita().totScoperto > 0">
+                              {{ kpiDisponibilita().totScoperto > 0 ? (kpiDisponibilita().totScoperto | number) : '—' }}
+                            </td>
+                          }
+                          @case ('disponibile_ripiantato') {
+                            <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totRipiantato | number }}</td>
+                          }
+                          @case ('disponibile_frigo_conservato') {
+                            <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totFrigo | number }}</td>
+                          }
+                          @case ('disponibile_seconde') {
+                            <td class="num font-mono font-bold td-extra">{{ totUlterioriDisponibilita().totSeconde | number }}</td>
+                          }
+                        }
+                      }
+                    </tr>
+                  </tfoot>
                 </table>
                 </div>
               </div>
@@ -2866,6 +2914,7 @@
                       <th>Articolo</th>
                       <th class="num" style="width: 90px;">Q.tà</th>
                       <th class="num" style="width: 110px;">Prezzo unit.</th>
+                      <th class="num" style="width: 80px;">IVA %</th>
                       <th class="num" style="width: 120px;">Importo netto</th>
                     </tr>
                   </thead>
@@ -2885,6 +2934,7 @@
                         </td>
                         <td class="num">{{ r.quantita.toLocaleString('it-IT') }}</td>
                         <td class="num">{{ formattaValuta(r.prezzoUnitario) }}</td>
+                        <td class="num">{{ r.aliquotaIva ?? d.aliquotaIva }}%</td>
                         <td class="num">
                           <strong>{{ formattaValuta(r.importo) }}</strong>
                         </td>
@@ -2912,10 +2962,12 @@
                 <span>Totale Merce:</span>
                 <strong>{{ formattaValuta(d.totaleMerce) }}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
-                <span>Aliquota I.V.A.:</span>
-                <span>{{ d.aliquotaIva }}%</span>
-              </div>
+              @if (!d.righe || d.righe.length === 0) {
+                <div style="display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
+                  <span>Aliquota I.V.A.:</span>
+                  <span>{{ d.aliquotaIva }}%</span>
+                </div>
+              }
               <div style="display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
                 <span>Totale I.V.A.:</span>
                 <strong>{{ formattaValuta(d.totaleIva) }}</strong>
