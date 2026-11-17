@@ -83,6 +83,7 @@ bolleRoutes.get('/', async (c) => {
       b.numero_colli AS numeroColli,
       b.data_ora_inizio_trasporto AS dataOraInizioTrasporto,
       b.note,
+      b.corpo_libero AS corpoLibero,
       b.created_at AS createdAt,
       COALESCE(SUM(r.quantita), 0) AS totaleQuantita,
       COUNT(r.id) AS numeroRighe
@@ -123,6 +124,7 @@ bolleRoutes.get('/:id', async (c) => {
       numero_colli AS numeroColli,
       data_ora_inizio_trasporto AS dataOraInizioTrasporto,
       note,
+      corpo_libero AS corpoLibero,
       created_at AS createdAt
     FROM bolle_trasporto
     WHERE id = ?
@@ -184,6 +186,7 @@ bolleRoutes.post('/', requireAdmin, async (c) => {
     numeroColli = '',
     dataOraInizioTrasporto = '',
     note = '',
+    corpoLibero = '',
     righe = [],
   } = body;
 
@@ -196,8 +199,10 @@ bolleRoutes.post('/', requireAdmin, async (c) => {
   if (!luogoDestinazione || !luogoDestinazione.trim()) {
     return c.json({ error: 'Luogo di destinazione obbligatorio' }, 400);
   }
-  if (!Array.isArray(righe) || righe.length === 0) {
-    return c.json({ error: 'La bolla deve contenere almeno una riga merce' }, 400);
+  const corpoLiberoTrim = (corpoLibero || '').trim();
+  const hasRighe = Array.isArray(righe) && righe.length > 0;
+  if (!corpoLiberoTrim && !hasRighe) {
+    return c.json({ error: 'La bolla deve contenere una descrizione della merce nel corpo centrale o almeno una riga' }, 400);
   }
 
   const annoData = parseInt(dataBolla.slice(0, 4), 10) || new Date().getFullYear();
@@ -262,8 +267,9 @@ bolleRoutes.post('/', requireAdmin, async (c) => {
       aspetto_beni,
       numero_colli,
       data_ora_inizio_trasporto,
-      note
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      note,
+      corpo_libero
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const headerStmt = c.env.DB.prepare(insertHeaderSql).bind(
@@ -282,6 +288,7 @@ bolleRoutes.post('/', requireAdmin, async (c) => {
     numeroColli?.trim() || null,
     dataOraInizioTrasporto?.trim() || null,
     note?.trim() || null,
+    corpoLiberoTrim || null,
   );
 
   const insertRigaSql = `
@@ -348,6 +355,7 @@ bolleRoutes.post('/', requireAdmin, async (c) => {
     numeroColli: numeroColli?.trim() || null,
     dataOraInizioTrasporto: dataOraInizioTrasporto?.trim() || null,
     note: note?.trim() || null,
+    corpoLibero: corpoLiberoTrim || null,
     createdAt: new Date().toISOString(),
     righe: righeSalvate,
     totaleQuantita,

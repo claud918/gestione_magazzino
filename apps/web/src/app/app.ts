@@ -45,6 +45,7 @@ interface BollaTrasportoForm {
   numeroColli: string;
   dataOraInizioTrasporto: string;
   noteBolla: string;
+  corpoLibero: string;
 }
 
 interface BollaRigaArticolo {
@@ -140,6 +141,7 @@ export class App implements OnInit {
     numeroColli: '',
     dataOraInizioTrasporto: '',
     noteBolla: '',
+    corpoLibero: '',
   });
 
   // Stato Archivio Bolle
@@ -171,7 +173,7 @@ export class App implements OnInit {
   protected readonly listaDisponibilita = signal<RigaDisponibilita[]>([]);
   protected readonly vistaDisponibilitaModalita = signal<'schede' | 'tabellare'>('schede');
   protected readonly filtroDispCampagna = signal<string>(campagnaCorrente());
-  protected readonly filtroDispProdotto = signal<string>('Barbatelle innestate');
+  protected readonly filtroDispProdotto = signal<string>('Barbatelle innestate certificate');
   protected readonly filtroDispTipologia = signal<string>('Nuova produzione');
   protected readonly mostraUlterioriDisponibilita = signal<boolean>(false);
   protected readonly filtroDispSoloDisponibili = signal(false);
@@ -184,7 +186,7 @@ export class App implements OnInit {
   protected readonly listaRese = signal<RigaResa[]>([]);
   protected readonly vistaReseModalita = signal<'schede' | 'tabellare'>('tabellare');
   protected readonly filtroReseCampagna = signal<string>(campagnaCorrente());
-  protected readonly filtroReseProdotto = signal<string>('Barbatelle innestate');
+  protected readonly filtroReseProdotto = signal<string>('Barbatelle innestate certificate');
   protected readonly filtroReseRicerca = signal('');
 
   // Computed per datalist dinamiche dei filtri
@@ -202,12 +204,12 @@ export class App implements OnInit {
 
   protected readonly listaTipiProdotto = computed<string[]>(() => {
     const set = new Set<string>();
-    set.add('Barbatelle innestate');
-    set.add('Barbatelle selvatiche');
-    set.add('Pezzoni Barbatelloni');
-    set.add('Pezzoni Standard');
+    set.add('Barbatelle innestate certificate');
+    set.add('Barbatelle franche');
+    set.add('Talee portainnesto 68/70');
+    set.add('Talee portainnesto');
     set.add('Maglioli (qli)');
-    set.add('Marze');
+    set.add('Marze certificate');
     for (const r of this.listaDisponibilita()) {
       if (r.prodotto) set.add(r.prodotto);
     }
@@ -1066,7 +1068,7 @@ export class App implements OnInit {
     const match = this.listaDisponibilita().find(
       (d) =>
         d.campagna === (campagna || campagnaCorrente()) &&
-        d.prodotto === (prodotto || 'Barbatelle innestate') &&
+        d.prodotto === (prodotto || 'Barbatelle innestate certificate') &&
         d.codice_varieta === codice_varieta &&
         d.codice_clone === codice_clone &&
         d.codice_portainnesto === codice_portainnesto &&
@@ -1097,7 +1099,7 @@ export class App implements OnInit {
     return {
       trovato: false,
       campagna: campagna || campagnaCorrente(),
-      prodotto: prodotto || 'Barbatelle innestate',
+      prodotto: prodotto || 'Barbatelle innestate certificate',
       varieta: codice_varieta,
       clone: codice_clone,
       pi: codice_portainnesto,
@@ -1563,7 +1565,7 @@ export class App implements OnInit {
       val['codice_varieta'] = 'NC';
       val['codice_clone'] = 'NC';
     }
-    if (prod === 'Marze') {
+    if (prod === 'Marze' || prod === 'Marze certificate') {
       val['codice_portainnesto'] = 'NC';
     }
   }
@@ -1837,7 +1839,7 @@ export class App implements OnInit {
     }
 
     // Marze: portainnesto non deve essere alimentato
-    if (prod === 'Marze' && campo.nome === 'codice_portainnesto') {
+    if ((prod === 'Marze' || prod === 'Marze certificate') && campo.nome === 'codice_portainnesto') {
       return true;
     }
 
@@ -2368,7 +2370,100 @@ export class App implements OnInit {
     });
   }
 
+  protected readonly listaClientiAnagrafica = signal<{ ragioneSociale: string; indirizzo: string; citta: string }[]>([]);
+
+  protected caricaListaClienti(): void {
+    if (this.listaClientiAnagrafica().length > 0) return;
+    this.http.get<{ righe: RigaTabella[] }>('/api/crud/clienti').subscribe({
+      next: (res) => {
+        const list = (res.righe ?? [])
+          .map((c) => ({
+            ragioneSociale: String(c['ragione_sociale'] || '').trim(),
+            indirizzo: String(c['indirizzo'] || '').trim(),
+            citta: String(c['citta'] || '').trim(),
+          }))
+          .filter((c) => c.ragioneSociale);
+        this.listaClientiAnagrafica.set(list);
+      },
+      error: () => {},
+    });
+  }
+
+  protected selezionaClienteBolla(nome: string): void {
+    this.aggiornaCampoBolla('cessionarioRagioneSociale', nome);
+    const trovato = this.listaClientiAnagrafica().find(
+      (c) => c.ragioneSociale.toLowerCase() === nome.trim().toLowerCase(),
+    );
+    if (trovato) {
+      const ind = [trovato.indirizzo, trovato.citta].filter(Boolean).join(' - ');
+      if (ind) {
+        this.aggiornaCampoBolla('cessionarioIndirizzo', ind);
+        this.aggiornaCampoBolla('luogoDestinazione', `${trovato.ragioneSociale} — ${ind}`);
+      } else {
+        this.aggiornaCampoBolla('luogoDestinazione', trovato.ragioneSociale);
+      }
+    }
+  }
+
+  protected formattaRigheComeTesto(righe: (BollaRigaArticolo | BollaRigaItem)[]): string {
+    if (!righe || righe.length === 0) return '';
+    return righe
+      .map((r: any) => {
+        const prod = String(r.prodotto || '').trim();
+        const varCode = r.codice_varieta ?? r.codiceVarieta ?? '';
+        const cloneCode = r.codice_clone ?? r.codiceClone ?? '';
+        const piCode = r.codice_portainnesto ?? r.codicePortainnesto ?? '';
+        const varClone =
+          varCode && varCode !== 'NC'
+            ? `${varCode}${cloneCode && cloneCode !== 'NC' ? ` (Cl. ${cloneCode})` : ''}`
+            : '';
+        const pi = piCode && piCode !== 'NC' ? `P.I. ${piCode}` : '';
+        const qta = Number(r.quantita) || 0;
+        const desc = [prod, varClone, pi].filter(Boolean).join(' - ');
+        return `${desc} — Q.tà: ${qta.toLocaleString('it-IT')}`;
+      })
+      .join('\n');
+  }
+
+  protected apriModalNuovaBollaLibera(): void {
+    this.caricaListaClienti();
+    this.bollaOrdini.set([]);
+    this.bollaIndirizziConflitto.set(false);
+    this.bollaOpzioniDestinazione.set([]);
+
+    const oggiIso = dataOggi();
+    const annoCorrente = new Date().getFullYear();
+    this.bollaForm.set({
+      numeroBolla: this.proponiNumeroBolla(),
+      dataBolla: oggiIso,
+      cessionarioRagioneSociale: '',
+      cessionarioIndirizzo: '',
+      luogoDestinazione: '',
+      causaleTrasporto: 'Vendita',
+      trasportoACuraDi: 'Cedente',
+      vettore: '',
+      aspettoBeni: '',
+      numeroColli: '',
+      dataOraInizioTrasporto: this.formattaDataIt(oggiIso),
+      noteBolla: '',
+      corpoLibero: '',
+    });
+    this.bollaModalAperto.set(true);
+
+    this.http
+      .get<ProssimoNumeroBollaResponse>(`/api/bolle/prossimo-numero?anno=${annoCorrente}`)
+      .subscribe({
+        next: (res) => {
+          if (res?.numeroBolla) {
+            this.aggiornaCampoBolla('numeroBolla', res.numeroBolla);
+          }
+        },
+        error: () => {},
+      });
+  }
+
   protected apriModalBolla(): void {
+    this.caricaListaClienti();
     const ordini = this.righeSelezionate();
     if (ordini.length === 0) return;
 
@@ -2415,6 +2510,7 @@ export class App implements OnInit {
     clienteNome: string,
     clienteObj: RigaTabella | undefined,
   ): void {
+    this.caricaListaClienti();
     const cessionarioIndirizzo = [clienteObj?.['indirizzo'], clienteObj?.['citta']]
       .map((v) => String(v || '').trim())
       .filter(Boolean)
@@ -2451,6 +2547,24 @@ export class App implements OnInit {
     const oggiIso = dataOggi();
     const annoCorrente = new Date().getFullYear();
     this.bollaOrdini.set([...ordini]);
+
+    const corpoLibero = ordini
+      .map((r) => {
+        const prod = String(r['prodotto'] || '').trim();
+        const varCode = r['codice_varieta'] ?? '';
+        const cloneCode = r['codice_clone'] ?? '';
+        const piCode = r['codice_portainnesto'] ?? '';
+        const varClone =
+          varCode && varCode !== 'NC'
+            ? `${varCode}${cloneCode && cloneCode !== 'NC' ? ` (Cl. ${cloneCode})` : ''}`
+            : '';
+        const pi = piCode && piCode !== 'NC' ? `P.I. ${piCode}` : '';
+        const qta = Number(r['quantita']) || 0;
+        const desc = [prod, varClone, pi].filter(Boolean).join(' - ');
+        return `${desc} — Q.tà: ${qta.toLocaleString('it-IT')}`;
+      })
+      .join('\n');
+
     this.bollaForm.set({
       numeroBolla: this.proponiNumeroBolla(),
       dataBolla: oggiIso,
@@ -2464,6 +2578,7 @@ export class App implements OnInit {
       numeroColli: '',
       dataOraInizioTrasporto: this.formattaDataIt(oggiIso),
       noteBolla: '',
+      corpoLibero,
     });
     this.bollaModalAperto.set(true);
 
@@ -2503,23 +2618,28 @@ export class App implements OnInit {
   protected salvaEStampaBolla(): void {
     const f = this.bollaForm();
     const righe = this.bollaRighe();
-    if (righe.length === 0) return;
+    const corpoLibero = (f.corpoLibero || '').trim();
+    if (!corpoLibero && righe.length === 0) {
+      this.mostraErrore('Specificare la descrizione della merce nel corpo della bolla.');
+      return;
+    }
 
     this.salvataggioBollaInCorso.set(true);
 
     const payload: SalvaBollaPayload = {
       numeroBolla: f.numeroBolla.trim(),
       dataBolla: f.dataBolla,
-      cliente: f.cessionarioRagioneSociale,
-      cessionarioIndirizzo: f.cessionarioIndirizzo,
-      luogoDestinazione: f.luogoDestinazione,
-      causaleTrasporto: f.causaleTrasporto,
+      cliente: f.cessionarioRagioneSociale.trim(),
+      cessionarioIndirizzo: f.cessionarioIndirizzo.trim(),
+      luogoDestinazione: f.luogoDestinazione.trim(),
+      causaleTrasporto: f.causaleTrasporto.trim(),
       trasportoACuraDi: f.trasportoACuraDi,
-      vettore: f.vettore,
-      aspettoBeni: f.aspettoBeni,
-      numeroColli: f.numeroColli,
-      dataOraInizioTrasporto: f.dataOraInizioTrasporto,
-      note: f.noteBolla,
+      vettore: f.vettore.trim(),
+      aspettoBeni: f.aspettoBeni.trim(),
+      numeroColli: f.numeroColli.trim(),
+      dataOraInizioTrasporto: f.dataOraInizioTrasporto.trim(),
+      note: f.noteBolla.trim(),
+      corpoLibero,
       righe: righe.map((r) => ({
         ordineId: r.ordine_id || null,
         prodotto: r.prodotto,
@@ -2554,6 +2674,7 @@ export class App implements OnInit {
             numeroColli: salvata.numeroColli,
             dataOraInizioTrasporto: salvata.dataOraInizioTrasporto,
             note: salvata.note,
+            corpoLibero: salvata.corpoLibero,
             createdAt: salvata.createdAt,
             totaleQuantita: salvata.totaleQuantita,
             numeroRighe: salvata.numeroRighe,
@@ -2578,7 +2699,8 @@ export class App implements OnInit {
   protected stampaBollaSenzaSalvare(): void {
     const f = this.bollaForm();
     const righe = this.bollaRighe();
-    if (righe.length === 0) return;
+    const corpoLibero = (f.corpoLibero || '').trim();
+    if (!corpoLibero && righe.length === 0) return;
 
     this.salvaUltimoNumeroBolla(f.numeroBolla);
     this.eseguiStampaHtml(this.generaHtmlBolla(f, righe));
@@ -2593,6 +2715,15 @@ export class App implements OnInit {
   }
 
   private eseguiStampaBollaDaDettaglio(d: BollaTrasportoDettaglio): void {
+    const righe: BollaRigaArticolo[] = (d.righe || []).map((r) => ({
+      ordine_id: r.ordineId || null,
+      prodotto: r.prodotto,
+      codice_varieta: r.codiceVarieta,
+      codice_clone: r.codiceClone,
+      codice_portainnesto: r.codicePortainnesto,
+      quantita: r.quantita,
+    }));
+
     const f: BollaTrasportoForm = {
       numeroBolla: d.numeroBolla,
       dataBolla: d.dataBolla,
@@ -2606,16 +2737,8 @@ export class App implements OnInit {
       numeroColli: d.numeroColli || '',
       dataOraInizioTrasporto: d.dataOraInizioTrasporto || '',
       noteBolla: d.note || '',
+      corpoLibero: d.corpoLibero || this.formattaRigheComeTesto(righe),
     };
-
-    const righe: BollaRigaArticolo[] = (d.righe || []).map((r) => ({
-      ordine_id: r.ordineId || null,
-      prodotto: r.prodotto,
-      codice_varieta: r.codiceVarieta,
-      codice_clone: r.codiceClone,
-      codice_portainnesto: r.codicePortainnesto,
-      quantita: r.quantita,
-    }));
 
     this.eseguiStampaHtml(this.generaHtmlBolla(f, righe));
   }
@@ -2627,20 +2750,8 @@ export class App implements OnInit {
         ? `Vettore (${f.vettore.trim()})`
         : f.trasportoACuraDi;
 
-    const totaleQta = righe.reduce((acc, r) => acc + (Number(r.quantita) || 0), 0);
-
-    const righeHtml = righe
-      .map(
-        (r) => `
-          <tr>
-            <td>${this.escapeHtml(r.prodotto)}</td>
-            <td>${this.escapeHtml(r.codice_varieta)}</td>
-            <td>${this.escapeHtml(r.codice_clone)}</td>
-            <td>${this.escapeHtml(r.codice_portainnesto)}</td>
-            <td class="num">${this.escapeHtml(Number(r.quantita).toLocaleString('it-IT'))}</td>
-          </tr>`,
-      )
-      .join('');
+    const corpoLibero = f.corpoLibero?.trim() || this.formattaRigheComeTesto(righe);
+    const corpoHtml = this.escapeHtml(corpoLibero || '—').replace(/\r?\n/g, '<br>');
 
     const noteHtml = f.noteBolla.trim()
       ? `<div class="notes-box"><strong>Note:</strong> ${this.escapeHtml(f.noteBolla.trim()).replace(/\r?\n/g, '<br>')}</div>`
@@ -2654,16 +2765,28 @@ export class App implements OnInit {
   <style>
     @page { size: A4 portrait; margin: 12mm; }
     * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       color: #111827;
       font-size: 11px;
       line-height: 1.4;
-      margin: 0;
-      padding: 0;
       background: #fff;
     }
-    .ddt-page { max-width: 190mm; margin: 0 auto; }
+    .ddt-page {
+      max-width: 190mm;
+      min-height: 268mm;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .ddt-main {
+      flex: 1 0 auto;
+    }
     .ddt-header {
       display: flex;
       justify-content: space-between;
@@ -2749,43 +2872,35 @@ export class App implements OnInit {
       color: #0f172a;
       word-break: break-word;
     }
-    table.items-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 12px;
-    }
-    table.items-table thead { display: table-header-group; }
-    table.items-table tr { break-inside: avoid; }
-    table.items-table th,
-    table.items-table td {
+    .items-box {
       border: 1px solid #cbd5e1;
-      padding: 6px 8px;
-      text-align: left;
-      font-size: 10.5px;
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      background: #fff;
+      min-height: 85mm;
     }
-    table.items-table th {
-      background: #1b4332;
-      color: #fff;
+    .items-box .items-header {
+      font-size: 9px;
       font-weight: 700;
       text-transform: uppercase;
-      font-size: 9.5px;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.05em;
+      color: #1b4332;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 3px;
+      margin-bottom: 8px;
     }
-    table.items-table th.num,
-    table.items-table td.num {
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-    table.items-table tfoot td {
-      background: #f1f5f9;
-      font-weight: 700;
-      font-size: 11px;
+    .items-content {
+      font-size: 11.5px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      color: #0f172a;
     }
     .notes-box {
       border: 1px solid #cbd5e1;
       border-radius: 4px;
       padding: 7px 10px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       background: #fffbeb;
       font-size: 10.5px;
     }
@@ -2793,7 +2908,8 @@ export class App implements OnInit {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 12px;
-      margin-top: 16px;
+      margin-top: auto;
+      padding-top: 14px;
       break-inside: avoid;
     }
     .sig-box {
@@ -2804,6 +2920,7 @@ export class App implements OnInit {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      background: #fff;
     }
     .sig-label {
       font-size: 9px;
@@ -2822,83 +2939,69 @@ export class App implements OnInit {
 </head>
 <body>
   <div class="ddt-page">
-    <div class="ddt-header">
-      <div>
-        <h1 class="ddt-title">DOCUMENTO DI TRASPORTO (D.P.R. 472 del 14/8/1996 - D.P.R. 696 del 21/12/1996)</h1>
-        <div class="ddt-subtitle">Documento accompagnatorio materiale vivaistico viticolo</div>
+    <div class="ddt-main">
+      <div class="ddt-header">
+        <div>
+          <h1 class="ddt-title">DOCUMENTO DI TRASPORTO (D.P.R. 472 del 14/8/1996 - D.P.R. 696 del 21/12/1996)</h1>
+          <div class="ddt-subtitle">Documento accompagnatorio materiale vivaistico viticolo</div>
+        </div>
+        <div class="ddt-doc-meta">
+          <div>N. Documento: <strong>${this.escapeHtml(f.numeroBolla || '—')}</strong></div>
+          <div>Data: <strong>${this.escapeHtml(dataDocIt)}</strong></div>
+        </div>
       </div>
-      <div class="ddt-doc-meta">
-        <div>N. Documento: <strong>${this.escapeHtml(f.numeroBolla || '—')}</strong></div>
-        <div>Data: <strong>${this.escapeHtml(dataDocIt)}</strong></div>
+
+      <div class="parties-grid">
+        <div class="box">
+          <div class="box-label">Società Cedente</div>
+          <div class="box-title">${this.escapeHtml(this.datiCedente.ragioneSociale)}</div>
+          <div>${this.escapeHtml(this.datiCedente.indirizzo)}</div>
+          <div>${this.escapeHtml(this.datiCedente.contattiFiscali)}</div>
+          <div>${this.escapeHtml(this.datiCedente.autorizzazioni)}</div>
+        </div>
+
+        <div class="box">
+          <div class="box-label">Società Cessionaria</div>
+          <div class="box-title">${this.escapeHtml(f.cessionarioRagioneSociale || '—')}</div>
+          <div>${this.escapeHtml(f.cessionarioIndirizzo || 'Indirizzo non specificato')}</div>
+        </div>
       </div>
+
+      <div class="box box-full">
+        <div class="box-label">Luogo di Destinazione</div>
+        <div><strong>${this.escapeHtml(f.luogoDestinazione || '—')}</strong></div>
+      </div>
+
+      <div class="transport-grid">
+        <div class="transport-cell">
+          <span class="lbl">Causale trasporto</span>
+          <span class="val">${this.escapeHtml(f.causaleTrasporto || '—')}</span>
+        </div>
+        <div class="transport-cell">
+          <span class="lbl">Trasporto a cura di</span>
+          <span class="val">${this.escapeHtml(trasportoLabel)}</span>
+        </div>
+        <div class="transport-cell">
+          <span class="lbl">Aspetto esteriore beni</span>
+          <span class="val">${this.escapeHtml(f.aspettoBeni || '—')}</span>
+        </div>
+        <div class="transport-cell">
+          <span class="lbl">Numero colli</span>
+          <span class="val">${this.escapeHtml(f.numeroColli || '—')}</span>
+        </div>
+        <div class="transport-cell">
+          <span class="lbl">Data / Ora inizio</span>
+          <span class="val">${this.escapeHtml(f.dataOraInizioTrasporto || '—')}</span>
+        </div>
+      </div>
+
+      <div class="items-box">
+        <div class="items-header">Descrizione dei beni / Merce trasportata</div>
+        <div class="items-content">${corpoHtml}</div>
+      </div>
+
+      ${noteHtml}
     </div>
-
-    <div class="parties-grid">
-      <div class="box">
-        <div class="box-label">Società Cedente</div>
-        <div class="box-title">${this.escapeHtml(this.datiCedente.ragioneSociale)}</div>
-        <div>${this.escapeHtml(this.datiCedente.indirizzo)}</div>
-        <div>${this.escapeHtml(this.datiCedente.contattiFiscali)}</div>
-        <div>${this.escapeHtml(this.datiCedente.autorizzazioni)}</div>
-      </div>
-
-      <div class="box">
-        <div class="box-label">Società Cessionaria</div>
-        <div class="box-title">${this.escapeHtml(f.cessionarioRagioneSociale || '—')}</div>
-        <div>${this.escapeHtml(f.cessionarioIndirizzo || 'Indirizzo non specificato')}</div>
-      </div>
-    </div>
-
-    <div class="box box-full">
-      <div class="box-label">Luogo di Destinazione</div>
-      <div><strong>${this.escapeHtml(f.luogoDestinazione || '—')}</strong></div>
-    </div>
-
-    <div class="transport-grid">
-      <div class="transport-cell">
-        <span class="lbl">Causale trasporto</span>
-        <span class="val">${this.escapeHtml(f.causaleTrasporto || '—')}</span>
-      </div>
-      <div class="transport-cell">
-        <span class="lbl">Trasporto a cura di</span>
-        <span class="val">${this.escapeHtml(trasportoLabel)}</span>
-      </div>
-      <div class="transport-cell">
-        <span class="lbl">Aspetto esteriore beni</span>
-        <span class="val">${this.escapeHtml(f.aspettoBeni || '—')}</span>
-      </div>
-      <div class="transport-cell">
-        <span class="lbl">Numero colli</span>
-        <span class="val">${this.escapeHtml(f.numeroColli || '—')}</span>
-      </div>
-      <div class="transport-cell">
-        <span class="lbl">Data / Ora inizio</span>
-        <span class="val">${this.escapeHtml(f.dataOraInizioTrasporto || '—')}</span>
-      </div>
-    </div>
-
-    <table class="items-table">
-      <thead>
-        <tr>
-          <th>Prodotto</th>
-          <th>Varietà</th>
-          <th>Clone</th>
-          <th>Portainnesto</th>
-          <th class="num">Quantità</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${righeHtml}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="4">TOTALE QUANTITÀ (${righe.length} ${righe.length === 1 ? 'riga' : 'righe'})</td>
-          <td class="num">${this.escapeHtml(totaleQta.toLocaleString('it-IT'))}</td>
-        </tr>
-      </tfoot>
-    </table>
-
-    ${noteHtml}
 
     <div class="signatures-grid">
       <div class="sig-box">

@@ -387,7 +387,7 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         etichetta: 'Prodotto',
         tipo: 'riferimento',
         obbligatorio: true,
-        predefinito: 'Barbatelle innestate',
+        predefinito: 'Barbatelle innestate certificate',
         riferimento: { tabella: 'tipi_prodotto', colonna: 'prodotto' },
       },
       {
@@ -490,7 +490,7 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         etichetta: 'Prodotto',
         tipo: 'riferimento',
         obbligatorio: true,
-        predefinito: 'Barbatelle innestate',
+        predefinito: 'Barbatelle innestate certificate',
         riferimento: { tabella: 'tipi_prodotto', colonna: 'prodotto' },
       },
       {
@@ -785,6 +785,8 @@ export function riferimentoInnestoParlante(r: RigaTabella): string {
 }
 
 const PRODOTTI_SENZA_VARIETA_CLONE = new Set([
+  'talee portainnesto 68/70',
+  'talee portainnesto',
   'pezzoni barbatelloni',
   'pezzoni standard',
   'maglioli (qli)',
@@ -793,6 +795,9 @@ const PRODOTTI_SENZA_VARIETA_CLONE = new Set([
 ]);
 
 const PRODOTTI_SOLO_PORTAINNESTO_SCHEDA = new Set([
+  'talee portainnesto',
+  'talee portainnesto 68/70',
+  'barbatelle franche',
   'pezzoni standard',
   'pezzoni barbatelloni',
   'barbatelle selvatiche',
@@ -808,10 +813,12 @@ export function isProdottoSenzaVarietaClone(prodotto: unknown): boolean {
 }
 
 /** Prodotti per cui nelle schede disponibilità va mostrato solo il portainnesto (senza varietà/clone). */
-export function isProdottoSoloPortainnestoInScheda(prodotto: unknown): boolean {
+export function isProdottoSoloPortainnestoInSchera(prodotto: unknown): boolean {
   const norm = String(prodotto ?? '').trim().toLowerCase();
   return PRODOTTI_SOLO_PORTAINNESTO_SCHEDA.has(norm);
 }
+
+export const isProdottoSoloPortainnestoInScheda = isProdottoSoloPortainnestoInSchera;
 
 /**
  * Calcola i campi derivati di una riga (stessa formula usata dai CHECK del database).
@@ -824,7 +831,7 @@ export function calcolaCampiDerivati(tabella: NomeTabella, valori: RigaTabella):
     r['codice_varieta'] = 'NC';
     r['codice_clone'] = 'NC';
   }
-  if (prod === 'Marze') {
+  if (prod === 'Marze' || prod === 'Marze certificate') {
     r['codice_portainnesto'] = 'NC';
   }
   switch (tabella) {
@@ -862,7 +869,7 @@ export function validaRiga(
   const errori: ErroreCampo[] = [];
   const prod = String(input['prodotto'] ?? '').trim();
   const isSenzaVarietaClone = isProdottoSenzaVarietaClone(prod);
-  const isMarze = prod === 'Marze';
+  const isMarze = prod === 'Marze' || prod === 'Marze certificate';
 
   for (const campo of campiModificabili(def)) {
     // Gestione regole speciali Pezzoni/Maglioli e Marze: non alimentabili, default 'NC' per evitare il null

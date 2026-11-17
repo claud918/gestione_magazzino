@@ -951,6 +951,14 @@
             <div class="header-actions">
               <button
                 type="button"
+                class="btn btn-sm btn-primary"
+                (click)="apriModalNuovaBollaLibera()"
+                title="Crea una nuova bolla di trasporto manuale o per altri materiali"
+              >
+                + Nuova bolla
+              </button>
+              <button
+                type="button"
                 class="btn btn-sm btn-outline-secondary"
                 (click)="caricaBolle()"
                 title="Ricarica elenco bolle dal server"
@@ -1039,8 +1047,15 @@
               <h3>Nessuna bolla trovata</h3>
               <p>
                 Non ci sono bolle corrispondenti ai filtri impostati, oppure non è ancora stata generata alcuna bolla.
-                Puoi emettere una nuova bolla selezionando gli ordini del cliente nella sezione <strong>Ordini / Impieghi</strong>.
+                Puoi emettere una nuova bolla cliccando sul pulsante <strong>+ Nuova bolla</strong> oppure selezionando gli ordini del cliente nella sezione <strong>Ordini / Impieghi</strong>.
               </p>
+              <button
+                type="button"
+                class="btn btn-primary"
+                (click)="apriModalNuovaBollaLibera()"
+              >
+                + Nuova bolla
+              </button>
             </div>
           } @else {
             <div class="table-container">
@@ -1055,7 +1070,6 @@
                       <th style="width: 130px;">Trasporto</th>
                       <th class="num" style="width: 90px;">Colli</th>
                       <th class="num" style="width: 90px;">Righe</th>
-                      <th class="num" style="width: 120px;">Totale Q.tà</th>
                       <th class="actions-header" style="width: 180px;">Azioni</th>
                     </tr>
                   </thead>
@@ -1077,7 +1091,6 @@
                         </td>
                         <td class="num">{{ b.numeroColli || '—' }}</td>
                         <td class="num">{{ b.numeroRighe }}</td>
-                        <td class="num font-bold">{{ b.totaleQuantita | number }}</td>
                         <td class="actions-cell">
                           <button
                             type="button"
@@ -1961,7 +1974,7 @@
         <div class="modal-header">
           <div>
             <h3>Bolla di Trasporto (D.D.T.)</h3>
-            <small class="text-muted">Anteprima e parametri prima della stampa per {{ bollaRighe().length }} {{ bollaRighe().length === 1 ? 'ordine' : 'ordini' }}</small>
+            <small class="text-muted">Compila o modifica i parametri prima della generazione del documento</small>
           </div>
           <button type="button" class="btn-close" (click)="chiudiModalBolla()" aria-label="Chiudi">✕</button>
         </div>
@@ -2008,19 +2021,26 @@
             <!-- Cessionario -->
             <div class="bolla-grid-2">
               <div class="form-group">
-                <label for="bollaCessionarioRagione">Società Cessionaria (Ragione Sociale)</label>
+                <label for="bollaCessionarioRagione">Società Cessionaria (Cliente)</label>
                 <input
                   id="bollaCessionarioRagione"
                   name="bollaCessionarioRagione"
                   type="text"
+                  list="lista-clienti-bolla"
                   class="form-control"
+                  placeholder="Seleziona o digita il cliente"
                   [ngModel]="bollaForm().cessionarioRagioneSociale"
-                  (ngModelChange)="aggiornaCampoBolla('cessionarioRagioneSociale', $event)"
+                  (ngModelChange)="selezionaClienteBolla($event)"
                   required
                 />
+                <datalist id="lista-clienti-bolla">
+                  @for (c of listaClientiAnagrafica(); track c.ragioneSociale) {
+                    <option [value]="c.ragioneSociale">{{ c.citta ? '(' + c.citta + ')' : '' }}</option>
+                  }
+                </datalist>
               </div>
               <div class="form-group">
-                <label for="bollaCessionarioIndirizzo">Indirizzo Cessionario (da anagrafica)</label>
+                <label for="bollaCessionarioIndirizzo">Indirizzo Cessionario</label>
                 <input
                   id="bollaCessionarioIndirizzo"
                   name="bollaCessionarioIndirizzo"
@@ -2165,41 +2185,22 @@
               ></textarea>
             </div>
 
-            <!-- Anteprima Articoli -->
-            <div class="preview-table-container">
-              <div class="preview-table-header">
-                <span>Articoli inclusi nella bolla ({{ bollaRighe().length }} {{ bollaRighe().length === 1 ? 'riga' : 'righe' }} &bull; Totale quantità: {{ bollaTotaleQuantita() | number }})</span>
-              </div>
-              <div class="table-responsive">
-                <table class="data-table small">
-                  <thead>
-                    <tr>
-                      <th>Prodotto</th>
-                      <th>Varietà</th>
-                      <th>Clone</th>
-                      <th>Portainnesto</th>
-                      <th class="num">Quantità</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (r of bollaRighe(); track $index) {
-                      <tr>
-                        <td>{{ r.prodotto }}</td>
-                        <td>{{ r.codice_varieta }}</td>
-                        <td>{{ r.codice_clone }}</td>
-                        <td>{{ r.codice_portainnesto }}</td>
-                        <td class="num font-mono">{{ r.quantita | number }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colspan="4"><strong>TOTALE QUANTITÀ</strong></td>
-                      <td class="num font-mono font-bold">{{ bollaTotaleQuantita() | number }}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+            <!-- Corpo centrale libero della bolla -->
+            <div class="form-group">
+              <label for="bollaCorpoLibero"><strong>Descrizione beni / Merce trasportata (corpo centrale)</strong></label>
+              <textarea
+                id="bollaCorpoLibero"
+                name="bollaCorpoLibero"
+                class="form-control font-mono"
+                rows="6"
+                placeholder="Inserisci la descrizione della merce, materiali, varietà, quantità, confezionamento, ecc."
+                [ngModel]="bollaForm().corpoLibero"
+                (ngModelChange)="aggiornaCampoBolla('corpoLibero', $event)"
+                required
+              ></textarea>
+              <small class="form-help">
+                Campo di testo libero stampato al centro della bolla (modificabile liberamente anche per altri materiali).
+              </small>
             </div>
 
             <!-- Anteprima box firme -->
@@ -2293,38 +2294,9 @@
 
           <div class="preview-table-container" style="margin-top: 0.75rem;">
             <div class="preview-table-header">
-              <span>Merci incluse ({{ d.righe.length }} {{ d.righe.length === 1 ? 'riga' : 'righe' }} &bull; Totale: {{ d.totaleQuantita | number }})</span>
+              <span>Descrizione merce / beni trasportati</span>
             </div>
-            <div class="table-responsive">
-              <table class="data-table small">
-                <thead>
-                  <tr>
-                    <th>Prodotto</th>
-                    <th>Varietà</th>
-                    <th>Clone</th>
-                    <th>Portainnesto</th>
-                    <th class="num">Quantità</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (r of d.righe; track $index) {
-                    <tr>
-                      <td>{{ r.prodotto }}</td>
-                      <td>{{ r.codiceVarieta }}</td>
-                      <td>{{ r.codiceClone }}</td>
-                      <td>{{ r.codicePortainnesto }}</td>
-                      <td class="num font-mono">{{ r.quantita | number }}</td>
-                    </tr>
-                  }
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colspan="4"><strong>TOTALE QUANTITÀ</strong></td>
-                    <td class="num font-mono font-bold">{{ d.totaleQuantita | number }}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+            <div style="padding: 12px 14px; background: #fff; font-size: 13px; line-height: 1.6; white-space: pre-wrap; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace;">{{ d.corpoLibero || formattaRigheComeTesto(d.righe) }}</div>
           </div>
         </div>
 

@@ -131,6 +131,7 @@ export interface BollaTrasportoSommario {
   numeroColli?: string | null;
   dataOraInizioTrasporto?: string | null;
   note?: string | null;
+  corpoLibero?: string | null;
   createdAt: string;
   totaleQuantita: number;
   numeroRighe: number;
@@ -153,7 +154,8 @@ export interface SalvaBollaPayload {
   numeroColli?: string;
   dataOraInizioTrasporto?: string;
   note?: string;
-  righe: Array<{
+  corpoLibero?: string;
+  righe?: Array<{
     ordineId?: string | null;
     prodotto: string;
     codiceVarieta: string;

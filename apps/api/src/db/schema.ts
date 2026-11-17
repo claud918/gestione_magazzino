@@ -376,6 +376,7 @@ export const bolleTrasporto = sqliteTable(
     numeroColli: text('numero_colli'),
     dataOraInizioTrasporto: text('data_ora_inizio_trasporto'),
     note: text('note'),
+    corpoLibero: text('corpo_libero'),
     createdAt: text('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
