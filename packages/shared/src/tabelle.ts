@@ -14,9 +14,11 @@ export const NOMI_TABELLE = [
   'inserimento_costi',
   'inserimento_ore',
   'centri_di_costo',
+  'causali_costo',
   'attivita_cdc',
   'dettaglio_cdc',
   'anagrafica_personale',
+  'scadenze',
   'innesti',
   'lotti_magazzino',
   'ordine_impieghi',
@@ -162,9 +164,9 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
       {
         nome: 'causale',
         etichetta: 'Causale',
-        tipo: 'scelta',
+        tipo: 'riferimento',
         obbligatorio: true,
-        opzioni: CAUSALI_COSTO,
+        riferimento: { tabella: 'causali_costo', colonna: 'causale' },
         inScheda: true,
       },
       {
@@ -265,6 +267,19 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
       { nome: 'centro_di_costo', etichetta: 'Centro di costo', tipo: 'testo', obbligatorio: true },
     ],
   },
+  causali_costo: {
+    nome: 'causali_costo',
+    etichetta: 'Causali costo',
+    etichettaSingolare: 'Causale costo',
+    gruppo: 'Anagrafiche',
+    icona: '🏷️',
+    chiave: ['causale'],
+    ordinamento: [{ campo: 'causale' }],
+    titoloScheda: 'causale',
+    campi: [
+      { nome: 'causale', etichetta: 'Causale', tipo: 'testo', obbligatorio: true, inScheda: true },
+    ],
+  },
   attivita_cdc: {
     nome: 'attivita_cdc',
     etichetta: 'Attività per CdC',
@@ -339,6 +354,24 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
       { nome: 'data_patentino_trattore', etichetta: 'Patentino trattore', tipo: 'data' },
       { nome: 'data_rspp', etichetta: 'RSPP', tipo: 'data' },
       { nome: 'data_antincendio', etichetta: 'Antincendio', tipo: 'data' },
+    ],
+  },
+  scadenze: {
+    nome: 'scadenze',
+    etichetta: 'Scadenze',
+    etichettaSingolare: 'Scadenza',
+    gruppo: 'Anagrafiche',
+    icona: '📅',
+    chiave: ['id'],
+    ordinamento: [{ campo: 'data_scadenza' }],
+    titoloScheda: 'oggetto',
+    campi: [
+      ID,
+      { nome: 'oggetto', etichetta: 'Oggetto', tipo: 'testo', obbligatorio: true, inScheda: true },
+      { nome: 'tipologia', etichetta: 'Tipologia', tipo: 'testo', inScheda: true },
+      { nome: 'data_scadenza', etichetta: 'Data scadenza', tipo: 'data', obbligatorio: true, inScheda: true },
+      { nome: 'data_emissione', etichetta: 'Data emissione', tipo: 'data', inScheda: true },
+      { nome: 'note', etichetta: 'Note', tipo: 'testo_lungo' },
     ],
   },
 
@@ -528,12 +561,26 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         inScheda: true,
       },
       {
+        nome: 'campo_varieta',
+        etichetta: 'Campo - Varietà',
+        tipo: 'riferimento',
+        riferimento: { tabella: 'dettaglio_cdc', colonna: 'campo_varieta' },
+        inScheda: true,
+      },
+      {
         nome: 'provenienza',
         etichetta: 'Provenienza',
         tipo: 'scelta',
         obbligatorio: true,
         opzioni: PROVENIENZE_LOTTO,
         predefinito: 'Prodotto',
+        inScheda: true,
+      },
+      {
+        nome: 'prezzo_acquisto',
+        etichetta: 'Prezzo acquisto (€)',
+        tipo: 'valuta',
+        min: 0,
         inScheda: true,
       },
       {
@@ -822,6 +869,25 @@ export function isProdottoSoloPortainnestoInSchera(prodotto: unknown): boolean {
 
 export const isProdottoSoloPortainnestoInScheda = isProdottoSoloPortainnestoInSchera;
 
+const PRODOTTI_VINCOLO_TIPOLOGIA_E_CAMPO_VARIETA = new Set([
+  'talee',
+  'maglioli (qli)',
+  'maglioli(qli)',
+  'marze certificate',
+  'talee portainnesto',
+  'talee portainnesto 68/70',
+]);
+
+/**
+ * Prodotti per cui:
+ * - Tipologia è bloccata a "Nuova produzione"
+ * - campo_varieta è aperto/editabile (mentre per gli altri vale 'NC')
+ */
+export function isProdottoVincoloTipologiaECampoVarieta(prodotto: unknown): boolean {
+  const norm = String(prodotto ?? '').trim().toLowerCase();
+  return PRODOTTI_VINCOLO_TIPOLOGIA_E_CAMPO_VARIETA.has(norm);
+}
+
 /**
  * Calcola i campi derivati di una riga (stessa formula usata dai CHECK del database).
  * Usato dall'API prima di salvare e dal frontend per l'anteprima.
@@ -844,6 +910,14 @@ export function calcolaCampiDerivati(tabella: NomeTabella, valori: RigaTabella):
       r['campo_varieta'] = `${r['campo'] ?? ''} - ${r['varieta'] ?? ''}`;
       break;
     case 'lotti_magazzino':
+      if (isProdottoVincoloTipologiaECampoVarieta(r['prodotto'])) {
+        r['tipologia'] = 'Nuova produzione';
+      } else {
+        r['campo_varieta'] = 'NC';
+      }
+      if (r['provenienza'] !== 'Acquistato') {
+        r['prezzo_acquisto'] = null;
+      }
       r['riferimento_lotto_parlante'] = riferimentoLottoParlante(r);
       break;
     case 'innesti':
@@ -882,6 +956,22 @@ export function validaRiga(
     if (isMarze && campo.nome === 'codice_portainnesto') {
       valori[campo.nome] = 'NC';
       continue;
+    }
+
+    if (def.nome === 'lotti_magazzino') {
+      const isSpeciale = isProdottoVincoloTipologiaECampoVarieta(prod);
+      if (campo.nome === 'tipologia' && isSpeciale) {
+        valori['tipologia'] = 'Nuova produzione';
+        continue;
+      }
+      if (campo.nome === 'campo_varieta' && !isSpeciale) {
+        valori['campo_varieta'] = 'NC';
+        continue;
+      }
+      if (campo.nome === 'prezzo_acquisto' && input['provenienza'] !== 'Acquistato') {
+        valori['prezzo_acquisto'] = null;
+        continue;
+      }
     }
 
     let v = input[campo.nome];

@@ -158,6 +158,10 @@ export const inserimentoOre = sqliteTable(
   ],
 );
 
+export const causaliCosto = sqliteTable('causali_costo', {
+  causale: text('causale').primaryKey(),
+});
+
 export const inserimentoCosti = sqliteTable(
   'inserimento_costi',
   {
@@ -167,16 +171,14 @@ export const inserimentoCosti = sqliteTable(
       .notNull()
       .references(() => centriDiCosto.centroDiCosto, { onUpdate: 'cascade', onDelete: 'restrict' }),
     dettaglioCdc: text('dettaglio_cdc'),
-    causale: text('causale').notNull(),
+    causale: text('causale')
+      .notNull()
+      .references(() => causaliCosto.causale, { onUpdate: 'cascade', onDelete: 'restrict' }),
     note: text('note'),
     campagna: text('campagna').notNull(),
     importo: real('importo').notNull().default(0),
   },
   (t) => [
-    check(
-      'inserimento_costi_causale_check',
-      sql`${t.causale} IN ('Acquisto', 'Concimazione', 'Trattamento', 'Manodopera')`,
-    ),
     foreignKey({
       name: 'inserimento_costi_dettaglio_fk',
       columns: [t.centroDiCosto, t.dettaglioCdc],
@@ -278,6 +280,8 @@ export const lottiMagazzino = sqliteTable(
     collocazione: text('collocazione'),
     note: text('note'),
     provenienza: text('provenienza').notNull(),
+    campoVarieta: text('campo_varieta').notNull().default('NC'),
+    prezzoAcquisto: real('prezzo_acquisto'),
     /** campagna - prodotto - varietà (Cl. clone) - P.I. portainnesto - tipologia [- confezionamento] (mantenuto da trigger) */
     riferimentoLottoParlante: text('riferimento_lotto_parlante').notNull().default(''),
     tipologia: text('tipologia').notNull().default('Nuova produzione'),
@@ -468,5 +472,20 @@ export const fattureRighe = sqliteTable(
   (t) => [
     index('fatture_righe_fattura_idx').on(t.fatturaId),
     index('fatture_righe_ordine_idx').on(t.ordineId),
+  ],
+);
+
+export const scadenze = sqliteTable(
+  'scadenze',
+  {
+    id: uuid(),
+    oggetto: text('oggetto').notNull(),
+    tipologia: text('tipologia'),
+    dataScadenza: text('data_scadenza').notNull(),
+    dataEmissione: text('data_emissione'),
+    note: text('note'),
+  },
+  (t) => [
+    index('scadenze_data_scadenza_idx').on(t.dataScadenza),
   ],
 );

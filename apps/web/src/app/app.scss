@@ -2659,3 +2659,43 @@ tr.row-selection-disabled {
     max-width: 280px;
   }
 }
+
+/* Resoconto Ore Mensile */
+.resoconto-table {
+  border-collapse: separate;
+  border-spacing: 0;
+
+  th, td {
+    border: 1px solid #e2e8f0;
+    vertical-align: middle;
+  }
+
+  .sticky-col {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 2;
+  }
+
+  thead th.sticky-col {
+    z-index: 12;
+    background: #f1f5f9;
+  }
+
+  tfoot td.sticky-col {
+    z-index: 12;
+    background: #e2e8f0;
+  }
+}
+
+.mobile-search-bar {
+  .mobile-search-input {
+    border: 1.5px solid #cbd5e1;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &:focus {
+      border-color: #1b4332;
+      box-shadow: 0 0 0 3px rgba(27, 67, 50, 0.15);
+    }
+  }
+}

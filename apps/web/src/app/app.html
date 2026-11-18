@@ -118,6 +118,14 @@
             <span class="icon">📈</span>
             <span>Report Rese</span>
           </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'resoconto_ore'"
+            (click)="selezionaSezione('resoconto_ore')"
+          >
+            <span class="icon">⏱️</span>
+            <span>Resoconto Ore</span>
+          </button>
         </div>
 
         <div class="sidebar-section">
@@ -184,11 +192,27 @@
           </button>
           <button
             class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'causali_costo'"
+            (click)="selezionaTabella('causali_costo')"
+          >
+            <span class="icon">🏷️</span>
+            <span>Causali costo</span>
+          </button>
+          <button
+            class="sidebar-item"
             [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'inserimento_ore'"
             (click)="selezionaTabella('inserimento_ore')"
           >
             <span class="icon">⏱</span>
             <span>Inserimento ore</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'tabella' && tabellaSelezionata() === 'scadenze'"
+            (click)="selezionaTabella('scadenze')"
+          >
+            <span class="icon">📅</span>
+            <span>Scadenze</span>
           </button>
           <button
             class="sidebar-item"
@@ -995,6 +1019,180 @@
         }
 
         <!-- ============================================================== -->
+        <!-- SEZIONE: RESOCONTO ORE MENSILE (Report Mensile Dipendenti x Giorni) -->
+        <!-- ============================================================== -->
+        @if (sezioneAttiva() === 'resoconto_ore') {
+          <div class="content-header">
+            <div>
+              <div class="header-breadcrumb">Report & Manodopera</div>
+              <h2>Resoconto Ore Mensile</h2>
+              <p class="subtitle">Matrice mensile presenze e ore lavorate per dipendente con totali per riga, colonna ed export Excel</p>
+            </div>
+            <div class="header-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="esportaResocontoOreExcel()"
+                title="Esporta il report in formato CSV / Excel"
+              >
+                📥 Esporta Excel
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                (click)="caricaResocontoOre()"
+                title="Ricarica i dati delle ore dal server"
+              >
+                🔄 Ricarica
+              </button>
+            </div>
+          </div>
+
+          <!-- Barra Selezione Mese e Anno -->
+          <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; background: #fff; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button
+                type="button"
+                class="btn btn-sm btn-secondary"
+                (click)="cambiaMeseResoconto(-1)"
+                title="Mese precedente"
+              >
+                ◀ Mese prec.
+              </button>
+              
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label for="select-mese-resoconto" style="font-size: 13px; font-weight: 600; margin: 0;">Mese:</label>
+                <select
+                  id="select-mese-resoconto"
+                  class="form-control form-control-sm"
+                  style="width: 130px; font-weight: 600;"
+                  [ngModel]="meseResoconto()"
+                  (ngModelChange)="meseResoconto.set(+$event)"
+                >
+                  @for (m of nomiMesi; track $index) {
+                    <option [value]="$index + 1">{{ m }}</option>
+                  }
+                </select>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label for="select-anno-resoconto" style="font-size: 13px; font-weight: 600; margin: 0;">Anno:</label>
+                <select
+                  id="select-anno-resoconto"
+                  class="form-control form-control-sm"
+                  style="width: 90px; font-weight: 600;"
+                  [ngModel]="annoResoconto()"
+                  (ngModelChange)="annoResoconto.set(+$event)"
+                >
+                  @for (a of anniDisponibiliResoconto(); track a) {
+                    <option [value]="a">{{ a }}</option>
+                  }
+                </select>
+              </div>
+
+              <button
+                type="button"
+                class="btn btn-sm btn-secondary"
+                (click)="cambiaMeseResoconto(1)"
+                title="Mese successivo"
+              >
+                Mese succ. ▶
+              </button>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span class="badge" style="background: #1b4332; color: #fff; font-size: 12.5px; padding: 5px 10px; border-radius: 4px;">
+                Totale ore: <strong>{{ reportOreMatrice().totaleGenerale | number:'1.0-2' }} h</strong>
+              </span>
+              <span class="text-muted small">
+                {{ reportOreMatrice().righe.length }} {{ reportOreMatrice().righe.length === 1 ? 'dipendente' : 'dipendenti' }}
+              </span>
+            </div>
+          </div>
+
+          @if (caricamentoResoconto()) {
+            <div class="loading-box"><span class="spinner"></span> Caricamento ore e personale...</div>
+          } @else if (erroreResoconto()) {
+            <div class="alert alert-danger">{{ erroreResoconto() }}</div>
+          } @else if (reportOreMatrice().righe.length === 0) {
+            <div class="empty-state">
+              <p>Nessun dato registrato per {{ nomiMesi[meseResoconto() - 1] }} {{ annoResoconto() }}.</p>
+            </div>
+          } @else {
+            <div class="table-wrapper">
+              <div class="table-responsive" style="max-height: 75vh; overflow: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <table class="data-table resoconto-table" style="margin: 0; min-width: 900px; font-size: 11.5px;">
+                  <thead style="position: sticky; top: 0; z-index: 10; background: #f8fafc;">
+                    <tr>
+                      <th class="sticky-col" style="position: sticky; left: 0; z-index: 11; background: #f1f5f9; min-width: 180px; width: 180px; box-shadow: 2px 0 4px rgba(0,0,0,0.06); text-align: left;">
+                        Dipendente
+                      </th>
+                      @for (g of listaGiorniResoconto(); track g.giorno) {
+                        <th
+                          class="num"
+                          style="min-width: 38px; width: 38px; padding: 4px 2px; text-align: center;"
+                          [style.background]="g.isWeekend ? '#fee2e2' : '#f8fafc'"
+                          [title]="g.nomeGiorno + ' ' + g.giorno + ' ' + nomiMesi[meseResoconto() - 1]"
+                        >
+                          <div style="font-size: 11px; font-weight: 700;">{{ g.giorno }}</div>
+                          <div style="font-size: 9px; font-weight: normal; color: #64748b;">{{ g.nomeGiorno }}</div>
+                        </th>
+                      }
+                      <th class="num font-bold" style="min-width: 75px; width: 75px; text-align: right; background: #e2e8f0; color: #1e293b;">
+                        Totale
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (r of reportOreMatrice().righe; track r.soprannome) {
+                      <tr>
+                        <td class="sticky-col font-bold" style="position: sticky; left: 0; z-index: 5; background: #fff; box-shadow: 2px 0 4px rgba(0,0,0,0.06); white-space: nowrap;">
+                          {{ r.dipendenteNome }}
+                        </td>
+                        @for (g of listaGiorniResoconto(); track g.giorno) {
+                          <td
+                            class="num"
+                            style="text-align: center; padding: 4px 2px; font-size: 11px;"
+                            [style.background]="g.isWeekend ? '#fff1f2' : (r.oreGiorno[g.giorno] > 0 ? '#f0fdf4' : 'transparent')"
+                            [style.font-weight]="r.oreGiorno[g.giorno] > 0 ? '700' : 'normal'"
+                            [style.color]="r.oreGiorno[g.giorno] > 0 ? '#15803d' : '#94a3b8'"
+                          >
+                            {{ r.oreGiorno[g.giorno] > 0 ? r.oreGiorno[g.giorno] : '—' }}
+                          </td>
+                        }
+                        <td class="num font-bold" style="text-align: right; background: #f8fafc; color: #1b4332; font-size: 12px;">
+                          {{ r.totaleOre > 0 ? (r.totaleOre | number:'1.0-2') : '0' }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot style="position: sticky; bottom: 0; z-index: 10; background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1;">
+                    <tr>
+                      <td class="sticky-col font-bold" style="position: sticky; left: 0; z-index: 11; background: #e2e8f0; box-shadow: 2px 0 4px rgba(0,0,0,0.06);">
+                        TOTALE GIORNALIERO
+                      </td>
+                      @for (g of listaGiorniResoconto(); track g.giorno) {
+                        <td
+                          class="num"
+                          style="text-align: center; padding: 6px 2px; font-size: 11.5px;"
+                          [style.background]="g.isWeekend ? '#fee2e2' : '#f1f5f9'"
+                          [style.color]="reportOreMatrice().totaliGiornalieri[g.giorno] > 0 ? '#0f172a' : '#94a3b8'"
+                        >
+                          {{ reportOreMatrice().totaliGiornalieri[g.giorno] > 0 ? reportOreMatrice().totaliGiornalieri[g.giorno] : '—' }}
+                        </td>
+                      }
+                      <td class="num font-bold" style="text-align: right; background: #1b4332; color: #fff; font-size: 13px;">
+                        {{ reportOreMatrice().totaleGenerale | number:'1.0-2' }}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- ============================================================== -->
         <!-- SEZIONE: ARCHIVIO BOLLE DI TRASPORTO -->
         <!-- ============================================================== -->
         @if (sezioneAttiva() === 'bolle') {
@@ -1592,6 +1790,31 @@
               </div>
             } @else {
               <!-- 2. VISTA SCHEDE -->
+              @if (tabellaSelezionata() === 'lotti_magazzino' || tabellaSelezionata() === 'ordine_impieghi') {
+                <div class="mobile-search-bar" style="margin-bottom: 12px;">
+                  <div class="search-input-box" style="position: relative; display: flex; align-items: center;">
+                    <span style="position: absolute; left: 10px; color: #94a3b8; pointer-events: none;">🔍</span>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      style="padding-left: 32px; padding-right: 30px; font-size: 13px; height: 38px; border-radius: 6px;"
+                      placeholder="Cerca schede (lotto, varietà, cliente, note, ecc.)..."
+                      [ngModel]="ricercaTesto()"
+                      (ngModelChange)="ricercaTesto.set($event)"
+                    />
+                    @if (ricercaTesto()) {
+                      <button
+                        type="button"
+                        class="btn-clear-search"
+                        style="position: absolute; right: 8px; border: none; background: transparent; font-size: 14px; cursor: pointer; color: #64748b;"
+                        (click)="ricercaTesto.set('')"
+                      >
+                        ✕
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
               <div class="mobile-cards-container">
                 @for (riga of righeFiltrate(); track $index) {
                   <div
@@ -1802,6 +2025,72 @@
                       <option [value]="opz">{{ opz }}</option>
                     }
                   </select>
+                }
+
+                <!-- CASO SPECIALE: INSERIMENTO MULTIPLO DIPENDENTI IN INSERIMENTO ORE (MODO NUOVO) -->
+                @if (defTabella().nome === 'inserimento_ore' && campo.nome === 'dipendente' && modalModo() === 'nuovo') {
+                  <div class="multi-dipendenti-box" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; background: #f8fafc;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                      <span class="badge" style="background: #1b4332; color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 12px;">
+                        {{ dipendentiSelezionatiMultipli().length }} {{ dipendentiSelezionatiMultipli().length === 1 ? 'dipendente selezionato' : 'dipendenti selezionati' }}
+                      </span>
+                      <div style="display: flex; gap: 6px;">
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-outline-primary"
+                          style="font-size: 11px; padding: 2px 8px;"
+                          (click)="selezionaTuttiDipendenti(getOpzioniPerCampo(campo))"
+                        >
+                          Seleziona tutti
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-outline-secondary"
+                          style="font-size: 11px; padding: 2px 8px;"
+                          (click)="deselezionaTuttiDipendenti()"
+                        >
+                          Deseleziona
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="search-input-box mb-2" style="position: relative;">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="Filtra dipendenti..."
+                        [ngModel]="filtroRicercaDipendenti()"
+                        (ngModelChange)="filtroRicercaDipendenti.set($event)"
+                      />
+                      @if (filtroRicercaDipendenti()) {
+                        <button type="button" class="btn-clear-search" style="position: absolute; right: 6px; top: 4px; border: none; background: transparent; cursor: pointer;" (click)="filtroRicercaDipendenti.set('')">✕</button>
+                      }
+                    </div>
+
+                    <div style="max-height: 180px; overflow-y: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px;">
+                      @for (item of getDipendentiFiltratiPerInserimento(campo); track item.soprannome) {
+                        <label
+                          style="display: flex; align-items: center; gap: 8px; padding: 4px 6px; margin: 0; cursor: pointer; border-radius: 3px; font-size: 12.5px;"
+                          [style.background]="isDipendenteSelezionato(item.soprannome) ? '#e0f2fe' : 'transparent'"
+                        >
+                          <input
+                            type="checkbox"
+                            [checked]="isDipendenteSelezionato(item.soprannome)"
+                            (change)="toggleDipendenteMultiplo(item.soprannome)"
+                          />
+                          <span>
+                            <strong>{{ item.cognome }} {{ item.nome }}</strong>
+                            <span class="text-muted small" style="margin-left: 4px;">({{ item.soprannome }})</span>
+                          </span>
+                        </label>
+                      } @empty {
+                        <div class="text-muted small p-2 text-center">Nessun dipendente trovato</div>
+                      }
+                    </div>
+                    <small class="text-muted" style="display: block; margin-top: 6px; font-size: 11px;">
+                      💡 Selezionando più dipendenti, verranno generati automaticamente N record ore identici con un solo click.
+                    </small>
+                  </div>
                 }
 
                 <!-- RIFERIMENTO FK / MENU A CASCATA CON SELEZIONE E RICERCA TESTUALE -->
@@ -2695,6 +2984,11 @@
                 (ngModelChange)="aggiornaCampoFattura('modalitaPagamento', $event)"
                 required
               ></textarea>
+            </div>
+
+            <!-- Riquadro Fattura di Cortesia -->
+            <div class="alert alert-info text-center font-weight-bold" style="padding: 7px 12px; margin-bottom: 14px; font-weight: 700; background: #f0fdf4; border: 1.5px solid #16a34a; color: #166534; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
+              Fattura di cortesia
             </div>
 
             <!-- Righe Articoli con Prezzi (se generata da ordini) -->

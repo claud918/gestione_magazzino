@@ -86,6 +86,11 @@ const ALIAS_CAMPI: Record<string, string[]> = {
   causale: ['causale', 'motivazione'],
   campagna: ['campagna', 'annata', 'stagione'],
   note: ['note', 'nota', 'osservazioni', 'descrizione'],
+  oggetto: ['oggetto', 'titolo'],
+  data_scadenza: ['datascadenza', 'scadenza'],
+  data_emissione: ['dataemissione', 'emissione'],
+  prezzo_acquisto: ['prezzoacquisto', 'prezzo_acquisto', 'costo_acquisto'],
+  campo_varieta: ['campovarieta', 'campo_varieta'],
 };
 
 /**

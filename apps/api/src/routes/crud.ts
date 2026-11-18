@@ -143,6 +143,8 @@ crudRoutes.put('/:tabella', requireAdmin, async (c) => {
     // Permetti la modifica della chiave primaria per tabelle come anagrafica_personale (soprannome) e clienti (ragione_sociale)
     if (def.nome === 'anagrafica_personale' && col === 'soprannome') return true;
     if (def.nome === 'clienti' && col === 'ragione_sociale') return true;
+    if (def.nome === 'causali_costo' && col === 'causale') return true;
+    if (def.nome === 'centri_di_costo' && col === 'centro_di_costo') return true;
     return !def.chiave.includes(col);
   });
   if (setCols.length === 0) {

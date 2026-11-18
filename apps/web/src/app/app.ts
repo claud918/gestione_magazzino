@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { StickyScrollbarDirective } from './sticky-scrollbar.directive';
+import { forkJoin } from 'rxjs';
 import {
   TABELLE,
   NOMI_TABELLE,
@@ -15,6 +16,7 @@ import {
   TIPOLOGIE_PRODOTTO,
   isProdottoSenzaVarietaClone,
   isProdottoSoloPortainnestoInScheda,
+  isProdottoVincoloTipologiaECampoVarieta,
   type NomeTabella,
   type DefinizioneTabella,
   type CampoTabella,
@@ -37,7 +39,7 @@ import {
   ALIQUOTA_IVA_PREDEFINITA,
 } from '@magazzino/shared';
 
-type SezioneAttiva = 'disponibilita' | 'rese' | 'bolle' | 'fatture' | 'tabella';
+type SezioneAttiva = 'disponibilita' | 'rese' | 'bolle' | 'fatture' | 'tabella' | 'resoconto_ore';
 
 interface BollaTrasportoForm {
   numeroBolla: string;
@@ -255,6 +257,18 @@ export class App implements OnInit {
   protected readonly filtroReseCampagna = signal<string>(campagnaCorrente());
   protected readonly filtroReseProdotto = signal<string>('Barbatelle innestate certificate');
   protected readonly filtroReseRicerca = signal('');
+
+  // Dati Resoconto Ore
+  protected readonly meseResoconto = signal<number>(new Date().getMonth() + 1);
+  protected readonly annoResoconto = signal<number>(new Date().getFullYear());
+  protected readonly caricamentoResoconto = signal<boolean>(false);
+  protected readonly erroreResoconto = signal<string | null>(null);
+  protected readonly datiOre = signal<RigaTabella[]>([]);
+  protected readonly datiPersonale = signal<RigaTabella[]>([]);
+
+  // Inserimento Ore Multi-Dipendenti
+  protected readonly dipendentiSelezionatiMultipli = signal<string[]>([]);
+  protected readonly filtroRicercaDipendenti = signal<string>('');
 
   // Computed per datalist dinamiche dei filtri
   protected readonly listaCampagneDisponibili = computed<string[]>(() => {
@@ -1574,6 +1588,8 @@ export class App implements OnInit {
       this.caricaBolle();
     } else if (sez === 'fatture') {
       this.caricaFatture();
+    } else if (sez === 'resoconto_ore') {
+      this.caricaResocontoOre();
     } else {
       this.caricaDatiTabella(this.tabellaSelezionata());
     }
@@ -1595,6 +1611,8 @@ export class App implements OnInit {
       this.caricaBolle();
     } else if (sez === 'fatture') {
       this.caricaFatture();
+    } else if (sez === 'resoconto_ore') {
+      this.caricaResocontoOre();
     } else {
       this.caricaDatiTabella(this.tabellaSelezionata());
     }
@@ -1690,11 +1708,27 @@ export class App implements OnInit {
     if (prod === 'Marze' || prod === 'Marze certificate') {
       val['codice_portainnesto'] = 'NC';
     }
+    if (this.tabellaSelezionata() === 'lotti_magazzino') {
+      const isSpeciale = isProdottoVincoloTipologiaECampoVarieta(prod);
+      if (isSpeciale) {
+        val['tipologia'] = 'Nuova produzione';
+        if (val['campo_varieta'] === 'NC') {
+          val['campo_varieta'] = '';
+        }
+      } else {
+        val['campo_varieta'] = 'NC';
+      }
+      if (val['provenienza'] !== 'Acquistato') {
+        val['prezzo_acquisto'] = null;
+      }
+    }
   }
 
   // --- Modale Form Inserimento / Modifica ---
   protected apriModalNuovo(): void {
     this.ricercaOpzioniPerCampo.set({});
+    this.dipendentiSelezionatiMultipli.set([]);
+    this.filtroRicercaDipendenti.set('');
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
       this.caricaDisponibilita();
     }
@@ -1724,6 +1758,8 @@ export class App implements OnInit {
 
   protected apriModalModifica(riga: RigaTabella): void {
     this.ricercaOpzioniPerCampo.set({});
+    this.dipendentiSelezionatiMultipli.set([]);
+    this.filtroRicercaDipendenti.set('');
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
       this.caricaDisponibilita();
     }
@@ -1877,6 +1913,12 @@ export class App implements OnInit {
       this.applicaRegoleProdotto(val);
     }
 
+    if (this.tabellaSelezionata() === 'lotti_magazzino' && campo.nome === 'provenienza') {
+      if (val['provenienza'] !== 'Acquistato') {
+        val['prezzo_acquisto'] = null;
+      }
+    }
+
     // Se il campo referenziato ha un'istruzione di auto-compilazione (es. Ordine -> Innesto)
     if (campo.riferimento?.compila && val[campo.nome]) {
       const opzioni = this.opzioniRiferimento()[campo.nome] || [];
@@ -1979,13 +2021,27 @@ export class App implements OnInit {
       if (innesto && campiDerivatiDaInnesto.includes(campo.nome)) {
         return true;
       }
+
+      // Regole speciali lotti: tipologia bloccata a "Nuova produzione" per i 5 prodotti speciali,
+      // campo_varieta aperto SOLO per i 5 prodotti speciali, prezzo_acquisto editabile solo se Acquistato
+      const isSpeciale = isProdottoVincoloTipologiaECampoVarieta(prod);
+      if (campo.nome === 'tipologia' && isSpeciale) {
+        return true;
+      }
+      if (campo.nome === 'campo_varieta' && !isSpeciale) {
+        return true;
+      }
+      if (campo.nome === 'prezzo_acquisto' && val['provenienza'] !== 'Acquistato') {
+        return true;
+      }
     }
 
-    // In modifica, le chiavi primarie testuali (se non uuid) non si modificano tranne il soprannome in anagrafica_personale e ragione_sociale in clienti che devono essere editabili
+    // In modifica, le chiavi primarie testuali (se non uuid) non si modificano tranne il soprannome in anagrafica_personale, ragione_sociale in clienti e causale in causali_costo che devono essere editabili
     if (this.modalModo() === 'modifica' && this.defTabella().chiave.includes(campo.nome)) {
       if (
         (this.defTabella().nome === 'anagrafica_personale' && campo.nome === 'soprannome') ||
-        (this.defTabella().nome === 'clienti' && campo.nome === 'ragione_sociale')
+        (this.defTabella().nome === 'clienti' && campo.nome === 'ragione_sociale') ||
+        (this.defTabella().nome === 'causali_costo' && campo.nome === 'causale')
       ) {
         return false;
       }
@@ -1998,6 +2054,46 @@ export class App implements OnInit {
 
   protected salvaRiga(): void {
     const def = this.defTabella();
+
+    // Inserimento multiplo dipendenti per inserimento_ore
+    if (
+      def.nome === 'inserimento_ore' &&
+      this.modalModo() === 'nuovo' &&
+      this.dipendentiSelezionatiMultipli().length > 1
+    ) {
+      const dips = this.dipendentiSelezionatiMultipli();
+      // Valida con il primo dipendente per verificare tutti i campi obbligatori
+      const { valori: baseValori, errori } = validaRiga(def, { ...this.modalValori(), dipendente: dips[0] });
+      if (errori.length > 0) {
+        const errMap: Record<string, string> = {};
+        for (const e of errori) {
+          errMap[e.campo] = e.messaggio;
+        }
+        this.modalErrori.set(errMap);
+        return;
+      }
+
+      this.inInvio.set(true);
+      const richieste = dips.map((dip) => {
+        const rigaPayload = { ...baseValori, dipendente: dip };
+        return this.http.post<{ riga: RigaTabella }>(`/api/crud/${def.nome}`, rigaPayload);
+      });
+
+      forkJoin(richieste).subscribe({
+        next: () => {
+          this.inInvio.set(false);
+          this.chiudiModal();
+          this.mostraOk(`${dips.length} record ore inseriti con successo`);
+          this.caricaDatiTabella(def.nome);
+        },
+        error: (err) => {
+          this.inInvio.set(false);
+          this.mostraErrore(err.error?.error || 'Errore durante l\'inserimento multiplo delle ore');
+        },
+      });
+      return;
+    }
+
     const { valori, errori } = validaRiga(def, this.modalValori());
 
     if (errori.length > 0) {
@@ -2257,6 +2353,257 @@ export class App implements OnInit {
     const dataStr = new Date().toISOString().slice(0, 10);
     this.scaricaCsv(`export_${def.nome}_${dataStr}.csv`, [intestazioni, ...dati]);
     this.mostraOk(`Tabella "${def.etichetta}" scaricata in formato CSV`);
+  }
+
+  // --- Inserimento Multiplo Dipendenti per Inserimento Ore ---
+  protected toggleDipendenteMultiplo(soprannome: string): void {
+    const attuali = this.dipendentiSelezionatiMultipli();
+    if (attuali.includes(soprannome)) {
+      const nuovi = attuali.filter((s) => s !== soprannome);
+      this.dipendentiSelezionatiMultipli.set(nuovi);
+      this.modalValori()['dipendente'] = nuovi.length > 0 ? nuovi[0] : '';
+    } else {
+      const nuovi = [...attuali, soprannome];
+      this.dipendentiSelezionatiMultipli.set(nuovi);
+      this.modalValori()['dipendente'] = nuovi[0];
+    }
+  }
+
+  protected selezionaTuttiDipendenti(opzioni: any[]): void {
+    const tutti = opzioni.map((o) => o['soprannome']).filter(Boolean);
+    this.dipendentiSelezionatiMultipli.set(tutti);
+    if (tutti.length > 0) {
+      this.modalValori()['dipendente'] = tutti[0];
+    }
+  }
+
+  protected deselezionaTuttiDipendenti(): void {
+    this.dipendentiSelezionatiMultipli.set([]);
+    this.modalValori()['dipendente'] = '';
+  }
+
+  protected isDipendenteSelezionato(soprannome: string): boolean {
+    return this.dipendentiSelezionatiMultipli().includes(soprannome);
+  }
+
+  protected getDipendentiFiltratiPerInserimento(campo: CampoTabella): any[] {
+    const list = this.getOpzioniPerCampo(campo);
+    const q = this.filtroRicercaDipendenti().trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((item: any) => {
+      const s = String(item['soprannome'] || '').toLowerCase();
+      const n = String(item['nome'] || '').toLowerCase();
+      const c = String(item['cognome'] || '').toLowerCase();
+      const nc = String(item['nome_cognome'] || '').toLowerCase();
+      return s.includes(q) || n.includes(q) || c.includes(q) || nc.includes(q);
+    });
+  }
+
+  // --- Resoconto Ore Mensile e Export Excel ---
+  protected readonly nomiMesi = [
+    'Gennaio',
+    'Febbraio',
+    'Marzo',
+    'Aprile',
+    'Maggio',
+    'Giugno',
+    'Luglio',
+    'Agosto',
+    'Settembre',
+    'Ottobre',
+    'Novembre',
+    'Dicembre',
+  ];
+
+  protected readonly anniDisponibiliResoconto = computed<number[]>(() => {
+    const annoCorrente = new Date().getFullYear();
+    const anni: number[] = [];
+    for (let a = annoCorrente - 3; a <= annoCorrente + 2; a++) {
+      anni.push(a);
+    }
+    return anni;
+  });
+
+  protected readonly giorniNelMeseResoconto = computed<number>(() => {
+    return new Date(this.annoResoconto(), this.meseResoconto(), 0).getDate();
+  });
+
+  protected readonly listaGiorniResoconto = computed<
+    Array<{ giorno: number; nomeGiorno: string; isWeekend: boolean }>
+  >(() => {
+    const anno = this.annoResoconto();
+    const mese = this.meseResoconto();
+    const totalGiorni = this.giorniNelMeseResoconto();
+    const nomiGiorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+    const res: Array<{ giorno: number; nomeGiorno: string; isWeekend: boolean }> = [];
+    for (let g = 1; g <= totalGiorni; g++) {
+      const d = new Date(anno, mese - 1, g);
+      const dayOfWeek = d.getDay();
+      res.push({
+        giorno: g,
+        nomeGiorno: nomiGiorni[dayOfWeek],
+        isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+      });
+    }
+    return res;
+  });
+
+  protected readonly reportOreMatrice = computed(() => {
+    const anno = this.annoResoconto();
+    const mese = this.meseResoconto();
+    const prefissoData = `${anno}-${String(mese).padStart(2, '0')}`;
+    const totalGiorni = this.giorniNelMeseResoconto();
+
+    const oreFiltrate = this.datiOre().filter((o) => {
+      const d = String(o['data_inserimento'] || '');
+      return d.startsWith(prefissoData);
+    });
+
+    const mappaPersonale = new Map<string, { nome: string; cognome: string; etichetta: string }>();
+    for (const p of this.datiPersonale()) {
+      const sop = String(p['soprannome'] || '');
+      const nome = String(p['nome'] || '');
+      const cognome = String(p['cognome'] || '');
+      const etichetta = `${cognome} ${nome}`.trim() || sop;
+      mappaPersonale.set(sop, { nome, cognome, etichetta });
+    }
+
+    const dipendentiSet = new Set<string>();
+    for (const p of this.datiPersonale()) {
+      const sop = String(p['soprannome'] || '');
+      if (sop) dipendentiSet.add(sop);
+    }
+    for (const o of oreFiltrate) {
+      const dip = String(o['dipendente'] || '');
+      if (dip) dipendentiSet.add(dip);
+    }
+
+    const righe: Array<{
+      soprannome: string;
+      nome: string;
+      cognome: string;
+      dipendenteNome: string;
+      oreGiorno: Record<number, number>;
+      totaleOre: number;
+    }> = [];
+
+    const totaliGiornalieri: Record<number, number> = {};
+    for (let g = 1; g <= totalGiorni; g++) {
+      totaliGiornalieri[g] = 0;
+    }
+    let totaleGenerale = 0;
+
+    for (const sop of dipendentiSet) {
+      const info = mappaPersonale.get(sop) || { nome: '', cognome: '', etichetta: sop };
+      const oreGiorno: Record<number, number> = {};
+      let totDip = 0;
+
+      for (let g = 1; g <= totalGiorni; g++) {
+        oreGiorno[g] = 0;
+      }
+
+      const oreDip = oreFiltrate.filter((o) => String(o['dipendente'] || '') === sop);
+      for (const item of oreDip) {
+        const dStr = String(item['data_inserimento'] || '');
+        const dayNum = parseInt(dStr.slice(8, 10), 10);
+        const ore = Number(item['numero_ore']) || 0;
+        if (dayNum >= 1 && dayNum <= totalGiorni) {
+          oreGiorno[dayNum] = Math.round((oreGiorno[dayNum] + ore) * 100) / 100;
+          totDip = Math.round((totDip + ore) * 100) / 100;
+          totaliGiornalieri[dayNum] = Math.round((totaliGiornalieri[dayNum] + ore) * 100) / 100;
+          totaleGenerale = Math.round((totaleGenerale + ore) * 100) / 100;
+        }
+      }
+
+      righe.push({
+        soprannome: sop,
+        nome: info.nome,
+        cognome: info.cognome,
+        dipendenteNome: info.etichetta,
+        oreGiorno,
+        totaleOre: totDip,
+      });
+    }
+
+    righe.sort((a, b) => a.dipendenteNome.localeCompare(b.dipendenteNome));
+
+    return {
+      righe,
+      totaliGiornalieri,
+      totaleGenerale,
+    };
+  });
+
+  protected caricaResocontoOre(): void {
+    this.caricamentoResoconto.set(true);
+    this.erroreResoconto.set(null);
+    forkJoin({
+      ore: this.http.get<{ righe: RigaTabella[] }>('/api/crud/inserimento_ore'),
+      personale: this.http.get<{ righe: RigaTabella[] }>('/api/crud/anagrafica_personale'),
+    }).subscribe({
+      next: (res) => {
+        this.datiOre.set(res.ore.righe || []);
+        this.datiPersonale.set(res.personale.righe || []);
+        this.caricamentoResoconto.set(false);
+      },
+      error: (err) => {
+        this.caricamentoResoconto.set(false);
+        this.erroreResoconto.set(
+          err.error?.error || 'Errore durante il caricamento dei dati del resoconto ore',
+        );
+      },
+    });
+  }
+
+  protected cambiaMeseResoconto(delta: number): void {
+    let m = this.meseResoconto() + delta;
+    let a = this.annoResoconto();
+    if (m < 1) {
+      m = 12;
+      a -= 1;
+    } else if (m > 12) {
+      m = 1;
+      a += 1;
+    }
+    this.meseResoconto.set(m);
+    this.annoResoconto.set(a);
+  }
+
+  protected esportaResocontoOreExcel(): void {
+    const anno = this.annoResoconto();
+    const mese = this.meseResoconto();
+    const totalGiorni = this.giorniNelMeseResoconto();
+    const data = this.reportOreMatrice();
+
+    const intestazioni: string[] = ['Dipendente'];
+    for (let g = 1; g <= totalGiorni; g++) {
+      intestazioni.push(String(g));
+    }
+    intestazioni.push('Totale');
+
+    const righeCsv: string[][] = [intestazioni];
+
+    for (const r of data.righe) {
+      const riga: string[] = [r.dipendenteNome];
+      for (let g = 1; g <= totalGiorni; g++) {
+        const ore = r.oreGiorno[g];
+        riga.push(ore > 0 ? String(ore) : '');
+      }
+      riga.push(r.totaleOre > 0 ? String(r.totaleOre) : '0');
+      righeCsv.push(riga);
+    }
+
+    const rigaTotali: string[] = ['TOTALE GIORNALIERO'];
+    for (let g = 1; g <= totalGiorni; g++) {
+      const totGiorno = data.totaliGiornalieri[g];
+      rigaTotali.push(totGiorno > 0 ? String(totGiorno) : '');
+    }
+    rigaTotali.push(String(data.totaleGenerale));
+    righeCsv.push(rigaTotali);
+
+    const nomeMese = this.nomiMesi[mese - 1].toLowerCase();
+    this.scaricaCsv(`report_ore_${anno}_${String(mese).padStart(2, '0')}_${nomeMese}.csv`, righeCsv);
+    this.mostraOk(`Report ore di ${this.nomiMesi[mese - 1]} ${anno} esportato con successo`);
   }
 
   // --- Importazione CSV per Anagrafiche, Magazzino e Ordini ---
@@ -3766,14 +4113,22 @@ export class App implements OnInit {
   <style>
     @page {
       size: A4 portrait;
-      margin: 0;
+      margin: 10mm 12mm;
     }
     @media print {
       @page {
-        margin: 0;
+        size: A4 portrait;
+        margin: 10mm 12mm;
       }
       html, body {
+        height: 100%;
         margin: 0;
+        padding: 0;
+      }
+      .fattura-page {
+        height: 100vh;
+        min-height: calc(297mm - 20mm);
+        max-height: calc(297mm - 20mm);
         padding: 0;
       }
     }
@@ -3781,6 +4136,8 @@ export class App implements OnInit {
     html, body {
       margin: 0;
       padding: 0;
+      min-height: 100%;
+      height: 100%;
       background: #fff;
     }
     body {
@@ -3794,15 +4151,20 @@ export class App implements OnInit {
     }
     .fattura-page {
       width: 100%;
-      min-height: 297mm;
-      padding: 12mm 14mm;
+      min-height: calc(297mm - 24mm);
+      height: 100%;
+      padding: 10mm 12mm;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
+      justify-content: space-between;
       box-sizing: border-box;
     }
     .fattura-main {
-      flex: 1 0 auto;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
     .fattura-header {
       display: flex;
@@ -3931,10 +4293,25 @@ export class App implements OnInit {
       background: #fffbeb;
       font-size: 10.5px;
     }
+    .cortesia-box {
+      border: 1.5px solid #cbd5e1;
+      background: #f8fafc;
+      border-radius: 4px;
+      padding: 7px 12px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #1b4332;
+      margin-bottom: 14px;
+    }
     .totals-container {
       display: flex;
       justify-content: flex-end;
-      margin-bottom: 16px;
+      margin-top: auto;
+      margin-bottom: 0;
+      padding-top: 16px;
     }
     .totals-box {
       width: 260px;
@@ -4030,6 +4407,8 @@ export class App implements OnInit {
         <span class="payment-label">Modalità di Pagamento</span>
         <div class="payment-value">${this.escapeHtml(f.modalitaPagamento)}</div>
       </div>
+
+      <div class="cortesia-box">Fattura di cortesia</div>
 
       ${righeTableHtml}
 
