@@ -1686,18 +1686,112 @@
 
           @if (caricamentoDati()) {
             <div class="loading-box">Caricamento in corso...</div>
-          } @else if (righeFiltrate().length === 0 && (!haFiltriColonnaAttivi() || modalitaVista() === 'schede')) {
-            <div class="empty-state">
-              <p>Nessun record presente in questa tabella.</p>
-              @if (utente()?.ruolo === 'admin') {
-                <button class="btn btn-sm btn-outline-primary" (click)="apriModalNuovo()">
-                  Inserisci il primo elemento
-                </button>
-              }
-            </div>
+          } @else if (modalitaVista() === 'schede') {
+            <!-- 2. VISTA SCHEDE -->
+            @if (tabellaSelezionata() === 'lotti_magazzino' || tabellaSelezionata() === 'ordine_impieghi') {
+              <div class="mobile-search-bar" style="margin-bottom: 12px;">
+                <div class="search-input-box" style="position: relative; display: flex; align-items: center;">
+                  <span style="position: absolute; left: 12px; color: #94a3b8; pointer-events: none; font-size: 15px;">🔍</span>
+                  <input
+                    type="text"
+                    class="form-control"
+                    style="padding-left: 36px; padding-right: 36px; font-size: 14px; height: 42px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 100%;"
+                    [placeholder]="tabellaSelezionata() === 'lotti_magazzino' ? 'Cerca lotti (riferimento, varietà, portainnesto, campagna...)' : 'Cerca ordini (cliente, varietà, portainnesto, note...)'"
+                    [ngModel]="ricercaTesto()"
+                    (ngModelChange)="ricercaTesto.set($event)"
+                  />
+                  @if (ricercaTesto()) {
+                    <button
+                      type="button"
+                      class="btn-clear-search"
+                      style="position: absolute; right: 10px; border: none; background: transparent; font-size: 16px; cursor: pointer; color: #64748b; padding: 4px;"
+                      (click)="ricercaTesto.set('')"
+                      title="Cancella ricerca"
+                    >
+                      ✕
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (righeFiltrate().length === 0) {
+              <div class="empty-state">
+                @if (ricercaTesto()) {
+                  <p>Nessun record corrisponde alla ricerca "{{ ricercaTesto() }}".</p>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="ricercaTesto.set('')">
+                    Azzera ricerca
+                  </button>
+                } @else {
+                  <p>Nessun record presente in questa tabella.</p>
+                  @if (utente()?.ruolo === 'admin') {
+                    <button class="btn btn-sm btn-outline-primary" (click)="apriModalNuovo()">
+                      Inserisci il primo elemento
+                    </button>
+                  }
+                }
+              </div>
+            } @else {
+              <div class="mobile-cards-container">
+                @for (riga of righeFiltrate(); track $index) {
+                  <div
+                    class="mobile-card"
+                    [class.row-selected]="isRigaSelezionata(riga)"
+                    [class.row-selection-disabled]="isRigaDisabilitataSelezione(riga)"
+                    (click)="selezionaRiga(riga)"
+                  >
+                    <div class="mobile-card-header">
+                      <div class="mobile-card-title-wrap">
+                        @if (tabellaSelezionata() === 'ordine_impieghi') {
+                          <input
+                            type="checkbox"
+                            class="mobile-card-checkbox"
+                            [checked]="isRigaSelezionata(riga)"
+                            [disabled]="isRigaDisabilitataSelezione(riga)"
+                            (click)="$event.stopPropagation()"
+                            (change)="toggleSelezioneRiga(riga)"
+                            [title]="isRigaDisabilitataSelezione(riga) ? 'Puoi selezionare solo ordini dello stesso cliente' : 'Seleziona ordine'"
+                            aria-label="Seleziona ordine"
+                          />
+                        }
+                        <span class="mobile-card-title">
+                          {{ riga[defTabella().titoloScheda] || 'Elemento' }}
+                        </span>
+                      </div>
+                      @if (utente()?.ruolo === 'admin') {
+                        <div class="mobile-card-actions" (click)="$event.stopPropagation()">
+                          <button class="btn-icon" (click)="duplicaRiga(riga)" title="Duplica riga">📋</button>
+                          <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
+                          <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
+                        </div>
+                      }
+                    </div>
+                    <div class="mobile-card-body">
+                      @for (campo of campiConfigurabili(); track campo.nome) {
+                        @if (!campo.automatico && campo.nome !== defTabella().titoloScheda && (campo.inScheda || riga[campo.nome]) && (!haPersonalizzazioniColonne() || isColonnaVisibile(campo.nome))) {
+                          <div class="mobile-field-row">
+                            <span class="field-label">{{ campo.etichetta }}:</span>
+                            <span class="field-val">{{ formattaValoreTabella(campo, riga[campo.nome]) }}</span>
+                          </div>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           } @else {
-            @if (modalitaVista() === 'tabella') {
-              <!-- 1. VISTA TABELLARE -->
+            <!-- 1. VISTA TABELLARE -->
+            @if (righeFiltrate().length === 0 && !haFiltriColonnaAttivi() && !ricercaTesto()) {
+              <div class="empty-state">
+                <p>Nessun record presente in questa tabella.</p>
+                @if (utente()?.ruolo === 'admin') {
+                  <button class="btn btn-sm btn-outline-primary" (click)="apriModalNuovo()">
+                    Inserisci il primo elemento
+                  </button>
+                }
+              </div>
+            } @else {
               <div class="table-wrapper">
                 <div class="table-head-tools">
                   <ng-container *ngTemplateOutlet="colCustomizerTpl"></ng-container>
@@ -1787,80 +1881,6 @@
                   </tbody>
                 </table>
                 </div>
-              </div>
-            } @else {
-              <!-- 2. VISTA SCHEDE -->
-              @if (tabellaSelezionata() === 'lotti_magazzino' || tabellaSelezionata() === 'ordine_impieghi') {
-                <div class="mobile-search-bar" style="margin-bottom: 12px;">
-                  <div class="search-input-box" style="position: relative; display: flex; align-items: center;">
-                    <span style="position: absolute; left: 10px; color: #94a3b8; pointer-events: none;">🔍</span>
-                    <input
-                      type="text"
-                      class="form-control form-control-sm"
-                      style="padding-left: 32px; padding-right: 30px; font-size: 13px; height: 38px; border-radius: 6px;"
-                      placeholder="Cerca schede (lotto, varietà, cliente, note, ecc.)..."
-                      [ngModel]="ricercaTesto()"
-                      (ngModelChange)="ricercaTesto.set($event)"
-                    />
-                    @if (ricercaTesto()) {
-                      <button
-                        type="button"
-                        class="btn-clear-search"
-                        style="position: absolute; right: 8px; border: none; background: transparent; font-size: 14px; cursor: pointer; color: #64748b;"
-                        (click)="ricercaTesto.set('')"
-                      >
-                        ✕
-                      </button>
-                    }
-                  </div>
-                </div>
-              }
-              <div class="mobile-cards-container">
-                @for (riga of righeFiltrate(); track $index) {
-                  <div
-                    class="mobile-card"
-                    [class.row-selected]="isRigaSelezionata(riga)"
-                    [class.row-selection-disabled]="isRigaDisabilitataSelezione(riga)"
-                    (click)="selezionaRiga(riga)"
-                  >
-                    <div class="mobile-card-header">
-                      <div class="mobile-card-title-wrap">
-                        @if (tabellaSelezionata() === 'ordine_impieghi') {
-                          <input
-                            type="checkbox"
-                            class="mobile-card-checkbox"
-                            [checked]="isRigaSelezionata(riga)"
-                            [disabled]="isRigaDisabilitataSelezione(riga)"
-                            (click)="$event.stopPropagation()"
-                            (change)="toggleSelezioneRiga(riga)"
-                            [title]="isRigaDisabilitataSelezione(riga) ? 'Puoi selezionare solo ordini dello stesso cliente' : 'Seleziona ordine'"
-                            aria-label="Seleziona ordine"
-                          />
-                        }
-                        <span class="mobile-card-title">
-                          {{ riga[defTabella().titoloScheda] || 'Elemento' }}
-                        </span>
-                      </div>
-                      @if (utente()?.ruolo === 'admin') {
-                        <div class="mobile-card-actions" (click)="$event.stopPropagation()">
-                          <button class="btn-icon" (click)="duplicaRiga(riga)" title="Duplica riga">📋</button>
-                          <button class="btn-icon" (click)="apriModalModifica(riga)" title="Modifica">✏️</button>
-                          <button class="btn-icon btn-icon-danger" (click)="apriConfermaElimina(riga)" title="Elimina">🗑️</button>
-                        </div>
-                      }
-                    </div>
-                    <div class="mobile-card-body">
-                      @for (campo of campiConfigurabili(); track campo.nome) {
-                        @if (!campo.automatico && campo.nome !== defTabella().titoloScheda && (campo.inScheda || riga[campo.nome]) && (!haPersonalizzazioniColonne() || isColonnaVisibile(campo.nome))) {
-                          <div class="mobile-field-row">
-                            <span class="field-label">{{ campo.etichetta }}:</span>
-                            <span class="field-val">{{ formattaValoreTabella(campo, riga[campo.nome]) }}</span>
-                          </div>
-                        }
-                      }
-                    </div>
-                  </div>
-                }
               </div>
             }
           }

@@ -1422,6 +1422,9 @@ export class App implements OnInit {
     if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      this.modalitaVista.set('schede');
+    }
     try {
       if (typeof localStorage !== 'undefined') {
         const salvato = localStorage.getItem('sidebar_chiusa_desktop');
@@ -1712,6 +1715,7 @@ export class App implements OnInit {
       const isSpeciale = isProdottoVincoloTipologiaECampoVarieta(prod);
       if (isSpeciale) {
         val['tipologia'] = 'Nuova produzione';
+        val['riferimento_innesto'] = '';
         if (val['campo_varieta'] === 'NC') {
           val['campo_varieta'] = '';
         }
@@ -1937,14 +1941,16 @@ export class App implements OnInit {
       }
     }
 
-    // Se modifico un campo genitore (es. centro_di_costo o codice_varieta), resetto i figli dipendenti
+    // Se modifico un campo genitore (o compila modifica valori), resetto i figli dipendenti non più validi
     for (const c of this.campiForm()) {
-      if (c.riferimento?.filtro?.campo === campo.nome) {
-        // Valida se l'attuale valore del figlio è ancora ammesso
-        const opzFiglio = this.getOpzioniPerCampo(c);
-        const esiste = opzFiglio.some((o: any) => o[c.riferimento!.colonna] === val[c.nome]);
-        if (!esiste) {
-          val[c.nome] = '';
+      if (c.riferimento?.filtro) {
+        const campoGenitore = c.riferimento.filtro.campo;
+        if (campo.nome === campoGenitore || campo.riferimento?.compila?.includes(campoGenitore)) {
+          const opzFiglio = this.getOpzioniPerCampo(c);
+          const esiste = opzFiglio.some((o: any) => o[c.riferimento!.colonna] === val[c.nome]);
+          if (!esiste) {
+            val[c.nome] = '';
+          }
         }
       }
     }
@@ -1959,8 +1965,12 @@ export class App implements OnInit {
     if (campo.riferimento?.filtro) {
       const { campo: campoGenitore, colonnaRif } = campo.riferimento.filtro;
       const valoreGenitore = this.modalValori()[campoGenitore];
-      if (!valoreGenitore) return [];
-      filtrate = tutte.filter((item: any) => item[colonnaRif] === valoreGenitore);
+      if (!valoreGenitore || valoreGenitore === 'NC') return [];
+      const vGenNorm = String(valoreGenitore).trim().toLowerCase();
+      filtrate = tutte.filter((item: any) => {
+        const itemVal = String(item[colonnaRif] ?? '').trim().toLowerCase();
+        return itemVal === vGenNorm;
+      });
     }
 
     if (!campo.riferimento?.colonna) return filtrate;
@@ -2023,13 +2033,19 @@ export class App implements OnInit {
       }
 
       // Regole speciali lotti: tipologia bloccata a "Nuova produzione" per i 5 prodotti speciali,
-      // campo_varieta aperto SOLO per i 5 prodotti speciali, prezzo_acquisto editabile solo se Acquistato
+      // riferimento_innesto bloccato e vuoto per i 5 prodotti speciali,
+      // campo_varieta aperto SOLO per i 5 prodotti speciali (e richiede un portainnesto valido),
+      // prezzo_acquisto editabile solo se Acquistato
       const isSpeciale = isProdottoVincoloTipologiaECampoVarieta(prod);
+      if (campo.nome === 'riferimento_innesto' && isSpeciale) {
+        return true;
+      }
       if (campo.nome === 'tipologia' && isSpeciale) {
         return true;
       }
-      if (campo.nome === 'campo_varieta' && !isSpeciale) {
-        return true;
+      if (campo.nome === 'campo_varieta') {
+        if (!isSpeciale) return true;
+        if (!val['codice_portainnesto'] || val['codice_portainnesto'] === 'NC') return true;
       }
       if (campo.nome === 'prezzo_acquisto' && val['provenienza'] !== 'Acquistato') {
         return true;

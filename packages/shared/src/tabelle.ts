@@ -486,6 +486,14 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         calcolato: true,
       },
       {
+        nome: 'prodotto',
+        etichetta: 'Prodotto',
+        tipo: 'riferimento',
+        obbligatorio: true,
+        predefinito: 'Barbatelle innestate certificate',
+        riferimento: { tabella: 'tipi_prodotto', colonna: 'prodotto' },
+      },
+      {
         nome: 'riferimento_innesto',
         etichetta: 'Innesto (facoltativo)',
         tipo: 'riferimento',
@@ -517,14 +525,6 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         tipo: 'campagna',
         obbligatorio: true,
         predefinito: 'campagna_corrente',
-      },
-      {
-        nome: 'prodotto',
-        etichetta: 'Prodotto',
-        tipo: 'riferimento',
-        obbligatorio: true,
-        predefinito: 'Barbatelle innestate certificate',
-        riferimento: { tabella: 'tipi_prodotto', colonna: 'prodotto' },
       },
       {
         nome: 'codice_varieta',
@@ -564,7 +564,11 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         nome: 'campo_varieta',
         etichetta: 'Campo - Varietà',
         tipo: 'riferimento',
-        riferimento: { tabella: 'dettaglio_cdc', colonna: 'campo_varieta' },
+        riferimento: {
+          tabella: 'dettaglio_cdc',
+          colonna: 'campo_varieta',
+          filtro: { campo: 'codice_portainnesto', colonnaRif: 'varieta' },
+        },
         inScheda: true,
       },
       {
@@ -912,6 +916,7 @@ export function calcolaCampiDerivati(tabella: NomeTabella, valori: RigaTabella):
     case 'lotti_magazzino':
       if (isProdottoVincoloTipologiaECampoVarieta(r['prodotto'])) {
         r['tipologia'] = 'Nuova produzione';
+        r['riferimento_innesto'] = null;
       } else {
         r['campo_varieta'] = 'NC';
       }
@@ -960,6 +965,10 @@ export function validaRiga(
 
     if (def.nome === 'lotti_magazzino') {
       const isSpeciale = isProdottoVincoloTipologiaECampoVarieta(prod);
+      if (campo.nome === 'riferimento_innesto' && isSpeciale) {
+        valori['riferimento_innesto'] = null;
+        continue;
+      }
       if (campo.nome === 'tipologia' && isSpeciale) {
         valori['tipologia'] = 'Nuova produzione';
         continue;
