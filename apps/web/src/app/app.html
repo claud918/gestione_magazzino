@@ -120,6 +120,22 @@
           </button>
           <button
             class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'ordini_clienti'"
+            (click)="selezionaSezione('ordini_clienti')"
+          >
+            <span class="icon">🚚</span>
+            <span>Ordini Clienti</span>
+          </button>
+          <button
+            class="sidebar-item"
+            [class.active]="sezioneAttiva() === 'resoconto_clienti'"
+            (click)="selezionaSezione('resoconto_clienti')"
+          >
+            <span class="icon">💶</span>
+            <span>Resoconto Clienti</span>
+          </button>
+          <button
+            class="sidebar-item"
             [class.active]="sezioneAttiva() === 'resoconto_ore'"
             (click)="selezionaSezione('resoconto_ore')"
           >
@@ -565,19 +581,18 @@
                 @for (item of disponibilitaFiltrata(); track $index) {
                   <div class="disp-card" [class.card-alert]="item.scoperto > 0">
                     <div class="disp-card-header">
-                      <div>
+                      <div class="disp-header-main">
                         @if (isProdottoSoloPortainnesto(item.prodotto)) {
                           <h3 class="disp-title">P.I. {{ item.codice_portainnesto }}</h3>
-                          <span class="disp-sub">{{ item.prodotto }}</span>
                         } @else {
-                          <h3 class="disp-title">{{ item.codice_varieta }} (Cl. {{ item.codice_clone }})</h3>
-                          <span class="disp-sub">P.I. {{ item.codice_portainnesto }} &bull; {{ item.prodotto }}</span>
+                          <h3 class="disp-title">{{ item.codice_varieta }}</h3>
+                          <div class="disp-badges-row">
+                            <span class="disp-meta-pill">Cl. <strong>{{ item.codice_clone }}</strong></span>
+                            <span class="disp-meta-pill">P.I. <strong>{{ item.codice_portainnesto }}</strong></span>
+                          </div>
                         }
                       </div>
-                      <span class="badge-campagna">{{ item.campagna }}</span>
                     </div>
-
-                    <div class="disp-tipologia">Tipologia: <strong>{{ item.tipologia }}</strong></div>
 
                     <div class="disp-metrics-grid">
                       <div class="metric-box">
@@ -920,16 +935,20 @@
                 @for (item of reseFiltrate(); track $index) {
                   <div class="disp-card">
                     <div class="disp-card-header">
-                      <div>
-                        <h3 class="disp-title">{{ item.codice_varieta }} (Cl. {{ item.codice_clone }})</h3>
-                        <span class="disp-sub">P.I. {{ item.codice_portainnesto }} &bull; {{ item.prodotto }}</span>
+                      <div class="disp-header-main">
+                        @if (isProdottoSoloPortainnesto(item.prodotto)) {
+                          <h3 class="disp-title">P.I. {{ item.codice_portainnesto }}</h3>
+                        } @else {
+                          <h3 class="disp-title">{{ item.codice_varieta }}</h3>
+                          <div class="disp-badges-row">
+                            <span class="disp-meta-pill">Cl. <strong>{{ item.codice_clone }}</strong></span>
+                            <span class="disp-meta-pill">P.I. <strong>{{ item.codice_portainnesto }}</strong></span>
+                          </div>
+                        }
                       </div>
-                      <span class="badge-campagna">{{ item.campagna }}</span>
                     </div>
 
-                    <div class="disp-tipologia">Tipologia: <strong>{{ item.tipologia }}</strong></div>
-
-                    <div class="disp-metrics-grid">
+                    <div class="disp-metrics-grid disp-metrics-grid-2">
                       <div class="metric-box">
                         <span class="metric-label">Innestato</span>
                         <span class="metric-val">{{ item.innestato | number }}</span>
@@ -1012,6 +1031,503 @@
                     }
                   </tbody>
                 </table>
+                </div>
+              </div>
+            }
+          }
+        }
+
+        <!-- ============================================================== -->
+        <!-- SEZIONE: REPORT ORDINI CLIENTI (Prodotto + Da spedire per cliente) -->
+        <!-- ============================================================== -->
+        @if (sezioneAttiva() === 'ordini_clienti') {
+          <div class="content-header">
+            <div>
+              <h2>Report Ordini Clienti</h2>
+              <p class="subtitle">Quantità prodotta e quantità da spedire per ciascun cliente (ordinato &minus; spedito)</p>
+            </div>
+            <div class="header-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="esportaOrdiniClientiCsv()"
+                title="Scarica i dati in formato CSV per Excel"
+              >
+                📥 Esporta CSV
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="caricaOrdiniClienti()"
+                title="Aggiorna dati"
+              >
+                ↻ Aggiorna
+              </button>
+              <div class="view-toggle">
+                <button
+                  class="btn-toggle"
+                  [class.active]="vistaOrdiniClientiModalita() === 'schede'"
+                  (click)="vistaOrdiniClientiModalita.set('schede')"
+                  title="Vista Schede (Ideale smartphone)"
+                >
+                  📱 Schede
+                </button>
+                <button
+                  class="btn-toggle"
+                  [class.active]="vistaOrdiniClientiModalita() === 'tabellare'"
+                  (click)="vistaOrdiniClientiModalita.set('tabellare')"
+                  title="Vista Tabellare (Desktop)"
+                >
+                  💻 Tabella
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards riassuntive Ordini Clienti -->
+          <div class="kpi-grid">
+            <div class="kpi-card card-prodotto">
+              <span class="kpi-label">Totale Prodotto (Lotti)</span>
+              <span class="kpi-value">{{ kpiOrdiniClienti().totProdotto | number }}</span>
+            </div>
+            <div class="kpi-card card-ordinato">
+              <span class="kpi-label">Totale Da Spedire</span>
+              <span class="kpi-value">{{ kpiOrdiniClienti().totDaSpedire | number }}</span>
+              <small class="kpi-sub">{{ kpiOrdiniClienti().numeroClienti }} {{ kpiOrdiniClienti().numeroClienti === 1 ? 'cliente' : 'clienti' }}</small>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Combinazioni Visualizzate</span>
+              <span class="kpi-value">{{ kpiOrdiniClienti().totaleCombinazioni | number }}</span>
+            </div>
+          </div>
+
+          <!-- Filtri Ordini Clienti -->
+          <div class="filter-bar filter-bar-reports">
+            <div class="filter-field">
+              <label for="ordCliFiltroProdotto">Prodotto</label>
+              <select
+                id="ordCliFiltroProdotto"
+                class="form-control"
+                [(ngModel)]="filtroOrdCliProdotto"
+                (ngModelChange)="caricaOrdiniClienti()"
+              >
+                <option value="">-- Tutti i prodotti --</option>
+                @for (p of listaTipiProdotto(); track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="ordCliFiltroCampagna">Campagna</label>
+              <select
+                id="ordCliFiltroCampagna"
+                class="form-control"
+                [(ngModel)]="filtroOrdCliCampagna"
+                (ngModelChange)="caricaOrdiniClienti()"
+              >
+                <option value="">-- Tutte le campagne --</option>
+                @for (c of listaCampagneDisponibili(); track c) {
+                  <option [value]="c">{{ c }}</option>
+                }
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="ordCliFiltroTipologia">Tipologia</label>
+              <select
+                id="ordCliFiltroTipologia"
+                class="form-control"
+                [(ngModel)]="filtroOrdCliTipologia"
+                (ngModelChange)="caricaOrdiniClienti()"
+              >
+                <option value="">-- Tutte le tipologie --</option>
+                @for (t of listaTipologie; track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="ordCliFiltroCliente">Cliente</label>
+              <select
+                id="ordCliFiltroCliente"
+                class="form-control"
+                [(ngModel)]="filtroOrdCliCliente"
+              >
+                <option value="">-- Tutti i clienti --</option>
+                @for (cli of clientiOrdiniClientiTutti(); track cli) {
+                  <option [value]="cli">{{ cli }}</option>
+                }
+              </select>
+            </div>
+            <div class="filter-input-wrap">
+              <label for="ordCliFiltroRicerca">Cerca (varietà, clone, portainnesto)</label>
+              <div class="search-input-box">
+                <input
+                  id="ordCliFiltroRicerca"
+                  type="text"
+                  class="form-control"
+                  placeholder="Digita per cercare..."
+                  [(ngModel)]="filtroOrdCliRicerca"
+                />
+                @if (filtroOrdCliRicerca()) {
+                  <button type="button" class="btn-clear-search" (click)="filtroOrdCliRicerca.set('')" title="Cancella ricerca">✕</button>
+                }
+              </div>
+            </div>
+            <div class="filter-toggles">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="filtroOrdCliSoloDaSpedire" />
+                <span>Solo con ordini da spedire (&gt;0)</span>
+              </label>
+            </div>
+          </div>
+
+          @if (caricamentoOrdiniClienti()) {
+            <div class="loading-box">Caricamento ordini clienti in corso...</div>
+          } @else if (ordiniClientiFiltrati().length === 0) {
+            <div class="empty-state">Nessun dato corrispondente ai filtri selezionati</div>
+          } @else {
+            <!-- MODALITA SCHEDE -->
+            @if (vistaOrdiniClientiModalita() === 'schede') {
+              <div class="cards-grid">
+                @for (item of ordiniClientiFiltrati(); track $index) {
+                  <div class="disp-card">
+                    <div class="disp-card-header">
+                      <div class="disp-header-main">
+                        @if (isProdottoSoloPortainnesto(item.prodotto)) {
+                          <h3 class="disp-title">P.I. {{ item.codice_portainnesto }}</h3>
+                        } @else {
+                          <h3 class="disp-title">{{ item.codice_varieta }}</h3>
+                          <div class="disp-badges-row">
+                            <span class="disp-meta-pill">Cl. <strong>{{ item.codice_clone }}</strong></span>
+                            <span class="disp-meta-pill">P.I. <strong>{{ item.codice_portainnesto }}</strong></span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+
+                    <div class="disp-metrics-grid disp-metrics-grid-2">
+                      <div class="metric-box">
+                        <span class="metric-label">Prodotto (Q.tà)</span>
+                        <span class="metric-val">{{ item.prodotto_qta | number }}</span>
+                      </div>
+                      <div class="metric-box">
+                        <span class="metric-label">Tot. Da Spedire</span>
+                        <span class="metric-val">{{ totaleDaSpedireRigaVisibile(item) | number }}</span>
+                      </div>
+                    </div>
+
+                    <div class="client-card-list">
+                      @for (cli of clientiOrdiniClientiVisibili(); track cli) {
+                        @if ((item.da_spedire_per_cliente[cli] || 0) > 0) {
+                          <div class="client-card-row">
+                            <span class="client-card-name">{{ cli }}</span>
+                            <strong class="client-card-val font-mono">{{ item.da_spedire_per_cliente[cli] | number }}</strong>
+                          </div>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- MODALITA TABELLARE -->
+            @if (vistaOrdiniClientiModalita() === 'tabellare') {
+              <div class="table-wrapper">
+                <div class="table-responsive">
+                  <table class="data-table report-matrix-table">
+                    <thead>
+                      <tr>
+                        <th>Varietà</th>
+                        <th>Clone</th>
+                        <th>Portainnesto</th>
+                        <th class="num td-prodotto-col">Prodotto (Q.tà)</th>
+                        @for (cli of clientiOrdiniClientiVisibili(); track cli) {
+                          <th class="num th-client-col" [title]="'Quantità da spedire a ' + cli">{{ cli }}</th>
+                        }
+                        @if (clientiOrdiniClientiVisibili().length > 1) {
+                          <th class="num th-total-col">Tot. Da Spedire</th>
+                        }
+                      </tr>
+                      <tr class="row-totale-top">
+                        <td colspan="3"><strong>TOTALE ({{ ordiniClientiFiltrati().length }})</strong></td>
+                        <td class="num font-mono font-bold td-prodotto-col">{{ kpiOrdiniClienti().totProdotto | number }}</td>
+                        @for (cli of clientiOrdiniClientiVisibili(); track cli) {
+                          <td class="num font-mono font-bold">
+                            {{ kpiOrdiniClienti().totPerCliente[cli] > 0 ? (kpiOrdiniClienti().totPerCliente[cli] | number) : '—' }}
+                          </td>
+                        }
+                        @if (clientiOrdiniClientiVisibili().length > 1) {
+                          <td class="num font-mono font-bold th-total-col">{{ kpiOrdiniClienti().totDaSpedire | number }}</td>
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of ordiniClientiFiltrati(); track $index) {
+                        <tr>
+                          <td><strong>{{ item.codice_varieta }}</strong></td>
+                          <td>{{ item.codice_clone }}</td>
+                          <td>{{ item.codice_portainnesto }}</td>
+                          <td class="num font-mono font-bold td-prodotto-col">{{ item.prodotto_qta | number }}</td>
+                          @for (cli of clientiOrdiniClientiVisibili(); track cli) {
+                            <td class="num font-mono" [class.cell-has-val]="(item.da_spedire_per_cliente[cli] || 0) > 0">
+                              {{ (item.da_spedire_per_cliente[cli] || 0) > 0 ? (item.da_spedire_per_cliente[cli] | number) : '—' }}
+                            </td>
+                          }
+                          @if (clientiOrdiniClientiVisibili().length > 1) {
+                            <td class="num font-mono font-bold th-total-col">
+                              {{ totaleDaSpedireRigaVisibile(item) > 0 ? (totaleDaSpedireRigaVisibile(item) | number) : '—' }}
+                            </td>
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                    <tfoot>
+                      <tr class="row-totale-bottom">
+                        <td colspan="3"><strong>TOTALE ({{ ordiniClientiFiltrati().length }})</strong></td>
+                        <td class="num font-mono font-bold td-prodotto-col">{{ kpiOrdiniClienti().totProdotto | number }}</td>
+                        @for (cli of clientiOrdiniClientiVisibili(); track cli) {
+                          <td class="num font-mono font-bold">
+                            {{ kpiOrdiniClienti().totPerCliente[cli] > 0 ? (kpiOrdiniClienti().totPerCliente[cli] | number) : '—' }}
+                          </td>
+                        }
+                        @if (clientiOrdiniClientiVisibili().length > 1) {
+                          <td class="num font-mono font-bold th-total-col">{{ kpiOrdiniClienti().totDaSpedire | number }}</td>
+                        }
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            }
+          }
+        }
+
+        <!-- ============================================================== -->
+        <!-- SEZIONE: REPORT RESOCONTO CLIENTI (Tipologie prodotto x Cliente) -->
+        <!-- ============================================================== -->
+        @if (sezioneAttiva() === 'resoconto_clienti') {
+          <div class="content-header">
+            <div>
+              <h2>Resoconto Clienti</h2>
+              <p class="subtitle">Quantità consegnata, prezzo unitario e importo (Prezzo &times; Quantità) per tipologia di prodotto e cliente</p>
+            </div>
+            <div class="header-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="esportaResocontoClientiCsv()"
+                title="Scarica i dati in formato CSV per Excel"
+              >
+                📥 Esporta CSV
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                (click)="caricaResocontoClienti()"
+                title="Aggiorna dati"
+              >
+                ↻ Aggiorna
+              </button>
+              <div class="view-toggle">
+                <button
+                  class="btn-toggle"
+                  [class.active]="vistaResocontoClientiModalita() === 'schede'"
+                  (click)="vistaResocontoClientiModalita.set('schede')"
+                  title="Vista Schede (Ideale smartphone)"
+                >
+                  📱 Schede
+                </button>
+                <button
+                  class="btn-toggle"
+                  [class.active]="vistaResocontoClientiModalita() === 'tabellare'"
+                  (click)="vistaResocontoClientiModalita.set('tabellare')"
+                  title="Vista Tabellare (Desktop)"
+                >
+                  💻 Tabella
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards Resoconto Clienti -->
+          <div class="kpi-grid">
+            <div class="kpi-card card-prodotto">
+              <span class="kpi-label">Totale Quantità Consegnata</span>
+              <span class="kpi-value">{{ kpiResocontoClienti().totQuantita | number }}</span>
+            </div>
+            <div class="kpi-card card-disponibile">
+              <span class="kpi-label">Valore Totale (Prezzo &times; Q.tà)</span>
+              <span class="kpi-value">{{ formattaValuta(kpiResocontoClienti().totImporto) }}</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Clienti Visualizzati</span>
+              <span class="kpi-value">{{ kpiResocontoClienti().numeroClienti | number }}</span>
+              <small class="kpi-sub">{{ kpiResocontoClienti().totaleRighe }} tipologie prodotto</small>
+            </div>
+          </div>
+
+          <!-- Filtri Resoconto Clienti -->
+          <div class="filter-bar filter-bar-reports">
+            <div class="filter-field">
+              <label for="resCliFiltroCampagna">Campagna</label>
+              <select
+                id="resCliFiltroCampagna"
+                class="form-control"
+                [(ngModel)]="filtroResCliCampagna"
+                (ngModelChange)="caricaResocontoClienti()"
+              >
+                <option value="">-- Tutte le campagne --</option>
+                @for (c of listaCampagneResocontoClienti(); track c) {
+                  <option [value]="c">{{ c }}</option>
+                }
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="resCliFiltroCliente">Cliente</label>
+              <select
+                id="resCliFiltroCliente"
+                class="form-control"
+                [(ngModel)]="filtroResCliCliente"
+              >
+                <option value="">-- Tutti i clienti --</option>
+                @for (cli of clientiResocontoTutti(); track cli) {
+                  <option [value]="cli">{{ cli }}</option>
+                }
+              </select>
+            </div>
+            <div class="filter-input-wrap">
+              <label for="resCliFiltroRicerca">Cerca (prodotto, tipologia)</label>
+              <div class="search-input-box">
+                <input
+                  id="resCliFiltroRicerca"
+                  type="text"
+                  class="form-control"
+                  placeholder="Digita per cercare..."
+                  [(ngModel)]="filtroResCliRicerca"
+                />
+                @if (filtroResCliRicerca()) {
+                  <button type="button" class="btn-clear-search" (click)="filtroResCliRicerca.set('')" title="Cancella ricerca">✕</button>
+                }
+              </div>
+            </div>
+          </div>
+
+          @if (caricamentoResocontoClienti()) {
+            <div class="loading-box">Calcolo resoconto clienti in corso...</div>
+          } @else if (resocontoClientiFiltrato().length === 0 || clientiResocontoVisibili().length === 0) {
+            <div class="empty-state">Nessun ordine consegnato corrispondente ai filtri selezionati</div>
+          } @else {
+            <!-- MODALITA SCHEDE -->
+            @if (vistaResocontoClientiModalita() === 'schede') {
+              <div class="cards-grid">
+                @for (item of resocontoClientiFiltrato(); track item.prodotto + '|' + item.tipologia) {
+                  <div class="disp-card">
+                    <div class="disp-card-header">
+                      <div class="disp-header-main">
+                        <h3 class="disp-title">{{ item.prodotto }}</h3>
+                        <div class="disp-badges-row">
+                          <span class="disp-meta-pill">{{ item.tipologia }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="client-card-list">
+                      @for (cli of clientiResocontoVisibili(); track cli) {
+                        @if (item.per_cliente[cli]; as cella) {
+                          <div class="client-resoconto-block">
+                            <div class="client-resoconto-name">{{ cli }}</div>
+                            <div class="disp-metrics-grid">
+                              <div class="metric-box">
+                                <span class="metric-label">Q.tà Cons.</span>
+                                <span class="metric-val">{{ cella.quantita_consegnata | number }}</span>
+                              </div>
+                              <div class="metric-box">
+                                <span class="metric-label">Prezzo</span>
+                                <span class="metric-val">{{ formattaValuta(cella.prezzo) }}</span>
+                              </div>
+                              <div class="metric-box">
+                                <span class="metric-label">Prezzo &times; Q.tà</span>
+                                <span class="metric-val text-success">{{ formattaValuta(cella.totale) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- MODALITA TABELLARE -->
+            @if (vistaResocontoClientiModalita() === 'tabellare') {
+              <div class="table-wrapper">
+                <div class="table-responsive">
+                  <table class="data-table report-matrix-table resoconto-clienti-table">
+                    <thead>
+                      <tr>
+                        <th rowspan="2" class="th-prodotto-sticky">Tipologia di Prodotto</th>
+                        @for (cli of clientiResocontoVisibili(); track cli) {
+                          <th colspan="3" class="th-client-group">{{ cli }}</th>
+                        }
+                      </tr>
+                      <tr>
+                        @for (cli of clientiResocontoVisibili(); track cli) {
+                          <th class="num th-sub-col td-client-sep">Q.tà Cons.</th>
+                          <th class="num th-sub-col">Prezzo</th>
+                          <th class="num th-sub-col th-sub-total">Prezzo &times; Q.tà</th>
+                        }
+                      </tr>
+                      <tr class="row-totale-top">
+                        <td class="td-prodotto-sticky"><strong>TOTALE</strong></td>
+                        @for (cli of clientiResocontoVisibili(); track cli) {
+                          <td class="num font-mono font-bold td-client-sep">
+                            {{ kpiResocontoClienti().perCliente[cli]?.quantita | number }}
+                          </td>
+                          <td class="num font-mono text-muted">—</td>
+                          <td class="num font-mono font-bold text-success">
+                            {{ formattaValuta(kpiResocontoClienti().perCliente[cli]?.importo || 0) }}
+                          </td>
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of resocontoClientiFiltrato(); track item.prodotto + '|' + item.tipologia) {
+                        <tr>
+                          <td class="td-prodotto-sticky">
+                            <div class="resoconto-prod-name">{{ item.prodotto }}</div>
+                            <span class="resoconto-prod-tipo">{{ item.tipologia }}</span>
+                          </td>
+                          @for (cli of clientiResocontoVisibili(); track cli) {
+                            @if (item.per_cliente[cli]; as cella) {
+                              <td class="num font-mono td-client-sep">{{ cella.quantita_consegnata | number }}</td>
+                              <td class="num font-mono">{{ formattaValuta(cella.prezzo) }}</td>
+                              <td class="num font-mono font-bold text-success">{{ formattaValuta(cella.totale) }}</td>
+                            } @else {
+                              <td class="num font-mono text-muted td-client-sep">—</td>
+                              <td class="num font-mono text-muted">—</td>
+                              <td class="num font-mono text-muted">—</td>
+                            }
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                    <tfoot>
+                      <tr class="row-totale-bottom">
+                        <td class="td-prodotto-sticky"><strong>TOTALE</strong></td>
+                        @for (cli of clientiResocontoVisibili(); track cli) {
+                          <td class="num font-mono font-bold td-client-sep">
+                            {{ kpiResocontoClienti().perCliente[cli]?.quantita | number }}
+                          </td>
+                          <td class="num font-mono text-muted">—</td>
+                          <td class="num font-mono font-bold text-success">
+                            {{ formattaValuta(kpiResocontoClienti().perCliente[cli]?.importo || 0) }}
+                          </td>
+                        }
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               </div>
             }
@@ -2080,6 +2596,7 @@
                         class="form-control form-control-sm"
                         placeholder="Filtra dipendenti..."
                         [ngModel]="filtroRicercaDipendenti()"
+                        [ngModelOptions]="{ standalone: true }"
                         (ngModelChange)="filtroRicercaDipendenti.set($event)"
                       />
                       @if (filtroRicercaDipendenti()) {
@@ -2122,6 +2639,7 @@
                         class="form-control form-control-sm search-filter-box"
                         [placeholder]="'Filtra opzioni ' + campo.etichetta + '...'"
                         [ngModel]="getRicercaOpzioni(campo.nome)"
+                        [ngModelOptions]="{ standalone: true }"
                         (ngModelChange)="impostaRicercaOpzioni(campo.nome, $event)"
                         [disabled]="isCampoDisabilitato(campo)"
                       />

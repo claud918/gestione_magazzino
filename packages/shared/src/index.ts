@@ -95,6 +95,52 @@ export interface RigaResa {
   resa: number;
 }
 
+// --- Report Ordini Clienti (quantità prodotta + da spedire per cliente) ---
+
+export interface RigaOrdiniClienti {
+  campagna: string;
+  prodotto: string;
+  codice_varieta: string;
+  codice_clone: string;
+  codice_portainnesto: string;
+  tipologia: string;
+  /** Σ quantità prodotta (lotti_magazzino) */
+  prodotto_qta: number;
+  /** Mappa cliente -> quantità da spedire (ordinato - spedito) */
+  da_spedire_per_cliente: Record<string, number>;
+  /** Totale da spedire su tutti i clienti della riga */
+  totale_da_spedire: number;
+}
+
+export interface ReportOrdiniClientiResponse {
+  righe: RigaOrdiniClienti[];
+  clienti: string[];
+}
+
+// --- Report Resoconto Clienti (tipologie di prodotto x cliente: consegnato, prezzo, prezzo*qta) ---
+
+export interface CellaResocontoCliente {
+  quantita_consegnata: number;
+  /** Prezzo unitario (medio ponderato in caso di prezzi multipli) */
+  prezzo: number;
+  /** Prezzo × Quantità consegnata */
+  totale: number;
+}
+
+export interface RigaResocontoClienti {
+  prodotto: string;
+  tipologia: string;
+  per_cliente: Record<string, CellaResocontoCliente>;
+  totale_quantita: number;
+  totale_importo: number;
+}
+
+export interface ReportResocontoClientiResponse {
+  righe: RigaResocontoClienti[];
+  clienti: string[];
+  campagne: string[];
+}
+
 // --- Risposte API CRUD ---
 
 export interface ErroreApi {

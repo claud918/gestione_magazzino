@@ -23,6 +23,10 @@ import {
   type RigaTabella,
   type RigaDisponibilita,
   type RigaResa,
+  type RigaOrdiniClienti,
+  type ReportOrdiniClientiResponse,
+  type RigaResocontoClienti,
+  type ReportResocontoClientiResponse,
   type UtenteProfilo,
   type RisultatoParsingCsv,
   type BollaTrasportoSommario,
@@ -39,7 +43,15 @@ import {
   ALIQUOTA_IVA_PREDEFINITA,
 } from '@magazzino/shared';
 
-type SezioneAttiva = 'disponibilita' | 'rese' | 'bolle' | 'fatture' | 'tabella' | 'resoconto_ore';
+type SezioneAttiva =
+  | 'disponibilita'
+  | 'rese'
+  | 'ordini_clienti'
+  | 'resoconto_clienti'
+  | 'bolle'
+  | 'fatture'
+  | 'tabella'
+  | 'resoconto_ore';
 
 interface BollaTrasportoForm {
   numeroBolla: string;
@@ -258,6 +270,28 @@ export class App implements OnInit {
   protected readonly filtroReseProdotto = signal<string>('Barbatelle innestate certificate');
   protected readonly filtroReseRicerca = signal('');
 
+  // Dati Report Ordini Clienti
+  protected readonly caricamentoOrdiniClienti = signal(false);
+  protected readonly listaOrdiniClienti = signal<RigaOrdiniClienti[]>([]);
+  protected readonly clientiOrdiniClientiTutti = signal<string[]>([]);
+  protected readonly vistaOrdiniClientiModalita = signal<'schede' | 'tabellare'>('tabellare');
+  protected readonly filtroOrdCliCampagna = signal<string>(campagnaCorrente());
+  protected readonly filtroOrdCliProdotto = signal<string>('Barbatelle innestate certificate');
+  protected readonly filtroOrdCliTipologia = signal<string>('Nuova produzione');
+  protected readonly filtroOrdCliCliente = signal<string>('');
+  protected readonly filtroOrdCliRicerca = signal('');
+  protected readonly filtroOrdCliSoloDaSpedire = signal(false);
+
+  // Dati Report Resoconto Clienti
+  protected readonly caricamentoResocontoClienti = signal(false);
+  protected readonly listaResocontoClienti = signal<RigaResocontoClienti[]>([]);
+  protected readonly clientiResocontoTutti = signal<string[]>([]);
+  protected readonly campagneResocontoClienti = signal<string[]>([]);
+  protected readonly vistaResocontoClientiModalita = signal<'schede' | 'tabellare'>('tabellare');
+  protected readonly filtroResCliCampagna = signal<string>(campagnaCorrente());
+  protected readonly filtroResCliCliente = signal<string>('');
+  protected readonly filtroResCliRicerca = signal('');
+
   // Dati Resoconto Ore
   protected readonly meseResoconto = signal<number>(new Date().getMonth() + 1);
   protected readonly annoResoconto = signal<number>(new Date().getFullYear());
@@ -461,6 +495,8 @@ export class App implements OnInit {
     const sez = this.sezioneAttiva();
     if (sez === 'disponibilita') return '__disp';
     if (sez === 'rese') return '__rese';
+    if (sez === 'ordini_clienti') return '__ordini_clienti';
+    if (sez === 'resoconto_clienti') return '__resoconto_clienti';
     if (sez === 'bolle') return '__bolle';
     if (sez === 'fatture') return '__fatture';
     return this.tabellaSelezionata();
@@ -1418,6 +1454,147 @@ export class App implements OnInit {
     };
   });
 
+  // Computed: Report Ordini Clienti
+  protected readonly clientiOrdiniClientiVisibili = computed<string[]>(() => {
+    const cliFiltro = this.filtroOrdCliCliente().trim();
+    if (cliFiltro) {
+      return [cliFiltro];
+    }
+    return this.clientiOrdiniClientiTutti();
+  });
+
+  protected readonly ordiniClientiFiltrati = computed<RigaOrdiniClienti[]>(() => {
+    const righe = this.listaOrdiniClienti();
+    const q = this.filtroOrdCliRicerca().trim().toLowerCase();
+    const cliFiltro = this.filtroOrdCliCliente().trim();
+    const soloDaSpedire = this.filtroOrdCliSoloDaSpedire();
+
+    return righe
+      .filter((r) => {
+        if (cliFiltro && (r.da_spedire_per_cliente[cliFiltro] || 0) <= 0) {
+          return false;
+        }
+        if (soloDaSpedire && r.totale_da_spedire <= 0) {
+          return false;
+        }
+        if (q) {
+          const full =
+            `${r.codice_varieta} ${r.codice_clone} ${r.codice_portainnesto} ${r.tipologia}`.toLowerCase();
+          if (!full.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const varCmp = (a.codice_varieta || '').localeCompare(b.codice_varieta || '');
+        if (varCmp !== 0) return varCmp;
+        const cloneCmp = (a.codice_clone || '').localeCompare(b.codice_clone || '');
+        if (cloneCmp !== 0) return cloneCmp;
+        return (a.codice_portainnesto || '').localeCompare(b.codice_portainnesto || '');
+      });
+  });
+
+  protected readonly kpiOrdiniClienti = computed(() => {
+    const righe = this.ordiniClientiFiltrati();
+    const clienti = this.clientiOrdiniClientiVisibili();
+    let totProdotto = 0;
+    let totDaSpedire = 0;
+    const totPerCliente: Record<string, number> = {};
+    for (const cli of clienti) {
+      totPerCliente[cli] = 0;
+    }
+
+    for (const r of righe) {
+      totProdotto += r.prodotto_qta;
+      for (const cli of clienti) {
+        const qta = r.da_spedire_per_cliente[cli] || 0;
+        totPerCliente[cli] += qta;
+        totDaSpedire += qta;
+      }
+    }
+
+    return {
+      totProdotto,
+      totDaSpedire,
+      totPerCliente,
+      numeroClienti: clienti.length,
+      totaleCombinazioni: righe.length,
+    };
+  });
+
+  protected totaleDaSpedireRigaVisibile(riga: RigaOrdiniClienti): number {
+    let sum = 0;
+    for (const cli of this.clientiOrdiniClientiVisibili()) {
+      sum += riga.da_spedire_per_cliente[cli] || 0;
+    }
+    return sum;
+  }
+
+  // Computed: Report Resoconto Clienti
+  protected readonly listaCampagneResocontoClienti = computed<string[]>(() => {
+    const set = new Set<string>(this.listaCampagneDisponibili());
+    for (const c of this.campagneResocontoClienti()) {
+      if (c) set.add(c);
+    }
+    return Array.from(set).sort().reverse();
+  });
+
+  protected readonly clientiResocontoVisibili = computed<string[]>(() => {
+    const cliFiltro = this.filtroResCliCliente().trim();
+    if (cliFiltro) {
+      return [cliFiltro];
+    }
+    return this.clientiResocontoTutti();
+  });
+
+  protected readonly resocontoClientiFiltrato = computed<RigaResocontoClienti[]>(() => {
+    const righe = this.listaResocontoClienti();
+    const cliFiltro = this.filtroResCliCliente().trim();
+    const q = this.filtroResCliRicerca().trim().toLowerCase();
+
+    return righe.filter((r) => {
+      if (cliFiltro && !(r.per_cliente[cliFiltro]?.quantita_consegnata > 0)) {
+        return false;
+      }
+      if (q) {
+        const full = `${r.prodotto} ${r.tipologia}`.toLowerCase();
+        if (!full.includes(q)) return false;
+      }
+      return true;
+    });
+  });
+
+  protected readonly kpiResocontoClienti = computed(() => {
+    const righe = this.resocontoClientiFiltrato();
+    const clienti = this.clientiResocontoVisibili();
+    let totQuantita = 0;
+    let totImporto = 0;
+    const perCliente: Record<string, { quantita: number; importo: number }> = {};
+
+    for (const cli of clienti) {
+      perCliente[cli] = { quantita: 0, importo: 0 };
+    }
+
+    for (const r of righe) {
+      for (const cli of clienti) {
+        const cella = r.per_cliente[cli];
+        if (cella) {
+          perCliente[cli].quantita += cella.quantita_consegnata;
+          perCliente[cli].importo = Math.round((perCliente[cli].importo + cella.totale) * 100) / 100;
+          totQuantita += cella.quantita_consegnata;
+          totImporto = Math.round((totImporto + cella.totale) * 100) / 100;
+        }
+      }
+    }
+
+    return {
+      totQuantita,
+      totImporto,
+      perCliente,
+      numeroClienti: clienti.length,
+      totaleRighe: righe.length,
+    };
+  });
+
   ngOnInit(): void {
     if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
@@ -1587,6 +1764,10 @@ export class App implements OnInit {
       this.caricaDisponibilita();
     } else if (sez === 'rese') {
       this.caricaRese();
+    } else if (sez === 'ordini_clienti') {
+      this.caricaOrdiniClienti();
+    } else if (sez === 'resoconto_clienti') {
+      this.caricaResocontoClienti();
     } else if (sez === 'bolle') {
       this.caricaBolle();
     } else if (sez === 'fatture') {
@@ -1610,6 +1791,10 @@ export class App implements OnInit {
       this.caricaDisponibilita();
     } else if (sez === 'rese') {
       this.caricaRese();
+    } else if (sez === 'ordini_clienti') {
+      this.caricaOrdiniClienti();
+    } else if (sez === 'resoconto_clienti') {
+      this.caricaResocontoClienti();
     } else if (sez === 'bolle') {
       this.caricaBolle();
     } else if (sez === 'fatture') {
@@ -1698,6 +1883,59 @@ export class App implements OnInit {
         error: (err) => {
           this.caricamentoRese.set(false);
           this.mostraErrore(err.error?.error || 'Errore nel calcolo rese');
+        },
+      });
+  }
+
+  // --- Report Ordini Clienti ---
+  protected caricaOrdiniClienti(): void {
+    this.caricamentoOrdiniClienti.set(true);
+    const params: Record<string, string> = {};
+    if (this.filtroOrdCliCampagna()) params['campagna'] = this.filtroOrdCliCampagna();
+    if (this.filtroOrdCliProdotto()) params['prodotto'] = this.filtroOrdCliProdotto();
+    if (this.filtroOrdCliTipologia()) params['tipologia'] = this.filtroOrdCliTipologia();
+
+    this.http
+      .get<ReportOrdiniClientiResponse>('/api/report-clienti/ordini-clienti', { params })
+      .subscribe({
+        next: (res) => {
+          this.listaOrdiniClienti.set(res.righe ?? []);
+          const clienti = res.clienti ?? [];
+          this.clientiOrdiniClientiTutti.set(clienti);
+          if (this.filtroOrdCliCliente() && !clienti.includes(this.filtroOrdCliCliente())) {
+            this.filtroOrdCliCliente.set('');
+          }
+          this.caricamentoOrdiniClienti.set(false);
+        },
+        error: (err) => {
+          this.caricamentoOrdiniClienti.set(false);
+          this.mostraErrore(err.error?.error || 'Errore nel caricamento ordini clienti');
+        },
+      });
+  }
+
+  // --- Report Resoconto Clienti ---
+  protected caricaResocontoClienti(): void {
+    this.caricamentoResocontoClienti.set(true);
+    const params: Record<string, string> = {};
+    if (this.filtroResCliCampagna()) params['campagna'] = this.filtroResCliCampagna();
+
+    this.http
+      .get<ReportResocontoClientiResponse>('/api/report-clienti/resoconto-clienti', { params })
+      .subscribe({
+        next: (res) => {
+          this.listaResocontoClienti.set(res.righe ?? []);
+          const clienti = res.clienti ?? [];
+          this.clientiResocontoTutti.set(clienti);
+          this.campagneResocontoClienti.set(res.campagne ?? []);
+          if (this.filtroResCliCliente() && !clienti.includes(this.filtroResCliCliente())) {
+            this.filtroResCliCliente.set('');
+          }
+          this.caricamentoResocontoClienti.set(false);
+        },
+        error: (err) => {
+          this.caricamentoResocontoClienti.set(false);
+          this.mostraErrore(err.error?.error || 'Errore nel caricamento resoconto clienti');
         },
       });
   }
@@ -2351,6 +2589,66 @@ export class App implements OnInit {
     const dataStr = new Date().toISOString().slice(0, 10);
     this.scaricaCsv(`report_rese_${dataStr}.csv`, [intestazioni, ...righe]);
     this.mostraOk('Report rese scaricato in formato CSV');
+  }
+
+  protected esportaOrdiniClientiCsv(): void {
+    const items = this.ordiniClientiFiltrati();
+    const clienti = this.clientiOrdiniClientiVisibili();
+    const intestazioni = [
+      'Campagna',
+      'Prodotto',
+      'Varietà',
+      'Clone',
+      'Portainnesto',
+      'Tipologia',
+      'Prodotto (Q.tà)',
+      ...clienti,
+      ...(clienti.length > 1 ? ['Totale Da Spedire'] : []),
+    ];
+    const righe = items.map((it) => [
+      it.campagna,
+      it.prodotto,
+      it.codice_varieta,
+      it.codice_clone,
+      it.codice_portainnesto,
+      it.tipologia,
+      String(it.prodotto_qta),
+      ...clienti.map((cli) => String(it.da_spedire_per_cliente[cli] || 0)),
+      ...(clienti.length > 1 ? [String(this.totaleDaSpedireRigaVisibile(it))] : []),
+    ]);
+    const dataStr = new Date().toISOString().slice(0, 10);
+    this.scaricaCsv(`report_ordini_clienti_${dataStr}.csv`, [intestazioni, ...righe]);
+    this.mostraOk('Report ordini clienti scaricato in formato CSV');
+  }
+
+  protected esportaResocontoClientiCsv(): void {
+    const items = this.resocontoClientiFiltrato();
+    const clienti = this.clientiResocontoVisibili();
+    const intestazioni = [
+      'Prodotto',
+      'Tipologia',
+      ...clienti.flatMap((cli) => [
+        `${cli} - Q.tà Consegnata`,
+        `${cli} - Prezzo (€)`,
+        `${cli} - Prezzo x Q.tà (€)`,
+      ]),
+    ];
+    const righe = items.map((it) => [
+      it.prodotto,
+      it.tipologia,
+      ...clienti.flatMap((cli) => {
+        const cella = it.per_cliente[cli];
+        if (!cella) return ['0', '0.00', '0.00'];
+        return [
+          String(cella.quantita_consegnata),
+          cella.prezzo.toFixed(2).replace('.', ','),
+          cella.totale.toFixed(2).replace('.', ','),
+        ];
+      }),
+    ]);
+    const dataStr = new Date().toISOString().slice(0, 10);
+    this.scaricaCsv(`report_resoconto_clienti_${dataStr}.csv`, [intestazioni, ...righe]);
+    this.mostraOk('Report resoconto clienti scaricato in formato CSV');
   }
 
   protected esportaTabellaCsv(): void {
