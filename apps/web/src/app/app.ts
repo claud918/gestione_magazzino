@@ -261,6 +261,7 @@ export class App implements OnInit {
   protected readonly mostraUlterioriDisponibilita = signal<boolean>(false);
   protected readonly filtroDispSoloDisponibili = signal(false);
   protected readonly filtroDispSoloScoperti = signal(false);
+  protected readonly filtroDispOltre500 = signal(false);
   protected readonly filtroDispRicerca = signal('');
   protected readonly listaTipologie = TIPOLOGIE_PRODOTTO;
 
@@ -383,6 +384,7 @@ export class App implements OnInit {
     { nome: 'innestato', etichetta: 'Innestato', tipo: 'intero' },
     { nome: 'prodotto_qta', etichetta: 'Prodotto', tipo: 'intero' },
     { nome: 'resa', etichetta: 'Resa', tipo: 'numero' },
+    { nome: 'seconde_resa', etichetta: 'Seconde', tipo: 'numero' },
   ];
 
   private static readonly COLONNE_EXTRA_DISP = [
@@ -1323,6 +1325,7 @@ export class App implements OnInit {
     const q = this.filtroDispRicerca().trim().toLowerCase();
     const soloDisp = this.filtroDispSoloDisponibili();
     const soloScop = this.filtroDispSoloScoperti();
+    const oltre500 = this.filtroDispOltre500();
     const fCampagna = this.filtroDispCampagna().trim();
     const fProdotto = this.filtroDispProdotto().trim();
     const fTipologia = this.filtroDispTipologia().trim();
@@ -1341,6 +1344,7 @@ export class App implements OnInit {
       if (fTipologia && r.tipologia !== fTipologia) return false;
       if (soloDisp && r.disponibile <= 0) return false;
       if (soloScop && r.scoperto <= 0) return false;
+      if (oltre500 && r.disponibile < 500) return false;
       if (q) {
         const full = `${r.codice_varieta} ${r.codice_clone} ${r.codice_portainnesto} ${r.tipologia}`.toLowerCase();
         if (!full.includes(q)) return false;
@@ -1459,16 +1463,21 @@ export class App implements OnInit {
     const list = this.reseFiltrate();
     let totInnestato = 0;
     let totProdotto = 0;
+    let totSeconde = 0;
 
     for (const item of list) {
       totInnestato += item.innestato;
       totProdotto += item.prodotto_qta;
+      totSeconde += item.seconde_qta ?? 0;
     }
     const resaMedia = totInnestato > 0 ? (totProdotto / totInnestato) * 100 : 0;
+    const secondeMedia = totInnestato > 0 ? (totSeconde / totInnestato) * 100 : 0;
     return {
       totInnestato,
       totProdotto,
+      totSeconde,
       resaMedia,
+      secondeMedia,
       totaleCombinazioni: list.length,
     };
   });
@@ -2683,6 +2692,7 @@ export class App implements OnInit {
       'Innestato',
       'Prodotto',
       'Resa (%)',
+      'Seconde (%)',
     ];
     const righe = items.map((it) => [
       it.campagna,
@@ -2694,6 +2704,7 @@ export class App implements OnInit {
       String(it.innestato),
       String(it.prodotto_qta),
       `${it.resa.toFixed(2)}%`,
+      `${(it.seconde_resa ?? 0).toFixed(2)}%`,
     ]);
     const dataStr = new Date().toISOString().slice(0, 10);
     this.scaricaCsv(`report_rese_${dataStr}.csv`, [intestazioni, ...righe]);

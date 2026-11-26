@@ -16,6 +16,7 @@ disponibilitaRoutes.use('*', requireAuth);
  * - codice_varieta: string
  * - soloDisponibili: boolean
  * - soloScoperti: boolean
+ * - oltre500: boolean
  */
 disponibilitaRoutes.get('/', async (c) => {
   const campagna = c.req.query('campagna');
@@ -23,6 +24,7 @@ disponibilitaRoutes.get('/', async (c) => {
   const varieta = c.req.query('codice_varieta');
   const soloDisponibili = c.req.query('soloDisponibili') === 'true';
   const soloScoperti = c.req.query('soloScoperti') === 'true';
+  const oltre500 = c.req.query('oltre500') === 'true';
 
   const whereParts: string[] = [];
   const params: unknown[] = [];
@@ -44,6 +46,9 @@ disponibilitaRoutes.get('/', async (c) => {
   }
   if (soloScoperti) {
     whereParts.push('scoperto > 0');
+  }
+  if (oltre500) {
+    whereParts.push('disponibile >= 500');
   }
 
   const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';

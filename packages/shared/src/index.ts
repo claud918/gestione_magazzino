@@ -93,6 +93,10 @@ export interface RigaResa {
   prodotto_qta: number;
   /** Resa percentuale (prodotto_qta / innestato * 100) */
   resa: number;
+  /** Σ quantità prodotta con tipologia = 'Seconde' (tabella lotti_magazzino) */
+  seconde_qta?: number;
+  /** Rapporto percentuale tra seconde prodotte e innestato (seconde_qta / innestato * 100) */
+  seconde_resa: number;
 }
 
 // --- Report Ordini Clienti (quantità prodotta + da spedire per cliente) ---

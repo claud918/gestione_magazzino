@@ -567,6 +567,10 @@
                 <input type="checkbox" [(ngModel)]="filtroDispSoloScoperti" />
                 <span class="badge-danger-text">Solo scoperti (&gt;0)</span>
               </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="filtroDispOltre500" />
+                <span>Oltre 500 (&gt;500)</span>
+              </label>
             </div>
           </div>
 
@@ -875,6 +879,11 @@
               <span class="kpi-value">{{ kpiRese().resaMedia | number:'1.1-2' }}%</span>
               <small class="kpi-sub">{{ kpiRese().totaleCombinazioni }} combinazioni</small>
             </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Seconde (% su Innestato)</span>
+              <span class="kpi-value">{{ kpiRese().secondeMedia | number:'1.1-2' }}%</span>
+              <small class="kpi-sub">{{ kpiRese().totSeconde | number }} seconde prodotte</small>
+            </div>
           </div>
 
           <!-- Filtri Rese -->
@@ -964,6 +973,10 @@
                         <small>Resa</small>
                         <strong>{{ item.resa | number:'1.1-2' }}%</strong>
                       </div>
+                      <div class="indicator ind-neutral">
+                        <small>Seconde</small>
+                        <strong>{{ (item.seconde_resa ?? 0) | number:'1.1-2' }}%</strong>
+                      </div>
                     </div>
                   </div>
                 }
@@ -1014,6 +1027,11 @@
                             @case ('resa') {
                               <td class="num font-mono font-bold" [class.text-success]="item.resa > 65" [class.text-danger]="item.resa < 50">
                                 {{ item.resa | number:'1.1-2' }}%
+                              </td>
+                            }
+                            @case ('seconde_resa') {
+                              <td class="num font-mono">
+                                {{ (item.seconde_resa ?? 0) | number:'1.1-2' }}%
                               </td>
                             }
                           }
