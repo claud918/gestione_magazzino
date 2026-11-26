@@ -2074,6 +2074,26 @@ export class App implements OnInit {
     this.modalAperto.set(true);
   }
 
+  /** Normalizza i valori di una riga letta dal DB prima di popolare il form modale */
+  private normalizzaValoriModal(val: Record<string, any>): void {
+    for (const c of this.campiForm()) {
+      const curr = val[c.nome];
+      if (c.tipo === 'booleano') {
+        val[c.nome] = curr === true || curr === 1 || curr === '1' || curr === 'true';
+      } else if (
+        (curr === null || curr === undefined) &&
+        (c.tipo === 'scelta' ||
+          c.tipo === 'riferimento' ||
+          c.tipo === 'data' ||
+          c.tipo === 'campagna' ||
+          c.tipo === 'testo' ||
+          c.tipo === 'testo_lungo')
+      ) {
+        val[c.nome] = '';
+      }
+    }
+  }
+
   protected apriModalModifica(riga: RigaTabella): void {
     this.ricercaOpzioniPerCampo.set({});
     this.dipendentiSelezionatiMultipli.set([]);
@@ -2082,6 +2102,7 @@ export class App implements OnInit {
       this.caricaDisponibilitaPromemoria();
     }
     const val: Record<string, any> = { ...riga };
+    this.normalizzaValoriModal(val);
     this.applicaRegoleProdotto(val);
     this.modalValori.set(val);
     this.modalErrori.set({});
@@ -2196,6 +2217,7 @@ export class App implements OnInit {
     delete val['riferimento_lotto_parlante'];
     delete val['campo_varieta'];
     delete val['nome_cognome'];
+    this.normalizzaValoriModal(val);
 
     // Se stiamo duplicando personale, proponi un soprannome univoco
     if (this.tabellaSelezionata() === 'anagrafica_personale' && val['soprannome']) {
@@ -2229,6 +2251,17 @@ export class App implements OnInit {
     // Regole speciali Pezzoni/Maglioli e Marze
     if (campo.nome === 'prodotto') {
       this.applicaRegoleProdotto(val);
+    }
+
+    if (this.tabellaSelezionata() === 'ordine_impieghi' && campo.nome === 'consegnato') {
+      const isSpedito =
+        val['consegnato'] === true ||
+        val['consegnato'] === 1 ||
+        val['consegnato'] === '1' ||
+        val['consegnato'] === 'true';
+      if (isSpedito && !val['data_consegna']) {
+        val['data_consegna'] = dataOggi();
+      }
     }
 
     if (this.tabellaSelezionata() === 'lotti_magazzino' && campo.nome === 'provenienza') {

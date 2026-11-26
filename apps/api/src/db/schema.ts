@@ -195,12 +195,21 @@ export const anagraficaVite = sqliteTable(
   {
     codiceVarieta: text('codice_varieta').notNull(),
     codiceClone: text('codice_clone').notNull(),
+    destinazione: text('destinazione'),
+    note: text('note'),
   },
-  (t) => [primaryKey({ columns: [t.codiceVarieta, t.codiceClone] })],
+  (t) => [
+    primaryKey({ columns: [t.codiceVarieta, t.codiceClone] }),
+    check(
+      'anagrafica_vite_destinazione_check',
+      sql`${t.destinazione} IS NULL OR ${t.destinazione} IN ('Uva tavola', 'Uva vino')`,
+    ),
+  ],
 );
 
 export const anagraficaPortainnesto = sqliteTable('anagrafica_portainnesto', {
   codicePortainnesto: text('codice_portainnesto').primaryKey(),
+  note: text('note'),
 });
 
 export const clienti = sqliteTable('clienti', {
@@ -340,6 +349,7 @@ export const ordineImpieghi = sqliteTable(
     quantita: integer('quantita').notNull(),
     note: text('note'),
     consegnato: integer('consegnato', { mode: 'boolean' }).notNull().default(false),
+    dataConsegna: text('data_consegna'),
     cliente: text('cliente')
       .notNull()
       .references(() => clienti.ragioneSociale, { onUpdate: 'cascade', onDelete: 'restrict' }),

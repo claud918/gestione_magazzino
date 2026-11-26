@@ -2664,7 +2664,7 @@
                 }
 
                 <!-- CASO SPECIALE: INSERIMENTO MULTIPLO DIPENDENTI IN INSERIMENTO ORE (MODO NUOVO) -->
-                @if (defTabella().nome === 'inserimento_ore' && campo.nome === 'dipendente' && modalModo() === 'nuovo') {
+                @else if (defTabella().nome === 'inserimento_ore' && campo.nome === 'dipendente' && modalModo() === 'nuovo') {
                   <div class="multi-dipendenti-box" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; background: #f8fafc;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                       <span class="badge" style="background: #1b4332; color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 12px;">

@@ -37,6 +37,7 @@ export const TIPOLOGIE_PRODOTTO = [
   'Frigoconservate',
   'Ripiantate',
 ] as const;
+export const DESTINAZIONI_VITE = ['Uva tavola', 'Uva vino'] as const;
 
 export type TipoCampo =
   | 'testo'
@@ -732,6 +733,14 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         inScheda: true,
       },
       {
+        nome: 'data_consegna',
+        etichetta: 'Data consegna',
+        tipo: 'data',
+        inScheda: true,
+        aiuto:
+          'Compilata automaticamente con la data odierna quando Consegnato / Spedito viene attivato; resta sempre modificabile.',
+      },
+      {
         nome: 'prezzo_vendita',
         etichetta: 'Prezzo di vendita (€)',
         tipo: 'valuta',
@@ -781,6 +790,14 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
     campi: [
       { nome: 'codice_varieta', etichetta: 'Varietà', tipo: 'testo', obbligatorio: true },
       { nome: 'codice_clone', etichetta: 'Clone', tipo: 'testo', obbligatorio: true, inScheda: true },
+      {
+        nome: 'destinazione',
+        etichetta: 'Destinazione',
+        tipo: 'scelta',
+        opzioni: DESTINAZIONI_VITE,
+        inScheda: true,
+      },
+      { nome: 'note', etichetta: 'Note', tipo: 'testo_lungo', inScheda: true },
     ],
   },
   anagrafica_portainnesto: {
@@ -799,6 +816,7 @@ export const TABELLE: Record<NomeTabella, DefinizioneTabella> = {
         tipo: 'testo',
         obbligatorio: true,
       },
+      { nome: 'note', etichetta: 'Note', tipo: 'testo_lungo', inScheda: true },
     ],
   },
   tipi_prodotto: {

@@ -52,6 +52,8 @@ const ALIAS_CAMPI: Record<string, string[]> = {
   data_inserimento: ['datainserimento', 'data', 'dataordine', 'dataregistrazione'],
   data: ['data', 'datacosto'],
   consegnato: ['consegnato', 'evaso', 'spedito', 'statoevasione'],
+  data_consegna: ['dataconsegna', 'consegna', 'dataspedizione', 'spedizione'],
+  destinazione: ['destinazione', 'destinazioneuva', 'tipouva'],
   riferimento_lotto: ['lotto', 'riferimentolotto', 'lottoriferimento', 'lottoparlante'],
   riferimento_innesto: ['innesto', 'riferimentoinnesto', 'lottoinnesto'],
   confezionamento: ['confezionamento', 'imballo', 'confezione', 'pacco', 'imballaggio'],
@@ -345,6 +347,14 @@ export function processaCsvPerTabella(text: string, def: DefinizioneTabella): Ri
       }
     });
 
+    if (
+      def.nome === 'ordine_impieghi' &&
+      inputRiga['consegnato'] === true &&
+      !inputRiga['data_consegna']
+    ) {
+      inputRiga['data_consegna'] = dataOggi();
+    }
+
     const { valori, errori } = validaRiga(def, inputRiga);
     if (errori.length > 0) {
       erroriRighe.push({
@@ -379,6 +389,7 @@ export function generaTemplateCsv(def: DefinizioneTabella): string {
     // Vite e portainnesti
     codice_varieta: 'GLERA',
     codice_clone: 'VCR1',
+    destinazione: 'Uva vino',
     codice_portainnesto: 'K5BB',
     prodotto: 'Gestionale Mori',
     // Lotti e ordini
@@ -390,6 +401,7 @@ export function generaTemplateCsv(def: DefinizioneTabella): string {
     cliente: 'Azienda Agricola Rossi Srl',
     riferimento_lotto: '',
     consegnato: 'No',
+    data_consegna: '',
     note: 'Esempio importazione',
     // Clienti
     ragione_sociale: 'Azienda Agricola Rossi Srl',

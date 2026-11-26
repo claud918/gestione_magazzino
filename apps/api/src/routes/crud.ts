@@ -5,6 +5,7 @@ import {
   calcolaCampiDerivati,
   validaRiga,
   CONFLITTO_TABELLA,
+  dataOggi,
   type NomeTabella,
   type RigaTabella,
 } from '@magazzino/shared';
@@ -80,6 +81,16 @@ crudRoutes.post('/:tabella', requireAdmin, async (c) => {
   const { valori, errori } = validaRiga(def, body);
   if (errori.length > 0) {
     return c.json({ error: 'Dati non validi', errori }, 400);
+  }
+
+  // Fallback: compila automaticamente data_consegna alla data odierna se consegnato = true e il campo non è stato inviato
+  if (
+    def.nome === 'ordine_impieghi' &&
+    valori['consegnato'] === true &&
+    body['data_consegna'] === undefined &&
+    !valori['data_consegna']
+  ) {
+    valori['data_consegna'] = dataOggi();
   }
 
   // Aggiungi ID uuid per tabelle con id automatico
