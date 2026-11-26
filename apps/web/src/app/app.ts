@@ -25,6 +25,7 @@ import {
   type RigaResa,
   type RigaOrdiniClienti,
   type ReportOrdiniClientiResponse,
+  type DettaglioResocontoClienti,
   type RigaResocontoClienti,
   type ReportResocontoClientiResponse,
   type UtenteProfilo,
@@ -252,6 +253,7 @@ export class App implements OnInit {
   // Dati Report Disponibilità
   protected readonly caricamentoDisponibilita = signal(false);
   protected readonly listaDisponibilita = signal<RigaDisponibilita[]>([]);
+  protected readonly listaDisponibilitaPromemoria = signal<RigaDisponibilita[]>([]);
   protected readonly vistaDisponibilitaModalita = signal<'schede' | 'tabellare'>('schede');
   protected readonly filtroDispCampagna = signal<string>(campagnaCorrente());
   protected readonly filtroDispProdotto = signal<string>('Barbatelle innestate certificate');
@@ -291,6 +293,7 @@ export class App implements OnInit {
   protected readonly filtroResCliCampagna = signal<string>(campagnaCorrente());
   protected readonly filtroResCliCliente = signal<string>('');
   protected readonly filtroResCliRicerca = signal('');
+  protected readonly righeResocontoEspanse = signal<Set<string>>(new Set());
 
   // Dati Resoconto Ore
   protected readonly meseResoconto = signal<number>(new Date().getMonth() + 1);
@@ -1231,19 +1234,35 @@ export class App implements OnInit {
     if (!codice_varieta || !codice_clone || !codice_portainnesto) return null;
 
     const quantitaRichiesta = Number(val['quantita']) || 0;
-    const match = this.listaDisponibilita().find(
+    const campagnaEff = campagna || campagnaCorrente();
+    const prodottoEff = prodotto || 'Barbatelle innestate certificate';
+    const tipologiaEff = tipologia || 'Nuova produzione';
+    const sorgente =
+      this.listaDisponibilitaPromemoria().length > 0
+        ? this.listaDisponibilitaPromemoria()
+        : this.listaDisponibilita();
+    const match = sorgente.find(
       (d) =>
-        d.campagna === (campagna || campagnaCorrente()) &&
-        d.prodotto === (prodotto || 'Barbatelle innestate certificate') &&
+        d.campagna === campagnaEff &&
+        d.prodotto === prodottoEff &&
         d.codice_varieta === codice_varieta &&
         d.codice_clone === codice_clone &&
         d.codice_portainnesto === codice_portainnesto &&
-        d.tipologia === (tipologia || 'Nuova produzione'),
+        d.tipologia === tipologiaEff,
     );
 
     if (match) {
-      const qtaEsistenteOrdine =
-        this.modalModo() === 'modifica' ? Number(this.rigaInModifica()?.['quantita']) || 0 : 0;
+      const orig = this.rigaInModifica();
+      const stessaCombinazioneOrig =
+        this.modalModo() === 'modifica' &&
+        orig !== null &&
+        orig['campagna'] === campagnaEff &&
+        orig['prodotto'] === prodottoEff &&
+        orig['codice_varieta'] === codice_varieta &&
+        orig['codice_clone'] === codice_clone &&
+        orig['codice_portainnesto'] === codice_portainnesto &&
+        orig['tipologia'] === tipologiaEff;
+      const qtaEsistenteOrdine = stessaCombinazioneOrig ? Number(orig['quantita']) || 0 : 0;
       const disponibileEffettivo = match.disponibile + qtaEsistenteOrdine;
       const residuo = disponibileEffettivo - quantitaRichiesta;
       return {
@@ -1264,12 +1283,12 @@ export class App implements OnInit {
 
     return {
       trovato: false,
-      campagna: campagna || campagnaCorrente(),
-      prodotto: prodotto || 'Barbatelle innestate certificate',
+      campagna: campagnaEff,
+      prodotto: prodottoEff,
       varieta: codice_varieta,
       clone: codice_clone,
       pi: codice_portainnesto,
-      tipologia: tipologia || 'Nuova produzione',
+      tipologia: tipologiaEff,
       prodotto_qta: 0,
       ordinato: 0,
       disponibile: 0,
@@ -1471,11 +1490,20 @@ export class App implements OnInit {
 
     return righe
       .filter((r) => {
-        if (cliFiltro && (r.da_spedire_per_cliente[cliFiltro] || 0) <= 0) {
-          return false;
+        if (cliFiltro) {
+          const spedito = r.spedito_per_cliente?.[cliFiltro] || 0;
+          const daSpedire = r.da_spedire_per_cliente?.[cliFiltro] || 0;
+          if (spedito <= 0 && daSpedire <= 0) {
+            return false;
+          }
         }
-        if (soloDaSpedire && r.totale_da_spedire <= 0) {
-          return false;
+        if (soloDaSpedire) {
+          const qtaDaSpedire = cliFiltro
+            ? r.da_spedire_per_cliente?.[cliFiltro] || 0
+            : r.totale_da_spedire;
+          if (qtaDaSpedire <= 0) {
+            return false;
+          }
         }
         if (q) {
           const full =
@@ -1497,23 +1525,28 @@ export class App implements OnInit {
     const righe = this.ordiniClientiFiltrati();
     const clienti = this.clientiOrdiniClientiVisibili();
     let totProdotto = 0;
+    let totSpedito = 0;
     let totDaSpedire = 0;
-    const totPerCliente: Record<string, number> = {};
+    const totPerCliente: Record<string, { spedito: number; daSpedire: number }> = {};
     for (const cli of clienti) {
-      totPerCliente[cli] = 0;
+      totPerCliente[cli] = { spedito: 0, daSpedire: 0 };
     }
 
     for (const r of righe) {
       totProdotto += r.prodotto_qta;
       for (const cli of clienti) {
-        const qta = r.da_spedire_per_cliente[cli] || 0;
-        totPerCliente[cli] += qta;
-        totDaSpedire += qta;
+        const spedito = r.spedito_per_cliente?.[cli] || 0;
+        const daSpedire = r.da_spedire_per_cliente?.[cli] || 0;
+        totPerCliente[cli].spedito += spedito;
+        totPerCliente[cli].daSpedire += daSpedire;
+        totSpedito += spedito;
+        totDaSpedire += daSpedire;
       }
     }
 
     return {
       totProdotto,
+      totSpedito,
       totDaSpedire,
       totPerCliente,
       numeroClienti: clienti.length,
@@ -1521,10 +1554,18 @@ export class App implements OnInit {
     };
   });
 
+  protected totaleSpeditoRigaVisibile(riga: RigaOrdiniClienti): number {
+    let sum = 0;
+    for (const cli of this.clientiOrdiniClientiVisibili()) {
+      sum += riga.spedito_per_cliente?.[cli] || 0;
+    }
+    return sum;
+  }
+
   protected totaleDaSpedireRigaVisibile(riga: RigaOrdiniClienti): number {
     let sum = 0;
     for (const cli of this.clientiOrdiniClientiVisibili()) {
-      sum += riga.da_spedire_per_cliente[cli] || 0;
+      sum += riga.da_spedire_per_cliente?.[cli] || 0;
     }
     return sum;
   }
@@ -1866,6 +1907,14 @@ export class App implements OnInit {
       });
   }
 
+  protected caricaDisponibilitaPromemoria(): void {
+    this.http.get<{ disponibilita: RigaDisponibilita[] }>('/api/disponibilita').subscribe({
+      next: (res) => {
+        this.listaDisponibilitaPromemoria.set(res.disponibilita ?? []);
+      },
+    });
+  }
+
   // --- Report Rese ---
   protected caricaRese(): void {
     this.caricamentoRese.set(true);
@@ -1917,6 +1966,7 @@ export class App implements OnInit {
   // --- Report Resoconto Clienti ---
   protected caricaResocontoClienti(): void {
     this.caricamentoResocontoClienti.set(true);
+    this.righeResocontoEspanse.set(new Set());
     const params: Record<string, string> = {};
     if (this.filtroResCliCampagna()) params['campagna'] = this.filtroResCliCampagna();
 
@@ -1938,6 +1988,32 @@ export class App implements OnInit {
           this.mostraErrore(err.error?.error || 'Errore nel caricamento resoconto clienti');
         },
       });
+  }
+
+  protected chiaveRigaResoconto(riga: Pick<RigaResocontoClienti, 'prodotto' | 'tipologia'>): string {
+    return `${riga.prodotto}|${riga.tipologia}`;
+  }
+
+  protected isDettaglioResocontoEspanso(riga: RigaResocontoClienti): boolean {
+    return this.righeResocontoEspanse().has(this.chiaveRigaResoconto(riga));
+  }
+
+  protected toggleDettaglioResoconto(riga: RigaResocontoClienti): void {
+    const key = this.chiaveRigaResoconto(riga);
+    const next = new Set(this.righeResocontoEspanse());
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    this.righeResocontoEspanse.set(next);
+  }
+
+  protected getDettagliResocontoVisibili(riga: RigaResocontoClienti): DettaglioResocontoClienti[] {
+    const dettagli = riga.dettagli ?? [];
+    const cliFiltro = this.filtroResCliCliente().trim();
+    if (!cliFiltro) return dettagli;
+    return dettagli.filter((d) => (d.per_cliente[cliFiltro]?.quantita_consegnata || 0) > 0);
   }
 
   private applicaRegoleProdotto(val: Record<string, any>): void {
@@ -1972,7 +2048,7 @@ export class App implements OnInit {
     this.dipendentiSelezionatiMultipli.set([]);
     this.filtroRicercaDipendenti.set('');
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
-      this.caricaDisponibilita();
+      this.caricaDisponibilitaPromemoria();
     }
     const val: Record<string, any> = {};
     for (const c of this.campiForm()) {
@@ -2003,7 +2079,7 @@ export class App implements OnInit {
     this.dipendentiSelezionatiMultipli.set([]);
     this.filtroRicercaDipendenti.set('');
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
-      this.caricaDisponibilita();
+      this.caricaDisponibilitaPromemoria();
     }
     const val: Record<string, any> = { ...riga };
     this.applicaRegoleProdotto(val);
@@ -2112,7 +2188,7 @@ export class App implements OnInit {
 
   protected duplicaRiga(riga: RigaTabella): void {
     if (this.tabellaSelezionata() === 'ordine_impieghi') {
-      this.caricaDisponibilita();
+      this.caricaDisponibilitaPromemoria();
     }
     const val: Record<string, any> = { ...riga };
     // Rimuovi identificativi automatici e campi derivati dal server
@@ -2602,8 +2678,8 @@ export class App implements OnInit {
       'Portainnesto',
       'Tipologia',
       'Prodotto (Q.tà)',
-      ...clienti,
-      ...(clienti.length > 1 ? ['Totale Da Spedire'] : []),
+      ...clienti.flatMap((cli) => [`${cli} - Spedito`, `${cli} - Da spedire`]),
+      ...(clienti.length > 1 ? ['Totale Spedito', 'Totale Da Spedire'] : []),
     ];
     const righe = items.map((it) => [
       it.campagna,
@@ -2613,8 +2689,16 @@ export class App implements OnInit {
       it.codice_portainnesto,
       it.tipologia,
       String(it.prodotto_qta),
-      ...clienti.map((cli) => String(it.da_spedire_per_cliente[cli] || 0)),
-      ...(clienti.length > 1 ? [String(this.totaleDaSpedireRigaVisibile(it))] : []),
+      ...clienti.flatMap((cli) => [
+        String(it.spedito_per_cliente?.[cli] || 0),
+        String(it.da_spedire_per_cliente?.[cli] || 0),
+      ]),
+      ...(clienti.length > 1
+        ? [
+            String(this.totaleSpeditoRigaVisibile(it)),
+            String(this.totaleDaSpedireRigaVisibile(it)),
+          ]
+        : []),
     ]);
     const dataStr = new Date().toISOString().slice(0, 10);
     this.scaricaCsv(`report_ordini_clienti_${dataStr}.csv`, [intestazioni, ...righe]);

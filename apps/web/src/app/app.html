@@ -1038,13 +1038,13 @@
         }
 
         <!-- ============================================================== -->
-        <!-- SEZIONE: REPORT ORDINI CLIENTI (Prodotto + Da spedire per cliente) -->
+        <!-- SEZIONE: REPORT ORDINI CLIENTI (Prodotto + Spedito / Da spedire per cliente) -->
         <!-- ============================================================== -->
         @if (sezioneAttiva() === 'ordini_clienti') {
           <div class="content-header">
             <div>
               <h2>Report Ordini Clienti</h2>
-              <p class="subtitle">Quantità prodotta e quantità da spedire per ciascun cliente (ordinato &minus; spedito)</p>
+              <p class="subtitle">Quantità prodotta, spedita e da spedire per ciascun cliente</p>
             </div>
             <div class="header-actions">
               <button
@@ -1089,6 +1089,10 @@
             <div class="kpi-card card-prodotto">
               <span class="kpi-label">Totale Prodotto (Lotti)</span>
               <span class="kpi-value">{{ kpiOrdiniClienti().totProdotto | number }}</span>
+            </div>
+            <div class="kpi-card card-disponibile">
+              <span class="kpi-label">Totale Spedito</span>
+              <span class="kpi-value">{{ kpiOrdiniClienti().totSpedito | number }}</span>
             </div>
             <div class="kpi-card card-ordinato">
               <span class="kpi-label">Totale Da Spedire</span>
@@ -1205,10 +1209,14 @@
                       </div>
                     </div>
 
-                    <div class="disp-metrics-grid disp-metrics-grid-2">
+                    <div class="disp-metrics-grid">
                       <div class="metric-box">
                         <span class="metric-label">Prodotto (Q.tà)</span>
                         <span class="metric-val">{{ item.prodotto_qta | number }}</span>
+                      </div>
+                      <div class="metric-box">
+                        <span class="metric-label">Tot. Spedito</span>
+                        <span class="metric-val text-success">{{ totaleSpeditoRigaVisibile(item) | number }}</span>
                       </div>
                       <div class="metric-box">
                         <span class="metric-label">Tot. Da Spedire</span>
@@ -1218,10 +1226,13 @@
 
                     <div class="client-card-list">
                       @for (cli of clientiOrdiniClientiVisibili(); track cli) {
-                        @if ((item.da_spedire_per_cliente[cli] || 0) > 0) {
+                        @if ((item.spedito_per_cliente?.[cli] || 0) > 0 || (item.da_spedire_per_cliente?.[cli] || 0) > 0) {
                           <div class="client-card-row">
                             <span class="client-card-name">{{ cli }}</span>
-                            <strong class="client-card-val font-mono">{{ item.da_spedire_per_cliente[cli] | number }}</strong>
+                            <span class="client-card-badges font-mono">
+                              <span class="badge-chip text-success">Spedito: <strong>{{ (item.spedito_per_cliente?.[cli] || 0) | number }}</strong></span>
+                              <span class="badge-chip">Da spedire: <strong>{{ (item.da_spedire_per_cliente?.[cli] || 0) | number }}</strong></span>
+                            </span>
                           </div>
                         }
                       }
@@ -1238,26 +1249,40 @@
                   <table class="data-table report-matrix-table">
                     <thead>
                       <tr>
-                        <th>Varietà</th>
-                        <th>Clone</th>
-                        <th>Portainnesto</th>
-                        <th class="num td-prodotto-col">Prodotto (Q.tà)</th>
+                        <th rowspan="2">Varietà</th>
+                        <th rowspan="2">Clone</th>
+                        <th rowspan="2">Portainnesto</th>
+                        <th rowspan="2" class="num td-prodotto-col">Prodotto (Q.tà)</th>
                         @for (cli of clientiOrdiniClientiVisibili(); track cli) {
-                          <th class="num th-client-col" [title]="'Quantità da spedire a ' + cli">{{ cli }}</th>
+                          <th colspan="2" class="th-client-group" [title]="cli">{{ cli }}</th>
                         }
                         @if (clientiOrdiniClientiVisibili().length > 1) {
-                          <th class="num th-total-col">Tot. Da Spedire</th>
+                          <th colspan="2" class="th-client-group th-total-col">Totale</th>
+                        }
+                      </tr>
+                      <tr>
+                        @for (cli of clientiOrdiniClientiVisibili(); track cli) {
+                          <th class="num th-sub-col th-sub-spedito td-client-sep" [title]="'Quantità spedita a ' + cli">Spedito</th>
+                          <th class="num th-sub-col" [title]="'Quantità da spedire a ' + cli">Da spedire</th>
+                        }
+                        @if (clientiOrdiniClientiVisibili().length > 1) {
+                          <th class="num th-sub-col th-total-col">Spedito</th>
+                          <th class="num th-sub-col th-total-col">Da spedire</th>
                         }
                       </tr>
                       <tr class="row-totale-top">
                         <td colspan="3"><strong>TOTALE ({{ ordiniClientiFiltrati().length }})</strong></td>
                         <td class="num font-mono font-bold td-prodotto-col">{{ kpiOrdiniClienti().totProdotto | number }}</td>
                         @for (cli of clientiOrdiniClientiVisibili(); track cli) {
+                          <td class="num font-mono font-bold text-success td-client-sep">
+                            {{ (kpiOrdiniClienti().totPerCliente[cli]?.spedito || 0) > 0 ? (kpiOrdiniClienti().totPerCliente[cli].spedito | number) : '—' }}
+                          </td>
                           <td class="num font-mono font-bold">
-                            {{ kpiOrdiniClienti().totPerCliente[cli] > 0 ? (kpiOrdiniClienti().totPerCliente[cli] | number) : '—' }}
+                            {{ (kpiOrdiniClienti().totPerCliente[cli]?.daSpedire || 0) > 0 ? (kpiOrdiniClienti().totPerCliente[cli].daSpedire | number) : '—' }}
                           </td>
                         }
                         @if (clientiOrdiniClientiVisibili().length > 1) {
+                          <td class="num font-mono font-bold text-success th-total-col">{{ kpiOrdiniClienti().totSpedito | number }}</td>
                           <td class="num font-mono font-bold th-total-col">{{ kpiOrdiniClienti().totDaSpedire | number }}</td>
                         }
                       </tr>
@@ -1270,11 +1295,17 @@
                           <td>{{ item.codice_portainnesto }}</td>
                           <td class="num font-mono font-bold td-prodotto-col">{{ item.prodotto_qta | number }}</td>
                           @for (cli of clientiOrdiniClientiVisibili(); track cli) {
-                            <td class="num font-mono" [class.cell-has-val]="(item.da_spedire_per_cliente[cli] || 0) > 0">
-                              {{ (item.da_spedire_per_cliente[cli] || 0) > 0 ? (item.da_spedire_per_cliente[cli] | number) : '—' }}
+                            <td class="num font-mono td-client-sep" [class.cell-spedito]="(item.spedito_per_cliente?.[cli] || 0) > 0">
+                              {{ (item.spedito_per_cliente?.[cli] || 0) > 0 ? (item.spedito_per_cliente[cli] | number) : '—' }}
+                            </td>
+                            <td class="num font-mono" [class.cell-has-val]="(item.da_spedire_per_cliente?.[cli] || 0) > 0">
+                              {{ (item.da_spedire_per_cliente?.[cli] || 0) > 0 ? (item.da_spedire_per_cliente[cli] | number) : '—' }}
                             </td>
                           }
                           @if (clientiOrdiniClientiVisibili().length > 1) {
+                            <td class="num font-mono font-bold text-success th-total-col">
+                              {{ totaleSpeditoRigaVisibile(item) > 0 ? (totaleSpeditoRigaVisibile(item) | number) : '—' }}
+                            </td>
                             <td class="num font-mono font-bold th-total-col">
                               {{ totaleDaSpedireRigaVisibile(item) > 0 ? (totaleDaSpedireRigaVisibile(item) | number) : '—' }}
                             </td>
@@ -1287,11 +1318,15 @@
                         <td colspan="3"><strong>TOTALE ({{ ordiniClientiFiltrati().length }})</strong></td>
                         <td class="num font-mono font-bold td-prodotto-col">{{ kpiOrdiniClienti().totProdotto | number }}</td>
                         @for (cli of clientiOrdiniClientiVisibili(); track cli) {
+                          <td class="num font-mono font-bold text-success td-client-sep">
+                            {{ (kpiOrdiniClienti().totPerCliente[cli]?.spedito || 0) > 0 ? (kpiOrdiniClienti().totPerCliente[cli].spedito | number) : '—' }}
+                          </td>
                           <td class="num font-mono font-bold">
-                            {{ kpiOrdiniClienti().totPerCliente[cli] > 0 ? (kpiOrdiniClienti().totPerCliente[cli] | number) : '—' }}
+                            {{ (kpiOrdiniClienti().totPerCliente[cli]?.daSpedire || 0) > 0 ? (kpiOrdiniClienti().totPerCliente[cli].daSpedire | number) : '—' }}
                           </td>
                         }
                         @if (clientiOrdiniClientiVisibili().length > 1) {
+                          <td class="num font-mono font-bold text-success th-total-col">{{ kpiOrdiniClienti().totSpedito | number }}</td>
                           <td class="num font-mono font-bold th-total-col">{{ kpiOrdiniClienti().totDaSpedire | number }}</td>
                         }
                       </tr>
@@ -1310,7 +1345,7 @@
           <div class="content-header">
             <div>
               <h2>Resoconto Clienti</h2>
-              <p class="subtitle">Quantità consegnata, prezzo unitario e importo (Prezzo &times; Quantità) per tipologia di prodotto e cliente</p>
+              <p class="subtitle">Quantità consegnata, prezzo unitario e importo (Prezzo &times; Quantità) per tipologia di prodotto e cliente &mdash; doppio click su una tipologia di prodotto per il dettaglio (varietà, clone, portainnesto)</p>
             </div>
             <div class="header-actions">
               <button
@@ -1423,9 +1458,16 @@
               <div class="cards-grid">
                 @for (item of resocontoClientiFiltrato(); track item.prodotto + '|' + item.tipologia) {
                   <div class="disp-card">
-                    <div class="disp-card-header">
+                    <div
+                      class="disp-card-header disp-header-expandable"
+                      (dblclick)="toggleDettaglioResoconto(item)"
+                      title="Doppio click per visualizzare/nascondere il dettaglio (varietà, clone, portainnesto)"
+                    >
                       <div class="disp-header-main">
-                        <h3 class="disp-title">{{ item.prodotto }}</h3>
+                        <h3 class="disp-title">
+                          <span class="expand-chevron">{{ isDettaglioResocontoEspanso(item) ? '▼' : '▶' }}</span>
+                          {{ item.prodotto }}
+                        </h3>
                         <div class="disp-badges-row">
                           <span class="disp-meta-pill">{{ item.tipologia }}</span>
                         </div>
@@ -1455,6 +1497,30 @@
                         }
                       }
                     </div>
+
+                    @if (isDettaglioResocontoEspanso(item)) {
+                      <div class="resoconto-card-dettagli">
+                        @for (det of getDettagliResocontoVisibili(item); track det.codice_varieta + '|' + det.codice_clone + '|' + det.codice_portainnesto) {
+                          <div class="resoconto-card-dettaglio-item">
+                            <div class="resoconto-card-dettaglio-title">
+                              <strong>{{ det.codice_varieta }}</strong>
+                              <span class="disp-meta-pill">Cl. <strong>{{ det.codice_clone }}</strong></span>
+                              <span class="disp-meta-pill">P.I. <strong>{{ det.codice_portainnesto }}</strong></span>
+                            </div>
+                            @for (cli of clientiResocontoVisibili(); track cli) {
+                              @if (det.per_cliente[cli]; as cellaDet) {
+                                <div class="resoconto-card-dettaglio-cli">
+                                  <span>{{ cli }}</span>
+                                  <span class="font-mono">
+                                    {{ cellaDet.quantita_consegnata | number }} &times; {{ formattaValuta(cellaDet.prezzo) }} = <strong class="text-success">{{ formattaValuta(cellaDet.totale) }}</strong>
+                                  </span>
+                                </div>
+                              }
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
                   </div>
                 }
               </div>
@@ -1495,9 +1561,18 @@
                     <tbody>
                       @for (item of resocontoClientiFiltrato(); track item.prodotto + '|' + item.tipologia) {
                         <tr>
-                          <td class="td-prodotto-sticky">
-                            <div class="resoconto-prod-name">{{ item.prodotto }}</div>
-                            <span class="resoconto-prod-tipo">{{ item.tipologia }}</span>
+                          <td
+                            class="td-prodotto-sticky td-prodotto-expandable"
+                            (dblclick)="toggleDettaglioResoconto(item)"
+                            title="Doppio click per visualizzare/nascondere il dettaglio (varietà, clone, portainnesto)"
+                          >
+                            <div class="resoconto-prod-row">
+                              <span class="expand-chevron">{{ isDettaglioResocontoEspanso(item) ? '▼' : '▶' }}</span>
+                              <div>
+                                <div class="resoconto-prod-name">{{ item.prodotto }}</div>
+                                <span class="resoconto-prod-tipo">{{ item.tipologia }}</span>
+                              </div>
+                            </div>
                           </td>
                           @for (cli of clientiResocontoVisibili(); track cli) {
                             @if (item.per_cliente[cli]; as cella) {
@@ -1511,6 +1586,31 @@
                             }
                           }
                         </tr>
+                        @if (isDettaglioResocontoEspanso(item)) {
+                          @for (det of getDettagliResocontoVisibili(item); track det.codice_varieta + '|' + det.codice_clone + '|' + det.codice_portainnesto) {
+                            <tr class="row-resoconto-dettaglio">
+                              <td class="td-prodotto-sticky td-dettaglio-prodotto">
+                                <div class="dettaglio-inner">
+                                  <span class="dettaglio-arrow">↳</span>
+                                  <span class="dettaglio-varieta">{{ det.codice_varieta }}</span>
+                                  <span class="dettaglio-meta">Cl. {{ det.codice_clone }}</span>
+                                  <span class="dettaglio-meta">P.I. {{ det.codice_portainnesto }}</span>
+                                </div>
+                              </td>
+                              @for (cli of clientiResocontoVisibili(); track cli) {
+                                @if (det.per_cliente[cli]; as cellaDet) {
+                                  <td class="num font-mono td-client-sep">{{ cellaDet.quantita_consegnata | number }}</td>
+                                  <td class="num font-mono">{{ formattaValuta(cellaDet.prezzo) }}</td>
+                                  <td class="num font-mono font-bold text-success">{{ formattaValuta(cellaDet.totale) }}</td>
+                                } @else {
+                                  <td class="num font-mono text-muted td-client-sep">—</td>
+                                  <td class="num font-mono text-muted">—</td>
+                                  <td class="num font-mono text-muted">—</td>
+                                }
+                              }
+                            </tr>
+                          }
+                        }
                       }
                     </tbody>
                     <tfoot>
@@ -2674,6 +2774,7 @@
                       [(ngModel)]="modalValori()[campo.nome]"
                       [name]="campo.nome"
                       [disabled]="isCampoDisabilitato(campo)"
+                      (ngModelChange)="onCampoChange(campo)"
                     />
                     <label [for]="'form_' + campo.nome">Sì, attivo/consegnato</label>
                   </div>
@@ -2688,6 +2789,7 @@
                     [(ngModel)]="modalValori()[campo.nome]"
                     [name]="campo.nome"
                     [disabled]="isCampoDisabilitato(campo)"
+                    (ngModelChange)="onCampoChange(campo)"
                   />
                 }
 
@@ -2701,6 +2803,7 @@
                     [(ngModel)]="modalValori()[campo.nome]"
                     [name]="campo.nome"
                     [disabled]="isCampoDisabilitato(campo)"
+                    (ngModelChange)="onCampoChange(campo)"
                   />
                 }
 
@@ -2714,6 +2817,7 @@
                     [(ngModel)]="modalValori()[campo.nome]"
                     [name]="campo.nome"
                     [disabled]="isCampoDisabilitato(campo)"
+                    (ngModelChange)="onCampoChange(campo)"
                   />
                 }
 
@@ -2726,6 +2830,7 @@
                     [(ngModel)]="modalValori()[campo.nome]"
                     [name]="campo.nome"
                     [disabled]="isCampoDisabilitato(campo)"
+                    (ngModelChange)="onCampoChange(campo)"
                   ></textarea>
                 }
 
@@ -2738,6 +2843,7 @@
                     [(ngModel)]="modalValori()[campo.nome]"
                     [name]="campo.nome"
                     [disabled]="isCampoDisabilitato(campo)"
+                    (ngModelChange)="onCampoChange(campo)"
                   />
                 }
 

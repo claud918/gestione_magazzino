@@ -106,8 +106,12 @@ export interface RigaOrdiniClienti {
   tipologia: string;
   /** Σ quantità prodotta (lotti_magazzino) */
   prodotto_qta: number;
-  /** Mappa cliente -> quantità da spedire (ordinato - spedito) */
+  /** Mappa cliente -> quantità già spedita (consegnato = true) */
+  spedito_per_cliente: Record<string, number>;
+  /** Mappa cliente -> quantità da spedire (consegnato = false) */
   da_spedire_per_cliente: Record<string, number>;
+  /** Totale spedito su tutti i clienti della riga */
+  totale_spedito: number;
   /** Totale da spedire su tutti i clienti della riga */
   totale_da_spedire: number;
 }
@@ -127,12 +131,22 @@ export interface CellaResocontoCliente {
   totale: number;
 }
 
+export interface DettaglioResocontoClienti {
+  codice_varieta: string;
+  codice_clone: string;
+  codice_portainnesto: string;
+  per_cliente: Record<string, CellaResocontoCliente>;
+  totale_quantita: number;
+  totale_importo: number;
+}
+
 export interface RigaResocontoClienti {
   prodotto: string;
   tipologia: string;
   per_cliente: Record<string, CellaResocontoCliente>;
   totale_quantita: number;
   totale_importo: number;
+  dettagli: DettaglioResocontoClienti[];
 }
 
 export interface ReportResocontoClientiResponse {
